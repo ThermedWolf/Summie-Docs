@@ -1,0 +1,160 @@
+; Custom NSIS script for Summie
+; Handles: Update / Repair / Uninstall when an existing version is detected.
+
+!include "LogicLib.nsh"
+
+!macro customHeader
+!macroend
+
+; ==================== DETECT EXISTING INSTALL ====================
+!macro customInit
+  ; Read the current install path from the registry
+  ReadRegStr $0 HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\summie" "InstallLocation"
+  ${If} $0 == ""
+    ReadRegStr $0 HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\summie" "InstallLocation"
+  ${EndIf}
+
+  ; Fresh install — skip dialog
+  ${If} $0 == ""
+    Return
+  ${EndIf}
+
+  ; ---- Detect UI language ----
+  System::Call 'kernel32::GetUserDefaultUILanguage() i .r1'
+  IntOp $2 $1 & 0xFF
+
+  ; Default strings (English)
+  StrCpy $3 "Summie is already installed. Would you like to update to the new version?"
+  StrCpy $4 "Would you like to repair Summie? (restores shortcuts and file associations)"
+  StrCpy $5 "Would you like to completely uninstall Summie instead?"
+  StrCpy $6 "Summie has been uninstalled."
+  StrCpy $7 "Summie has been repaired. Shortcuts and file associations have been restored."
+
+  ${If} $2 = 0x13
+    ; Dutch
+    StrCpy $3 "Summie is al geinstalleerd. Wil je bijwerken naar de nieuwe versie?"
+    StrCpy $4 "Wil je Summie repareren? (herstelt snelkoppelingen en bestandskoppelingen)"
+    StrCpy $5 "Wil je Summie volledig verwijderen?"
+    StrCpy $6 "Summie is verwijderd."
+    StrCpy $7 "Summie is gerepareerd. Snelkoppelingen en bestandskoppelingen zijn hersteld."
+  ${ElseIf} $2 = 0x07
+    ; German
+    StrCpy $3 "Summie ist bereits installiert. Moechten Sie auf die neue Version aktualisieren?"
+    StrCpy $4 "Moechten Sie Summie reparieren? (stellt Verkuepfungen wieder her)"
+    StrCpy $5 "Moechten Sie Summie vollstaendig deinstallieren?"
+    StrCpy $6 "Summie wurde deinstalliert."
+    StrCpy $7 "Summie wurde repariert."
+  ${ElseIf} $2 = 0x0C
+    ; French
+    StrCpy $3 "Summie est deja installe. Voulez-vous mettre a jour vers la nouvelle version?"
+    StrCpy $4 "Voulez-vous reparer Summie? (restaure les raccourcis et associations)"
+    StrCpy $5 "Voulez-vous desinstaller completement Summie?"
+    StrCpy $6 "Summie a ete desinstalle."
+    StrCpy $7 "Summie a ete repare."
+  ${ElseIf} $2 = 0x0A
+    ; Spanish
+    StrCpy $3 "Summie ya esta instalado. Deseas actualizar a la nueva version?"
+    StrCpy $4 "Deseas reparar Summie? (restaura accesos directos y asociaciones)"
+    StrCpy $5 "Deseas desinstalar Summie completamente?"
+    StrCpy $6 "Summie ha sido desinstalado."
+    StrCpy $7 "Summie ha sido reparado."
+  ${EndIf}
+
+  ; ---- Dialog 1: Update? ----
+  MessageBox MB_YESNO|MB_ICONQUESTION "$3" /SD IDYES IDYES do_update IDNO ask_other
+
+  ; ---- Dialog 2: Repair or Uninstall? ----
+  ask_other:
+    MessageBox MB_YESNO|MB_ICONQUESTION "$4" /SD IDNO IDYES do_repair IDNO ask_uninstall
+
+  ask_uninstall:
+    MessageBox MB_YESNO|MB_ICONQUESTION "$5" /SD IDNO IDYES do_uninstall IDNO do_cancel
+
+  do_cancel:
+    Quit
+
+  ; ---- UPDATE: silent uninstall then continue ----
+  do_update:
+    IfFileExists "$0\Uninstall Summie.exe" 0 update_done
+      ExecWait '"$0\Uninstall Summie.exe" /S _?=$0'
+    update_done:
+    Return
+
+  ; ---- UNINSTALL ----
+  do_uninstall:
+    IfFileExists "$0\Uninstall Summie.exe" 0 uninstall_done
+      ExecWait '"$0\Uninstall Summie.exe" /S _?=$0'
+    uninstall_done:
+    MessageBox MB_OK|MB_ICONINFORMATION "$6"
+    Quit
+
+  ; ---- REPAIR: re-create shortcuts and file associations ----
+  do_repair:
+    Delete "$DESKTOP\Summie.lnk"
+    Delete "$SMPROGRAMS\Summie\Summie.lnk"
+    CreateShortcut "$DESKTOP\Summie.lnk" "$0\Summie.exe"
+    CreateDirectory "$SMPROGRAMS\Summie"
+    CreateShortcut "$SMPROGRAMS\Summie\Summie.lnk" "$0\Summie.exe"
+    WriteRegStr HKCU "Software\Classes\.sumd" "" "SummieDocument"
+    WriteRegStr HKCU "Software\Classes\SummieDocument" "" "Summie Document"
+    WriteRegStr HKCU "Software\Classes\SummieDocument\DefaultIcon" "" "$0\Summie.exe,0"
+    WriteRegStr HKCU "Software\Classes\SummieDocument\shell\open\command" "" '"$0\Summie.exe" "%1"'
+    MessageBox MB_OK|MB_ICONINFORMATION "$7"
+    Quit
+!macroend
+
+!macro customInstallMode
+!macroend
+
+; ==================== POST-INSTALL ====================
+!macro customInstall
+  System::Call 'kernel32::GetUserDefaultUILanguage() i .r1'
+  IntOp $2 $1 & 0xFF
+
+  StrCpy $3 "Would you like to create a desktop shortcut?"
+  StrCpy $4 "Would you like to pin Summie to the taskbar?"
+
+  ${If} $2 = 0x13
+    StrCpy $3 "Wil je een snelkoppeling op het bureaublad aanmaken?"
+    StrCpy $4 "Wil je Summie vastmaken aan de taakbalk?"
+  ${ElseIf} $2 = 0x07
+    StrCpy $3 "Moechten Sie eine Desktop-Verknuepfung erstellen?"
+    StrCpy $4 "Moechten Sie Summie an die Taskleiste anheften?"
+  ${ElseIf} $2 = 0x0C
+    StrCpy $3 "Voulez-vous creer un raccourci sur le bureau?"
+    StrCpy $4 "Voulez-vous epingler Summie a la barre des taches?"
+  ${ElseIf} $2 = 0x0A
+    StrCpy $3 "Deseas crear un acceso directo en el escritorio?"
+    StrCpy $4 "Deseas anclar Summie a la barra de tareas?"
+  ${EndIf}
+
+  MessageBox MB_YESNO|MB_ICONQUESTION "$3" /SD IDNO IDYES create_desktop IDNO skip_desktop
+  create_desktop:
+    CreateShortcut "$DESKTOP\Summie.lnk" "$INSTDIR\Summie.exe"
+  skip_desktop:
+
+  MessageBox MB_YESNO|MB_ICONQUESTION "$4" /SD IDNO IDYES pin_taskbar IDNO skip_taskbar
+  pin_taskbar:
+    FileOpen $0 "$TEMP\pin_summie.vbs" w
+    FileWrite $0 'Set oShell = CreateObject("Shell.Application")$\r$\n'
+    FileWrite $0 'Set oFolder = oShell.Namespace("$INSTDIR")$\r$\n'
+    FileWrite $0 'Set oFolderItem = oFolder.ParseName("Summie.exe")$\r$\n'
+    FileWrite $0 'For Each oVerb in oFolderItem.Verbs$\r$\n'
+    FileWrite $0 '  If InStr(oVerb.Name, "taskbar") > 0 Or InStr(oVerb.Name, "Taskbar") > 0 Or InStr(oVerb.Name, "taakbalk") > 0 Then$\r$\n'
+    FileWrite $0 '    oVerb.DoIt$\r$\n'
+    FileWrite $0 '  End If$\r$\n'
+    FileWrite $0 'Next$\r$\n'
+    FileClose $0
+    ExecWait '"wscript.exe" "$TEMP\pin_summie.vbs"'
+    Delete "$TEMP\pin_summie.vbs"
+  skip_taskbar:
+!macroend
+
+!macro customUnInstall
+  Delete "$DESKTOP\Summie.lnk"
+  Delete "$SMPROGRAMS\Summie.lnk"
+  Delete "$SMPROGRAMS\Summie\Summie.lnk"
+  RMDir "$SMPROGRAMS\Summie"
+  DeleteRegKey HKCU "Software\Classes\.sumd"
+  DeleteRegKey HKCU "Software\Classes\SummieDocument"
+!macroend

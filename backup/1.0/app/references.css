@@ -1,0 +1,364 @@
+/* ==================== REFERENCES CSS ==================== */
+
+/* Reference keyword in document */
+.reference-word {
+    color: #7c3aed;
+    border-bottom: 1.5px dashed #7c3aed;
+    cursor: pointer;
+    border-radius: 2px;
+    padding: 0 1px;
+    transition: background 0.15s;
+}
+
+.reference-word:hover {
+    background: rgba(124, 58, 237, 0.1);
+}
+
+/* Reference target highlight in document */
+.ref-target {
+    outline: 2px dashed rgba(124, 58, 237, 0.4);
+    outline-offset: 2px;
+    border-radius: 3px;
+}
+
+.ref-target-selection {
+    background: rgba(124, 58, 237, 0.08);
+    border-radius: 3px;
+}
+
+.ref-target-highlight {
+    animation: ref-highlight-pulse 1.5s ease;
+}
+
+@keyframes ref-highlight-pulse {
+
+    0%,
+    100% {
+        background: transparent;
+    }
+
+    30% {
+        background: rgba(124, 58, 237, 0.2);
+    }
+}
+
+/* Tooltip / Preview */
+.reference-tooltip {
+    position: fixed;
+    z-index: 9000;
+    background: var(--bg-white);
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+    max-width: 360px;
+    min-width: 200px;
+    display: none;
+    pointer-events: all;
+    overflow: hidden;
+}
+
+.reference-tooltip.active {
+    display: block;
+    animation: tooltipFadeIn 0.15s ease;
+}
+
+@keyframes tooltipFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.ref-tooltip-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px 8px;
+    border-bottom: 1px solid var(--border-color);
+    background: rgba(124, 58, 237, 0.04);
+}
+
+.ref-tooltip-name {
+    font-weight: 600;
+    font-size: 13px;
+    color: #7c3aed;
+}
+
+.ref-tooltip-jump {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    padding: 4px 10px;
+    border: 1px solid #7c3aed;
+    color: #7c3aed;
+    border-radius: 6px;
+    background: transparent;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.ref-tooltip-jump:hover {
+    background: #7c3aed;
+    color: white;
+}
+
+.ref-tooltip-preview {
+    padding: 12px 14px;
+    max-height: 220px;
+    overflow: auto;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.ref-tooltip-preview img {
+    max-width: 100%;
+    max-height: 150px;
+    border-radius: 4px;
+    display: block;
+}
+
+.ref-tooltip-preview table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.ref-tooltip-preview td,
+.ref-tooltip-preview th {
+    border: 1px solid #e2e8f0;
+    padding: 4px 6px;
+}
+
+/* Floating select button */
+.ref-select-floating-btn {
+    position: fixed;
+    z-index: 8000;
+    display: none;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 12px;
+    background: #7c3aed;
+    color: white;
+    border: none;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+    transition: transform 0.1s, box-shadow 0.1s;
+    pointer-events: all;
+    user-select: none;
+}
+
+.ref-select-floating-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(124, 58, 237, 0.4);
+}
+
+/* Select button on images/codeblocks/tables - only visible in select mode */
+.ref-select-btn-wrapper {
+    position: relative;
+    display: block;
+    width: 100%;
+}
+
+/* Hidden by default — only shown in select mode */
+.ref-select-btn {
+    display: none;
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform: translateY(-100%);
+    z-index: 10;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    font-size: 11px;
+    font-weight: 500;
+    background: #7c3aed;
+    color: white;
+    border: none;
+    border-radius: 4px 4px 0 0;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: opacity 0.15s;
+}
+
+/* In select mode: show the button, extend hover area, highlight target */
+body.ref-selecting .ref-select-btn {
+    display: flex;
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* Extend the hover area upward with a pseudo-element so there's no gap */
+body.ref-selecting .ref-select-btn-wrapper::before {
+    content: '';
+    position: absolute;
+    top: -28px;
+    left: 0;
+    right: 0;
+    height: 28px;
+    z-index: 9;
+}
+
+body.ref-selecting .ref-select-btn-wrapper:hover .ref-select-btn {
+    opacity: 1;
+    pointer-events: all;
+}
+
+/* Highlight eligible targets on hover during selection mode */
+body.ref-selecting .ref-select-btn-wrapper:hover> :last-child {
+    outline: 2px dashed #7c3aed;
+    outline-offset: 2px;
+    border-radius: 3px;
+}
+
+/* References panel in sidebar */
+.reference-item {
+    background: var(--bg-white);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    overflow: hidden;
+}
+
+.reference-item-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border-color);
+    background: rgba(124, 58, 237, 0.04);
+}
+
+.reference-item-name {
+    font-weight: 600;
+    font-size: 13px;
+    color: #7c3aed;
+}
+
+.reference-item-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.ref-jump-btn,
+.ref-delete-btn {
+    width: 26px;
+    height: 26px;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    background: transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    transition: all 0.15s;
+}
+
+.ref-jump-btn:hover {
+    border-color: #7c3aed;
+    color: #7c3aed;
+    background: rgba(124, 58, 237, 0.08);
+}
+
+.ref-delete-btn:hover {
+    border-color: var(--danger-color);
+    color: var(--danger-color);
+    background: rgba(239, 68, 68, 0.08);
+}
+
+.reference-item-preview {
+    padding: 8px 10px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+}
+
+/* ref-target-status */
+.ref-target-status {
+    padding: 8px 12px;
+    background: var(--bg-light);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    margin-top: 4px;
+}
+
+/* References tab styling */
+.tab[data-tab="references"] {
+    color: #7c3aed;
+    position: relative;
+}
+
+.tab[data-tab="references"].active {
+    border-bottom-color: #7c3aed;
+}
+
+/* References panel */
+#references-panel {
+    padding: 12px;
+    overflow-y: auto;
+    height: 100%;
+}
+
+/* ==================== SELECT MODE BANNER ==================== */
+.ref-select-banner {
+    position: fixed;
+    bottom: 40px;
+    /* above the bottom status bar */
+    left: 50%;
+    transform: translateX(-50%) translateY(16px);
+    z-index: 8500;
+    background: #7c3aed;
+    color: white;
+    border-radius: 24px;
+    padding: 10px 16px 10px 20px;
+    display: none;
+    align-items: center;
+    gap: 16px;
+    box-shadow: 0 8px 24px rgba(124, 58, 237, 0.4);
+    font-size: 13px;
+    font-weight: 500;
+    opacity: 0;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    white-space: nowrap;
+}
+
+.ref-select-banner.active {
+    display: flex;
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+.ref-select-banner-text {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ref-select-banner-cancel {
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    color: white;
+    border-radius: 12px;
+    padding: 4px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.ref-select-banner-cancel:hover {
+    background: rgba(255, 255, 255, 0.35);
+}

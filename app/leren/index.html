@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="nl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Begrippen Leren</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>Begrippen Leren</h1>
+            <button class="btn btn-secondary" id="backBtn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 12H5M12 19l-7-7 7-7" />
+                </svg>
+                Terug naar Samenvattingen
+            </button>
+        </header>
+
+        <!-- Setup Screen -->
+        <div class="screen" id="setupScreen">
+            <div class="setup-container">
+                <div class="upload-section">
+                    <h2>Laad je Samenvatting</h2>
+                    <p class="subtitle">Upload een samenvatting bestand om te beginnen met leren</p>
+
+                    <div class="upload-area" id="uploadArea">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                            <polyline points="17 8 12 3 7 8" />
+                            <line x1="12" y1="3" x2="12" y2="15" />
+                        </svg>
+                        <p>Sleep bestand hierheen of klik om te uploaden</p>
+                        <input type="file" id="fileInput" accept=".json" style="display: none;">
+                    </div>
+                </div>
+
+                <div class="begrippen-selection" id="begrippenSelection" style="display: none;">
+                    <h2>Selecteer Begrippen</h2>
+                    <p class="subtitle">Kies welke begrippen je wilt oefenen</p>
+
+                    <div class="selection-actions">
+                        <button class="btn btn-sm" id="selectAllBtn">Alles Selecteren</button>
+                        <button class="btn btn-sm" id="deselectAllBtn">Alles Deselecteren</button>
+                        <span class="selected-count" id="selectedCount">0 geselecteerd</span>
+                    </div>
+
+                    <div class="begrippen-list" id="begrippenCheckList"></div>
+
+                    <div class="mode-selection">
+                        <h3>Kies Leer Modus</h3>
+                        <div class="mode-cards">
+                            <div class="mode-card" data-mode="flashcards">
+                                <div class="mode-icon">
+                                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <rect x="3" y="3" width="18" height="18" rx="2" />
+                                        <path d="M3 9h18M9 21V9" />
+                                    </svg>
+                                </div>
+                                <h4>Flashcards</h4>
+                                <p>Bekijk begrippen en hun betekenissen</p>
+                            </div>
+
+                            <div class="mode-card" data-mode="practice">
+                                <div class="mode-icon">
+                                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                        <polyline points="14 2 14 8 20 8" />
+                                        <line x1="16" y1="13" x2="8" y2="13" />
+                                        <line x1="16" y1="17" x2="8" y2="17" />
+                                    </svg>
+                                </div>
+                                <h4>Oefen Begrippen</h4>
+                                <p>Eerst met antwoorden, daarna zelf invullen</p>
+                            </div>
+
+                            <div class="mode-card" data-mode="drill">
+                                <div class="mode-icon">
+                                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <circle cx="12" cy="12" r="10" />
+                                        <polyline points="12 6 12 12 16 14" />
+                                    </svg>
+                                </div>
+                                <h4>Begrippen Stampen</h4>
+                                <p>Test jezelf zonder hints</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-primary btn-large" id="startLearningBtn" disabled>
+                        Start Leren
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Flashcards Screen -->
+        <div class="screen" id="flashcardsScreen" style="display: none;">
+            <div class="learning-container">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="flashcardsProgress"></div>
+                </div>
+                <div class="progress-text" id="flashcardsProgressText">0 / 0</div>
+
+                <div class="flashcard-wrapper">
+                    <div class="flashcard" id="flashcard">
+                        <div class="flashcard-inner">
+                            <div class="flashcard-front">
+                                <div class="card-label">Begrip</div>
+                                <div class="card-content" id="flashcardTerm"></div>
+                            </div>
+                            <div class="flashcard-back">
+                                <div class="card-label">Betekenis</div>
+                                <div class="card-content" id="flashcardDefinition"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="learning-controls">
+                    <button class="btn" id="flashcardPrevBtn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M15 18l-6-6 6-6" />
+                        </svg>
+                        Vorige
+                    </button>
+                    <button class="btn btn-primary" id="flashcardFlipBtn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M1 4v6h6M23 20v-6h-6" />
+                            <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" />
+                        </svg>
+                        Draai Om (Spatie)
+                    </button>
+                    <button class="btn" id="flashcardNextBtn">
+                        Volgende
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M9 18l6-6-6-6" />
+                        </svg>
+                    </button>
+                </div>
+
+                <button class="btn btn-secondary" id="flashcardsExitBtn">Stoppen</button>
+            </div>
+        </div>
+
+        <!-- Practice Screen -->
+        <div class="screen" id="practiceScreen" style="display: none;">
+            <div class="learning-container">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="practiceProgress"></div>
+                </div>
+                <div class="progress-text" id="practiceProgressText">0 / 0</div>
+
+                <div class="practice-card">
+                    <div class="round-indicator" id="practiceRound"></div>
+                    <div class="question-term" id="practiceTerm"></div>
+
+                    <div class="answer-section">
+                        <label for="practiceAnswer">Jouw antwoord:</label>
+                        <textarea id="practiceAnswer" placeholder="Typ hier het antwoord..."></textarea>
+                    </div>
+
+                    <div class="correct-answer" id="practiceCorrectAnswer" style="display: none;">
+                        <h4>Correct antwoord:</h4>
+                        <div class="answer-display" id="correctAnswerText"></div>
+                    </div>
+
+                    <div class="answer-comparison" id="answerComparison" style="display: none;">
+                        <h4>Vergelijking:</h4>
+                        <div class="comparison-grid">
+                            <div class="comparison-item">
+                                <div class="comparison-label">Jouw antwoord:</div>
+                                <div class="comparison-text" id="userAnswerComparison"></div>
+                            </div>
+                            <div class="comparison-item">
+                                <div class="comparison-label">Correct antwoord:</div>
+                                <div class="comparison-text" id="correctAnswerComparison"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="learning-controls">
+                    <button class="btn btn-primary" id="practiceCheckBtn">
+                        Controleer
+                    </button>
+                    <button class="btn" id="practiceNextBtn" style="display: none;">
+                        Volgende
+                    </button>
+                </div>
+
+                <button class="btn btn-secondary" id="practiceExitBtn">Stoppen</button>
+            </div>
+        </div>
+
+        <!-- Drill Screen -->
+        <div class="screen" id="drillScreen" style="display: none;">
+            <div class="learning-container">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="drillProgress"></div>
+                </div>
+                <div class="progress-text" id="drillProgressText">0 / 0</div>
+
+                <div class="practice-card">
+                    <div class="question-term" id="drillTerm"></div>
+
+                    <div class="answer-section">
+                        <label for="drillAnswer">Jouw antwoord:</label>
+                        <textarea id="drillAnswer" placeholder="Typ hier het antwoord..."></textarea>
+                    </div>
+
+                    <div class="answer-comparison" id="drillComparison" style="display: none;">
+                        <h4>Vergelijking:</h4>
+                        <div class="comparison-grid">
+                            <div class="comparison-item">
+                                <div class="comparison-label">Jouw antwoord:</div>
+                                <div class="comparison-text" id="drillUserAnswer"></div>
+                            </div>
+                            <div class="comparison-item">
+                                <div class="comparison-label">Correct antwoord:</div>
+                                <div class="comparison-text" id="drillCorrectAnswer"></div>
+                            </div>
+                        </div>
+                        <div class="drill-buttons">
+                            <button class="btn btn-danger" id="drillWrongBtn">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <circle cx="12" cy="12" r="10" />
+                                    <line x1="15" y1="9" x2="9" y2="15" />
+                                    <line x1="9" y1="9" x2="15" y2="15" />
+                                </svg>
+                                Fout
+                            </button>
+                            <button class="btn btn-success" id="drillCorrectBtn">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <circle cx="12" cy="12" r="10" />
+                                    <polyline points="9 12 11 14 15 10" />
+                                </svg>
+                                Goed
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="learning-controls">
+                    <button class="btn btn-primary" id="drillCheckBtn">
+                        Controleer
+                    </button>
+                    <button class="btn" id="drillNextBtn" style="display: none;">
+                        Volgende
+                    </button>
+                </div>
+
+                <button class="btn btn-secondary" id="drillExitBtn">Stoppen</button>
+            </div>
+        </div>
+
+        <!-- Results Screen -->
+        <div class="screen" id="resultsScreen" style="display: none;">
+            <div class="results-container">
+                <h2>Sessie Voltooid! 🎉</h2>
+                <p class="subtitle">Goed gedaan met het oefenen van je begrippen</p>
+
+                <div class="results-summary" id="resultsSummary"></div>
+
+                <div class="results-actions">
+                    <button class="btn btn-primary" id="restartBtn">Opnieuw Starten</button>
+                    <button class="btn btn-secondary" id="newSessionBtn">Nieuwe Sessie</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Container -->
+    <div class="notification-container" id="notificationContainer"></div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,74 @@
+{
+  "name": "summie",
+  "version": "3.2.5",
+  "description": "Summie - Samenvattingen Maker",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "build:linux": "electron-builder --linux"
+  },
+  "build": {
+    "appId": "com.summie.app",
+    "productName": "Summie",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "app/**/*",
+      "!app/leren/**/*"
+    ],
+    "fileAssociations": [
+      {
+        "ext": "sumd",
+        "name": "Summie Document",
+        "description": "Summie Summary Document",
+        "icon": "app/icon.png",
+        "role": "Editor"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "app/icon.png",
+      "sign": null
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createStartMenuShortcut": true,
+      "installerIcon": "app/icon.ico",
+      "uninstallerIcon": "app/icon.ico",
+      "installerHeaderIcon": "app/icon.ico",
+      "uninstallDisplayName": "Summie",
+      "deleteAppDataOnUninstall": false,
+      "createDesktopShortcut": false,
+      "perMachine": false,
+      "include": "installer.nsh"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "app/icon.png"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "app/icon.png"
+    }
+  },
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1"
+  },
+  "author": "",
+  "license": "MIT"
+}

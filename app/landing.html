@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="nl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Summie - Start</title>
+    <link rel="stylesheet" href="landing.css">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="code-blocks.css">
+    <link rel="stylesheet" href="syntax-highlighting.css">
+    <link rel="stylesheet" href="tables.css">
+</head>
+
+<body>
+    <!-- Topbar -->
+    <div class="landing-topbar">
+        <div class="topbar-left">
+            <div class="app-logo">
+                <img src="icon.png" alt="Summie" width="28" height="28" style="object-fit:contain;display:block;">
+                <span class="app-name">Summie</span>
+                <span class="version-badge">v3.2.6</span>
+            </div>
+        </div>
+        <div class="topbar-actions">
+            <div class="window-controls">
+                <button class="win-btn win-minimize" id="winMinimize" title="Minimaliseren">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <rect x="2" y="7.5" width="12" height="1.5" rx="0.75" fill="currentColor" />
+                    </svg>
+                </button>
+                <button class="win-btn win-maximize" id="winMaximize" title="Maximaliseren">
+                    <!-- Maximize icon (shown when not maximized) -->
+                    <svg class="icon-maximize" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <rect x="2" y="2" width="12" height="12" rx="1.5" stroke="currentColor" stroke-width="1.5" />
+                    </svg>
+                    <!-- Restore icon (shown when maximized) -->
+                    <svg class="icon-restore" width="16" height="16" viewBox="0 0 16 16" fill="none"
+                        style="display:none">
+                        <rect x="4" y="2" width="10" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5" />
+                        <path d="M2 5v7a2 2 0 0 0 2 2h7" stroke="currentColor" stroke-width="1.5"
+                            stroke-linecap="round" />
+                    </svg>
+                </button>
+                <button class="win-btn win-close" id="winClose" title="Sluiten">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <line x1="3" y1="3" x2="13" y2="13" stroke="currentColor" stroke-width="1.6"
+                            stroke-linecap="round" />
+                        <line x1="13" y1="3" x2="3" y2="13" stroke="currentColor" stroke-width="1.6"
+                            stroke-linecap="round" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main landing content -->
+    <div class="landing-content">
+
+        <!-- Current Document Section -->
+        <div class="current-doc-section" id="currentDocSection" style="display:none;">
+            <h2 class="section-title">Huidige Document</h2>
+            <div class="current-doc-wrapper">
+                <div class="a4-preview-container" id="currentDocPreview" title="Klik om te openen">
+                    <div class="a4-preview">
+                        <div class="a4-title" id="previewTitle"></div>
+                        <div class="a4-body" id="previewBody"></div>
+                    </div>
+                </div>
+                <div class="action-cards">
+                    <div class="action-cards-new">
+                        <div class="action-card" id="newDocBtn" title="Nieuw document — één doorlopende pagina">
+                            <div class="action-card-inner">
+                                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                    <polyline points="14 2 14 8 20 8" />
+                                    <line x1="12" y1="18" x2="12" y2="12" />
+                                    <line x1="9" y1="15" x2="15" y2="15" />
+                                </svg>
+                                <span>Nieuw Document</span>
+                                <small class="action-card-sub">Één pagina</small>
+                            </div>
+                        </div>
+                        <div class="action-card" id="newDocPaginatedBtn" title="Nieuw document — met losse pagina's">
+                            <div class="action-card-inner">
+                                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                    <polyline points="14 2 14 8 20 8" />
+                                    <rect x="3" y="14" width="7" height="7" rx="1" stroke-width="1.5" />
+                                    <rect x="14" y="14" width="7" height="7" rx="1" stroke-width="1.5" />
+                                </svg>
+                                <span>Nieuw Document</span>
+                                <small class="action-card-sub">Met paginering</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="action-card action-card-tall" id="openDocBtn" title="Open Document">
+                        <div class="action-card-inner">
+                            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                                <line x1="12" y1="11" x2="12" y2="17" />
+                                <polyline points="9 14 12 11 15 14" />
+                            </svg>
+                            <span>Open Document</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="current-doc-info">
+                    <div class="doc-info-name" id="currentDocName"></div>
+                    <div class="doc-info-date" id="currentDocDate"></div>
+                    <button class="open-current-btn" id="openCurrentBtn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                            <polyline points="15 3 21 3 21 9" />
+                            <line x1="10" y1="14" x2="21" y2="3" />
+                        </svg>
+                        Openen
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions (shown when no current doc) -->
+        <div class="quick-actions-section" id="quickActionsSection" style="display:none;">
+            <h2 class="section-title">Aan de slag</h2>
+            <div class="quick-actions-wrapper">
+                <div class="action-card action-card-lg" id="newDocBtnAlt"
+                    title="Nieuw document — één doorlopende pagina">
+                    <div class="action-card-inner">
+                        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                            <polyline points="14 2 14 8 20 8" />
+                            <line x1="12" y1="18" x2="12" y2="12" />
+                            <line x1="9" y1="15" x2="15" y2="15" />
+                        </svg>
+                        <span>Nieuw Document</span>
+                        <small class="action-card-sub">Één pagina</small>
+                    </div>
+                </div>
+                <div class="action-card action-card-lg" id="newDocPaginatedBtnAlt"
+                    title="Nieuw document — met losse pagina's">
+                    <div class="action-card-inner">
+                        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                            <polyline points="14 2 14 8 20 8" />
+                            <rect x="3" y="14" width="7" height="7" rx="1" stroke-width="1.5" />
+                            <rect x="14" y="14" width="7" height="7" rx="1" stroke-width="1.5" />
+                        </svg>
+                        <span>Nieuw Document</span>
+                        <small class="action-card-sub">Met paginering</small>
+                    </div>
+                </div>
+                <div class="action-card action-card-lg" id="openDocBtnAlt" title="Open Document">
+                    <div class="action-card-inner">
+                        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                            <line x1="12" y1="11" x2="12" y2="17" />
+                            <polyline points="9 14 12 11 15 14" />
+                        </svg>
+                        <span>Open Document</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Documents Section -->
+        <div class="recent-docs-section">
+            <h2 class="section-title">Recente Documenten</h2>
+            <div class="recent-docs-list" id="recentDocsList">
+                <div class="empty-recent" id="emptyRecent">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                        opacity="0.3">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                        <polyline points="14 2 14 8 20 8" />
+                    </svg>
+                    <p>Geen recente documenten gevonden</p>
+                    <span>Maak een nieuw document of open een bestaand bestand</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Context Menu -->
+    <div class="context-menu" id="contextMenu" style="display:none;">
+        <button class="context-item" id="ctxRename">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+            </svg>
+            Hernoemen
+        </button>
+        <button class="context-item" id="ctxOpen">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                <polyline points="15 3 21 3 21 9" />
+                <line x1="10" y1="14" x2="21" y2="3" />
+            </svg>
+            Openen
+        </button>
+        <button class="context-item" id="ctxShowInExplorer">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 3h8l2 3h8a1 1 0 0 1 1 1v11a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a1 1 0 0 1 1-1z" />
+            </svg>
+            Openen in Verkenner
+        </button>
+        <div class="context-separator"></div>
+        <button class="context-item danger" id="ctxRemoveFromList">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="9" y1="9" x2="15" y2="15" />
+                <line x1="15" y1="9" x2="9" y2="15" />
+                <rect x="2" y="4" width="20" height="16" rx="2" />
+            </svg>
+            Verwijder uit lijst
+        </button>
+        <button class="context-item danger" id="ctxDelete">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                <path d="M10 11v6M14 11v6" />
+                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+            </svg>
+            Verwijderen
+        </button>
+    </div>
+
+    <!-- Rename Modal -->
+    <div class="modal-overlay" id="renameModal" style="display:none;">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3>Document Hernoemen</h3>
+                <button class="modal-close" id="closeRenameModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <label>Nieuwe naam</label>
+                <input type="text" id="renameInput" placeholder="Documentnaam..." />
+            </div>
+            <div class="modal-footer">
+                <button class="btn-cancel" id="cancelRename">Annuleren</button>
+                <button class="btn-confirm" id="confirmRename">Opslaan</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="landing.js"></script>
+</body>
+
+</html>

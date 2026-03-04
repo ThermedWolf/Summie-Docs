@@ -1,0 +1,292 @@
+/* ==================== SYNTAX HIGHLIGHTING STYLES ==================== */
+
+/* Base syntax colors - VS Code Dark+ theme inspired */
+.syntax-keyword {
+    color: #569cd6;
+    font-weight: 500;
+}
+
+.syntax-string {
+    color: #ce9178;
+}
+
+.syntax-number {
+    color: #b5cea8;
+}
+
+.syntax-comment {
+    color: #6a9955;
+    font-style: italic;
+}
+
+.syntax-function {
+    color: #dcdcaa;
+}
+
+.syntax-class {
+    color: #4ec9b0;
+}
+
+.syntax-variable {
+    color: #9cdcfe;
+}
+
+.syntax-operator {
+    color: #d4d4d4;
+}
+
+.syntax-property {
+    color: #9cdcfe;
+}
+
+.syntax-constant {
+    color: #4fc1ff;
+}
+
+.syntax-boolean {
+    color: #569cd6;
+}
+
+.syntax-null {
+    color: #569cd6;
+}
+
+.syntax-tag {
+    color: #569cd6;
+}
+
+.syntax-attribute {
+    color: #9cdcfe;
+}
+
+.syntax-regex {
+    color: #d16969;
+}
+
+.syntax-escape {
+    color: #d7ba7d;
+}
+
+.syntax-builtin {
+    color: #4ec9b0;
+}
+
+.syntax-decorator {
+    color: #4ec9b0;
+}
+
+.syntax-symbol {
+    color: #4ec9b0;
+}
+
+.syntax-type {
+    color: #4ec9b0;
+}
+
+/* PHP Tags and DOCTYPE */
+.syntax-phptag {
+    color: #c586c0;
+    font-weight: 600;
+}
+
+.syntax-doctype {
+    color: #808080;
+    font-weight: 500;
+}
+
+/* Language-specific color variations */
+
+/* JavaScript */
+.syntax-javascript-keyword {
+    color: #c586c0;
+}
+
+.syntax-javascript-function {
+    color: #dcdcaa;
+}
+
+.syntax-javascript-string {
+    color: #ce9178;
+}
+
+/* TypeScript */
+.syntax-typescript-keyword {
+    color: #569cd6;
+}
+
+.syntax-typescript-type {
+    color: #4ec9b0;
+}
+
+.syntax-typescript-function {
+    color: #dcdcaa;
+}
+
+/* Python */
+.syntax-python-keyword {
+    color: #c586c0;
+}
+
+.syntax-python-decorator {
+    color: #ffd700;
+}
+
+.syntax-python-function {
+    color: #dcdcaa;
+}
+
+.syntax-python-builtin {
+    color: #4ec9b0;
+}
+
+.syntax-python-string {
+    color: #ce9178;
+}
+
+/* PHP */
+.syntax-php-keyword {
+    color: #c586c0;
+}
+
+.syntax-php-variable {
+    color: #9cdcfe;
+}
+
+.syntax-php-function {
+    color: #dcdcaa;
+}
+
+.syntax-php-string {
+    color: #ce9178;
+}
+
+/* HTML */
+.syntax-html-tag {
+    color: #569cd6;
+}
+
+.syntax-html-attribute {
+    color: #9cdcfe;
+}
+
+.syntax-html-string {
+    color: #ce9178;
+}
+
+.syntax-html-doctype {
+    color: #808080;
+}
+
+/* CSS */
+.syntax-css-property {
+    color: #9cdcfe;
+}
+
+.syntax-css-keyword {
+    color: #569cd6;
+}
+
+.syntax-css-number {
+    color: #b5cea8;
+}
+
+.syntax-css-string {
+    color: #ce9178;
+}
+
+/* Java */
+.syntax-java-keyword {
+    color: #569cd6;
+}
+
+.syntax-java-type {
+    color: #4ec9b0;
+}
+
+.syntax-java-function {
+    color: #dcdcaa;
+}
+
+/* C# */
+.syntax-csharp-keyword {
+    color: #569cd6;
+}
+
+.syntax-csharp-type {
+    color: #4ec9b0;
+}
+
+.syntax-csharp-function {
+    color: #dcdcaa;
+}
+
+/* C++ */
+.syntax-cpp-keyword {
+    color: #569cd6;
+}
+
+.syntax-cpp-type {
+    color: #4ec9b0;
+}
+
+.syntax-cpp-function {
+    color: #dcdcaa;
+}
+
+/* SQL */
+.syntax-sql-keyword {
+    color: #c586c0;
+}
+
+.syntax-sql-function {
+    color: #dcdcaa;
+}
+
+.syntax-sql-string {
+    color: #ce9178;
+}
+
+/* Bash */
+.syntax-bash-keyword {
+    color: #569cd6;
+}
+
+.syntax-bash-builtin {
+    color: #4ec9b0;
+}
+
+.syntax-bash-variable {
+    color: #9cdcfe;
+}
+
+.syntax-bash-string {
+    color: #ce9178;
+}
+
+/* JSON */
+.syntax-json-property {
+    color: #9cdcfe;
+}
+
+.syntax-json-string {
+    color: #ce9178;
+}
+
+.syntax-json-number {
+    color: #b5cea8;
+}
+
+.syntax-json-boolean {
+    color: #569cd6;
+}
+
+.syntax-json-null {
+    color: #569cd6;
+}
+
+/* Highlighted code display */
+.code-highlighted {
+    white-space: pre;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    line-height: 1.6;
+}

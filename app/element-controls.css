@@ -1,0 +1,386 @@
+/* ==================== ELEMENT CONTROLS CSS ==================== */
+
+/* ── Context Panel ───────────────────────────────────────────────── */
+
+.ctx-panel {
+    display: none;
+}
+
+.ctx-panel.active {
+    display: flex;
+    animation: ctxPanelIn 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes ctxPanelIn {
+    from {
+        opacity: 0;
+        transform: translateY(-3px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.ctx-group .toolbar-buttons {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────── */
+
+.ctx-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 10px;
+    font-size: 12px;
+    font-weight: 500;
+    border: 1px solid var(--border-color);
+    background: var(--bg-white);
+    color: var(--text-secondary);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.14s, border-color 0.14s, color 0.14s;
+    white-space: nowrap;
+    line-height: 1.2;
+    -webkit-app-region: no-drag;
+}
+
+.ctx-btn:hover {
+    background: #f0fdf4;
+    border-color: var(--ctx-accent);
+    color: var(--ctx-accent);
+}
+
+.ctx-btn:active {
+    transform: scale(0.97);
+}
+
+.ctx-btn.ctx-btn-active {
+    background: #ccfbf1;
+    border-color: var(--ctx-accent);
+    color: var(--ctx-accent);
+    font-weight: 600;
+}
+
+.ctx-btn-warn {
+    border-color: #f59e0b;
+    color: #78350f;
+}
+
+.ctx-btn-warn:hover {
+    background: #fffbeb;
+    border-color: #d97706;
+    color: #78350f;
+}
+
+.ctx-btn-danger {
+    border-color: #fca5a5 !important;
+    color: var(--danger-color) !important;
+}
+
+.ctx-btn-danger:hover {
+    background: #fef2f2 !important;
+    border-color: var(--danger-color) !important;
+    color: #b91c1c !important;
+}
+
+.ctx-label-danger {
+    color: var(--danger-color) !important;
+}
+
+/* ── Toggle label ────────────────────────────────────────────────── */
+
+.ctx-toggle-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    user-select: none;
+    -webkit-app-region: no-drag;
+}
+
+.ctx-toggle-label input[type="checkbox"] {
+    accent-color: var(--ctx-accent);
+    width: 14px;
+    height: 14px;
+}
+
+/* ── Text input ──────────────────────────────────────────────────── */
+
+.ctx-text-input {
+    padding: 4px 9px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 12px;
+    color: var(--text-primary);
+    background: var(--bg-white);
+    outline: none;
+    width: 160px;
+    transition: border-color 0.14s;
+    -webkit-app-region: no-drag;
+}
+
+.ctx-text-input:focus {
+    border-color: var(--ctx-accent);
+}
+
+/* ── Colour swatch ───────────────────────────────────────────────── */
+
+.ctx-color-swatch {
+    display: inline-block;
+    width: 13px;
+    height: 13px;
+    border-radius: 3px;
+    border: 1px solid rgba(0, 0, 0, 0.18);
+    flex-shrink: 0;
+}
+
+/* ── Size group ──────────────────────────────────────────────────── */
+
+.ctx-size-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 3px 8px;
+    background: var(--bg-white);
+    -webkit-app-region: no-drag;
+}
+
+.ctx-size-label {
+    font-size: 11px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.ctx-size-input {
+    width: 48px;
+    border: none;
+    outline: none;
+    font-size: 12px;
+    color: var(--text-primary);
+    text-align: right;
+    background: transparent;
+}
+
+.ctx-size-unit {
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+/* ── Popup ───────────────────────────────────────────────────────── */
+
+.ctx-popup {
+    position: fixed;
+    z-index: 99999;
+    background: var(--bg-white);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 14px 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.14);
+    min-width: 210px;
+    animation: ctxPopupIn 0.16s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes ctxPopupIn {
+    from {
+        opacity: 0;
+        transform: translateY(-5px) scale(0.97);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.ctx-popup-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.ctx-popup-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.ctx-popup-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+    flex: 1;
+    white-space: nowrap;
+}
+
+.ctx-popup-hex {
+    font-size: 11px;
+    font-family: monospace;
+    color: var(--text-secondary);
+    min-width: 60px;
+}
+
+.ctx-color-pair {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ctx-color-input {
+    width: 34px;
+    height: 26px;
+    padding: 2px;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    cursor: pointer;
+    background: transparent;
+}
+
+.ctx-color-large {
+    width: 72px;
+    height: 36px;
+}
+
+.ctx-popup-actions {
+    display: flex;
+    gap: 6px;
+    justify-content: flex-end;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border-color);
+}
+
+.ctx-popup-btn {
+    padding: 5px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid var(--border-color);
+    transition: background 0.13s;
+}
+
+.ctx-popup-cancel {
+    background: var(--bg-white);
+    color: var(--text-secondary);
+}
+
+.ctx-popup-cancel:hover {
+    background: var(--bg-light);
+}
+
+.ctx-popup-confirm {
+    background: var(--ctx-accent);
+    color: white;
+    border-color: var(--ctx-accent);
+}
+
+.ctx-popup-confirm:hover {
+    background: var(--ctx-accent-light);
+}
+
+/* ── Table highlight previews ────────────────────────────────────── */
+
+.tbl-hl-del {
+    background: rgba(239, 68, 68, 0.12) !important;
+    outline: 2px solid rgba(239, 68, 68, 0.45) !important;
+    outline-offset: -1px;
+}
+
+.tbl-hl-add-above {
+    box-shadow: inset 0 3px 0 var(--ctx-accent) !important;
+    background: rgba(13, 148, 136, 0.06) !important;
+}
+
+.tbl-hl-add-below {
+    box-shadow: inset 0 -3px 0 var(--ctx-accent) !important;
+    background: rgba(13, 148, 136, 0.06) !important;
+}
+
+.tbl-hl-add-left {
+    box-shadow: inset 3px 0 0 var(--ctx-accent) !important;
+    background: rgba(13, 148, 136, 0.06) !important;
+}
+
+.tbl-hl-add-right {
+    box-shadow: inset -3px 0 0 var(--ctx-accent) !important;
+    background: rgba(13, 148, 136, 0.06) !important;
+}
+
+/* ── Codeblock custom name ───────────────────────────────────────── */
+
+.cb-filename-editor {
+    display: inline-flex;
+    align-items: center;
+    gap: 0;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--bg-white);
+}
+
+.ctx-filename-input {
+    /* Override default ctx-text-input border/radius since it's inside the group */
+    border: none !important;
+    border-radius: 0 !important;
+    width: 110px;
+    padding: 4px 8px;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 12px;
+}
+
+.ctx-filename-input:focus {
+    outline: none;
+    box-shadow: none;
+}
+
+.cb-filename-dot {
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    padding: 0 1px;
+    user-select: none;
+    pointer-events: none;
+}
+
+.cb-filename-ext {
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ctx-accent);
+    background: #f0fdf4;
+    padding: 4px 8px;
+    border-left: 1px solid var(--border-color);
+    user-select: none;
+    pointer-events: none;
+    white-space: nowrap;
+    min-width: 32px;
+}
+
+/* ── Codeblock custom name ───────────────────────────────────────── */
+
+.cb-custom-name {
+    background: rgba(255, 255, 255, 0.07);
+    color: #9cdcfe;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 12px;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+    user-select: none;
+}
