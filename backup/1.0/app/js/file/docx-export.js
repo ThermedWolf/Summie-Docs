@@ -239,6 +239,8 @@
                     }
                 } else {
                     // Container — visit children, collecting inline runs between blocks
+                    // If this is a heading element, remember it so children inherit heading level
+                    const headingContainerEl = /^h[1-6]$/i.test(tag) ? node : null;
                     let pendingInline = [];
 
                     const flushInline = (containerEl) => {
@@ -248,14 +250,29 @@
                             (n.nodeType === Node.ELEMENT_NODE && n.tagName === 'BR')
                         );
                         if (allEmpty) blocks.push({ type: 'spacer' });
-                        else blocks.push({ type: 'para', el: containerEl, nodes: [...pendingInline] });
+                        else blocks.push({ type: 'para', el: headingContainerEl || containerEl, nodes: [...pendingInline] });
                         pendingInline = [];
                     };
 
                     node.childNodes.forEach(child => {
                         if (isBlockTag(child)) {
                             flushInline(node);
-                            visit(child);
+                            // If child is a plain p/div inside a heading container, wrap it with heading context
+                            if (headingContainerEl && !child.dataset.style && !child.classList.contains('style-')) {
+                                // visit as if it were a para under the heading container
+                                const childInlines = Array.from(child.childNodes);
+                                const allEmpty = childInlines.every(n =>
+                                    (n.nodeType === Node.TEXT_NODE && n.textContent.replace(/\u00a0/g, ' ').trim() === '') ||
+                                    (n.nodeType === Node.ELEMENT_NODE && n.tagName === 'BR')
+                                );
+                                if (!allEmpty && childInlines.length > 0) {
+                                    blocks.push({ type: 'para', el: headingContainerEl, nodes: childInlines });
+                                } else if (childInlines.length > 0) {
+                                    blocks.push({ type: 'spacer' });
+                                }
+                            } else {
+                                visit(child);
+                            }
                         } else {
                             pendingInline.push(child);
                         }

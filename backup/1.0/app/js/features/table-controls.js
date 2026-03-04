@@ -626,6 +626,17 @@ window.TableControls = (function () {
         editor.addEventListener('focusin', onEditorFocusin);
         editor.addEventListener('click', onEditorClick);
         document.addEventListener('focusin', onDocumentFocusin);
+
+        // Also hide context when user clicks in the editor but outside any table cell
+        // (focusin doesn't fire if editor was already focused)
+        editor.addEventListener('click', (e) => {
+            if (window.ElementProtection?.getContext() !== 'table') return;
+            const cell = e.target.closest && e.target.closest('th, td');
+            if (!cell) {
+                _activeTable = null;
+                window.ElementProtection?.hideContext(false);
+            }
+        });
     }
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);

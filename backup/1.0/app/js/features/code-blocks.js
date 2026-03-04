@@ -568,6 +568,8 @@ class CodeBlockManager {
                     // ── Name / filename ──
                     cbNameMode: wrapper.dataset.cbNameMode || null,
                     cbFilename: wrapper.dataset.cbFilename || null,
+                    // ── Linked source file (for refresh) ──
+                    cbSourceFile: wrapper.dataset.cbSourceFile || null,
                     // ── Custom colours ──
                     headerColor: wrapper.dataset.headerColor || null,
                     bodyColor: wrapper.dataset.bodyColor || null,
@@ -652,6 +654,12 @@ class CodeBlockManager {
                     }, 300);
                 }
 
+                // ── Restore linked source file + refresh button ──────────
+                if (blockData.cbSourceFile) {
+                    wrapper.dataset.cbSourceFile = blockData.cbSourceFile;
+                    this.addRefreshButton(wrapper);
+                }
+
                 // ── Restore custom colours ───────────────────────────────
                 if (blockData.headerColor) {
                     const hdr = wrapper.querySelector('.code-block-header');
@@ -677,6 +685,72 @@ class CodeBlockManager {
                 </svg>
             `;
         });
+    }
+
+    // Add (or replace) a refresh button in the copy-group of a code block that has a linked source file.
+    addRefreshButton(wrapper) {
+        if (!wrapper) return;
+        const copyGroup = wrapper.querySelector('.copy-group');
+        if (!copyGroup) return;
+
+        // Remove any existing refresh button + error label for this block
+        const existing = copyGroup.querySelector('.cb-refresh-btn');
+        if (existing) existing.remove();
+        const existingErr = copyGroup.querySelector('.cb-refresh-error');
+        if (existingErr) existingErr.remove();
+
+        const filePath = wrapper.dataset.cbSourceFile;
+        if (!filePath) return;
+
+        // Error label (hidden by default, shown when file not found)
+        const errLabel = document.createElement('span');
+        errLabel.className = 'cb-refresh-error';
+        errLabel.textContent = 'Bestand niet gevonden';
+
+        const btn = document.createElement('button');
+        btn.className = 'cb-refresh-btn';
+        btn.title = 'Bestand opnieuw laden';
+        btn.contentEditable = 'false';
+        btn.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+            </svg>
+        `;
+
+        btn.addEventListener('mousedown', e => e.preventDefault());
+        btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            if (!window.electron || !window.appInfo || !window.appInfo.isElectron) return;
+
+            // Spin animation
+            btn.classList.add('spinning');
+
+            const result = await window.electron.readCodeFile(wrapper.dataset.cbSourceFile);
+
+            btn.classList.remove('spinning');
+
+            if (result.success) {
+                const ta = wrapper.querySelector('.code-block');
+                if (ta) {
+                    ta.value = result.content;
+                    ta.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+                window.saveToLocalStorage?.();
+            } else {
+                // File not found — show error label, remove button
+                btn.remove();
+                errLabel.classList.add('visible');
+                copyGroup.insertBefore(errLabel, copyGroup.querySelector('.copy-label') || copyGroup.firstChild);
+                // Clean up stored path
+                delete wrapper.dataset.cbSourceFile;
+                window.saveToLocalStorage?.();
+            }
+        });
+
+        // Insert refresh button before the copy button
+        const copyBtn = copyGroup.querySelector('.code-copy-btn');
+        copyGroup.insertBefore(errLabel, copyBtn || null);
+        copyGroup.insertBefore(btn, copyBtn || null);
     }
 
     restoreCodeBlocks() {

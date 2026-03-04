@@ -21,6 +21,10 @@ contextBridge.exposeInMainWorld(
         showInExplorer: (filePath) => ipcRenderer.invoke('show-in-explorer', filePath),
         deleteFile: (filePath) => ipcRenderer.invoke('delete-file', filePath),
 
+        // Load a source code file into a code block (dialog + path storage for refresh)
+        openCodeFile: () => ipcRenderer.invoke('open-code-file'),
+        readCodeFile: (filePath) => ipcRenderer.invoke('read-code-file', filePath),
+
         // Window controls (frameless window)
         windowMinimize: () => ipcRenderer.send('window-minimize'),
         windowMaximize: () => ipcRenderer.send('window-maximize'),
@@ -41,7 +45,7 @@ contextBridge.exposeInMainWorld(
 contextBridge.exposeInMainWorld(
     'appInfo',
     {
-        version: '3.2.5',
+        version: '3.2.6',
         name: 'Summie',
         isElectron: true
     }

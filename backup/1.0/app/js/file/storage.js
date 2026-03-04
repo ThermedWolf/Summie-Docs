@@ -10,6 +10,7 @@ function saveToLocalStorage() {
         content: editor.innerHTML,
         pages: pagesData,
         begrippen,
+        references: window.ReferencesManager ? window.ReferencesManager.getSerialised() : [],
         images: imagesData,
         codeBlocks: codeBlocksData,
         customStyles: window.StyleManager ? window.StyleManager.getCustomStyles() : {},
@@ -50,6 +51,12 @@ function loadFromLocalStorage() {
             state.editor.innerHTML = data.content;
         }
         state.begrippen = data.begrippen || [];
+
+        // Restore references
+        if (window.ReferencesManager && data.references && data.references.length > 0) {
+            window.ReferencesManager.references = data.references;
+            window.ReferencesManager.restoreFromEditor();
+        }
 
         // Derive pagination mode from the saved draft itself — same logic as applyLoadedData.
         // This handles old drafts (no 'pages' field) correctly without checking localStorage.

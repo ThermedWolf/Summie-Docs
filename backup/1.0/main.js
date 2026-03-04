@@ -67,7 +67,7 @@ function createWindow(filePathToOpen = null) {
         y: isNewWindow ? undefined : (savedState ? savedState.y : undefined),
         minWidth: 1200,
         minHeight: 700,
-        title: 'Summie v3.2.5',
+        title: 'Summie v3.2.6',
         icon: path.join(__dirname, 'app', 'icon.png'),
         frame: false,
         webPreferences: {
@@ -282,6 +282,34 @@ ipcMain.handle('show-in-explorer', async (event, filePath) => {
     try {
         shell.showItemInFolder(filePath);
         return { success: true };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+// Open a source code file via dialog and return path + content
+ipcMain.handle('open-code-file', async () => {
+    const result = await dialog.showOpenDialog(mainWindow, {
+        title: 'Bestand Laden in Codeblok',
+        properties: ['openFile']
+    });
+    if (!result.canceled && result.filePaths.length > 0) {
+        try {
+            const filePath = result.filePaths[0];
+            const content = fs.readFileSync(filePath, 'utf8');
+            return { success: true, path: filePath, content };
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    }
+    return { success: false, canceled: true };
+});
+
+// Re-read a source code file by path (for refresh)
+ipcMain.handle('read-code-file', async (event, filePath) => {
+    try {
+        const content = fs.readFileSync(filePath, 'utf8');
+        return { success: true, content };
     } catch (error) {
         return { success: false, error: error.message };
     }

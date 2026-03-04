@@ -285,7 +285,27 @@ window.CodeblockControls = (function () {
 
         const loadBtn = panel.querySelector('#cbLoadFileBtn');
         const fileInput = panel.querySelector('#cbFileInput');
-        loadBtn.addEventListener('click', () => fileInput.click());
+
+        loadBtn.addEventListener('click', async () => {
+            if (!_activeBlock) return;
+            // Electron: use dialog so we get the file path (needed for refresh)
+            if (window.electron && window.appInfo && window.appInfo.isElectron) {
+                const result = await window.electron.openCodeFile();
+                if (!result.success || result.canceled) return;
+                const ta = _activeBlock.querySelector('.code-block');
+                if (ta) {
+                    ta.value = result.content;
+                    ta.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+                _activeBlock.dataset.cbSourceFile = result.path;
+                // Add/update refresh button in this block's header
+                window.codeBlockManager && window.codeBlockManager.addRefreshButton(_activeBlock);
+                window.saveToLocalStorage?.();
+            } else {
+                fileInput.click();
+            }
+        });
+
         fileInput.addEventListener('change', () => {
             if (!_activeBlock || !fileInput.files.length) return;
             const reader = new FileReader();
@@ -461,6 +481,17 @@ window.CodeblockControls = (function () {
         editor.addEventListener('focusin', onEditorFocusin);
         editor.addEventListener('click', onEditorClick);
         document.addEventListener('focusin', onDocumentFocusin);
+
+        // Also hide context when user clicks in the editor but outside any code block
+        // (focusin doesn't fire if editor was already focused)
+        editor.addEventListener('click', (e) => {
+            if (window.ElementProtection?.getContext() !== 'code') return;
+            const wrapper = e.target.closest && e.target.closest('.code-block-wrapper');
+            if (!wrapper) {
+                _activeBlock = null;
+                window.ElementProtection?.hideContext(false);
+            }
+        });
     }
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);

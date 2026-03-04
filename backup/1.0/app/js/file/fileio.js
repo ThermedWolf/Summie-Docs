@@ -32,6 +32,7 @@ async function saveToFile(saveAs = false) {
         content: editor.innerHTML,
         pages: window.PageManager ? window.PageManager.getPagesData() : null,
         begrippen,
+        references: window.ReferencesManager ? window.ReferencesManager.getSerialised() : [],
         images: window.imageManager ? window.imageManager.getImagesData() : {},
         codeBlocks: window.codeBlockManager ? window.codeBlockManager.getCodeBlocksData() : [],
         customStyles: window.StyleManager ? window.StyleManager.getCustomStyles() : {},
@@ -123,6 +124,12 @@ async function loadFromFile(e) {
     try {
         state.editor.innerHTML = data.content;
         state.begrippen = data.begrippen || [];
+
+        // Restore references
+        if (window.ReferencesManager && data.references && data.references.length > 0) {
+            window.ReferencesManager.references = data.references;
+            window.ReferencesManager.restoreFromEditor();
+        }
 
         // Load per-document custom styles
         if (window.StyleManager) {
