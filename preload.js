@@ -30,6 +30,7 @@ contextBridge.exposeInMainWorld(
         windowMaximize: () => ipcRenderer.send('window-maximize'),
         windowClose: () => ipcRenderer.send('window-close'),
         windowNew: () => ipcRenderer.send('window-new'),
+        openLeren: () => ipcRenderer.send('open-leren'),
         windowIsMaximized: () => ipcRenderer.invoke('window-is-maximized'),
         setMaximizeBtnRect: (rect) => ipcRenderer.send('set-maximize-btn-rect', rect),
         onWindowStateChanged: (callback) => ipcRenderer.on('window-state-changed', (_, state) => callback(state)),

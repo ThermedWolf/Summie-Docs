@@ -292,29 +292,32 @@
 }
 
 /* ── Table highlight previews ────────────────────────────────────── */
+/* Scoped under .summie-table to get specificity (0,2,1) — same as
+   .summie-table td:focus — but since element-controls.css loads after
+   tables.css, source order breaks the tie in our favour. */
 
-.tbl-hl-del {
+.summie-table .tbl-hl-del {
     background: rgba(239, 68, 68, 0.12) !important;
     outline: 2px solid rgba(239, 68, 68, 0.45) !important;
     outline-offset: -1px;
 }
 
-.tbl-hl-add-above {
+.summie-table .tbl-hl-add-above {
     box-shadow: inset 0 3px 0 var(--ctx-accent) !important;
     background: rgba(13, 148, 136, 0.06) !important;
 }
 
-.tbl-hl-add-below {
+.summie-table .tbl-hl-add-below {
     box-shadow: inset 0 -3px 0 var(--ctx-accent) !important;
     background: rgba(13, 148, 136, 0.06) !important;
 }
 
-.tbl-hl-add-left {
+.summie-table .tbl-hl-add-left {
     box-shadow: inset 3px 0 0 var(--ctx-accent) !important;
     background: rgba(13, 148, 136, 0.06) !important;
 }
 
-.tbl-hl-add-right {
+.summie-table .tbl-hl-add-right {
     box-shadow: inset -3px 0 0 var(--ctx-accent) !important;
     background: rgba(13, 148, 136, 0.06) !important;
 }
@@ -383,4 +386,245 @@
     text-transform: uppercase;
     border-bottom: 1px solid rgba(255, 255, 255, 0.09);
     user-select: none;
+}
+
+/* ── Tabel Formules Tab ──────────────────────────────────────────── */
+
+:root {
+    --ctx-accent: #0d9488;
+    --ctx-accent-light: #0f766e;
+}
+
+/* Formula bar */
+.fml-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: nowrap;
+}
+
+.fml-cell-ref {
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--ctx-accent);
+    background: #f0fdf9;
+    border: 1px solid rgba(13, 148, 136, 0.3);
+    border-radius: 5px;
+    padding: 4px 8px;
+    min-width: 36px;
+    text-align: center;
+    white-space: nowrap;
+    user-select: none;
+}
+
+.fml-equals {
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--ctx-accent);
+    padding: 0 2px;
+    user-select: none;
+}
+
+.fml-input {
+    flex: 1;
+    min-width: 130px;
+    max-width: 240px;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 12px;
+}
+
+.fml-apply-btn {
+    border-color: rgba(13, 148, 136, 0.4) !important;
+    color: var(--ctx-accent) !important;
+    padding: 5px 8px !important;
+}
+
+.fml-apply-btn:hover {
+    background: #f0fdf9 !important;
+    border-color: var(--ctx-accent) !important;
+}
+
+.fml-clear-btn {
+    padding: 5px 8px !important;
+}
+
+/* Format group */
+.fml-fmt-group {
+    display: inline-flex;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.fml-fmt-group .fml-fmt-btn {
+    border: none !important;
+    border-radius: 0 !important;
+    border-right: 1px solid var(--border-color) !important;
+    padding: 4px 10px !important;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.fml-fmt-group .fml-fmt-btn:last-child {
+    border-right: none !important;
+}
+
+.fml-fmt-group .fml-fmt-btn.ctx-btn-active {
+    background: #f0fdf9 !important;
+    color: var(--ctx-accent) !important;
+}
+
+.fml-dec-group {
+    margin-left: 4px;
+}
+
+/* Cell picker */
+.fml-pick-toggle.ctx-btn-active {
+    background: #f0fdf9 !important;
+    border-color: var(--ctx-accent) !important;
+    color: var(--ctx-accent) !important;
+}
+
+.fml-pick-hint {
+    font-size: 11px;
+    color: var(--ctx-accent);
+    font-style: italic;
+}
+
+.fml-chips-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    min-height: 4px;
+}
+
+.fml-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--ctx-accent);
+    background: #f0fdf9;
+    border: 1px solid rgba(13, 148, 136, 0.35);
+    border-radius: 4px;
+    padding: 2px 7px;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.1s;
+}
+
+.fml-chip:hover {
+    background: #ccfbf1;
+    border-color: var(--ctx-accent);
+}
+
+.fml-chip::after {
+    content: '×';
+    margin-left: 3px;
+    opacity: 0.5;
+    font-size: 10px;
+}
+
+.fml-ops-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 5px 0 2px;
+    border-top: 1px dashed rgba(13, 148, 136, 0.25);
+    margin-top: 2px;
+    width: 100%;
+}
+
+.fml-op-btn {
+    font-size: 11px !important;
+    padding: 3px 8px !important;
+    border-color: rgba(13, 148, 136, 0.3) !important;
+    color: var(--ctx-accent) !important;
+}
+
+.fml-op-btn:hover {
+    background: #f0fdf9 !important;
+    border-color: var(--ctx-accent) !important;
+}
+
+
+/* Table in picker mode: cells glow on hover, picked cells highlighted */
+.fml-pick-mode th,
+.fml-pick-mode td {
+    cursor: crosshair !important;
+}
+
+.fml-pick-mode th:hover,
+.fml-pick-mode td:hover {
+    background: rgba(13, 148, 136, 0.08) !important;
+    outline: 1px dashed rgba(13, 148, 136, 0.5) !important;
+}
+
+.fml-picked {
+    background: rgba(13, 148, 136, 0.14) !important;
+    outline: 2px solid var(--ctx-accent) !important;
+    outline-offset: -1px;
+}
+
+/* Output cell: subtle indicator */
+.fml-output-cell {
+    outline: 2px solid rgba(59, 130, 246, 0.5) !important;
+    outline-offset: -1px;
+}
+
+/* Formula cell dot indicator */
+td[data-formula],
+th[data-formula] {
+    position: relative;
+}
+
+td[data-formula]::after,
+th[data-formula]::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--ctx-accent);
+    opacity: 0.55;
+    pointer-events: none;
+}
+
+/* Formula copy button & toast */
+.fml-copy-btn {
+    padding: 5px 7px !important;
+}
+
+.fml-copy-btn.ctx-btn-active {
+    border-color: var(--ctx-accent) !important;
+    color: var(--ctx-accent) !important;
+    background: #f0fdf9 !important;
+}
+
+.fml-copy-toast {
+    font-size: 10px;
+    color: var(--ctx-accent);
+    font-style: italic;
+    white-space: nowrap;
+    animation: fml-toast-fade 2.5s forwards;
+}
+
+@keyframes fml-toast-fade {
+    0% {
+        opacity: 1;
+    }
+
+    70% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0;
+    }
 }

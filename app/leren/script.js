@@ -24,13 +24,40 @@ const resultsScreen = document.getElementById('resultsScreen');
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
+    initWindowControls();
 });
+
+function initWindowControls() {
+    const minimize = document.getElementById('winMinimize');
+    const maximize = document.getElementById('winMaximize');
+    const close = document.getElementById('winClose');
+    if (minimize) minimize.addEventListener('click', () => window.electron?.windowMinimize());
+    if (maximize) maximize.addEventListener('click', () => window.electron?.windowMaximize());
+    if (close) close.addEventListener('click', () => window.electron?.windowClose());
+    if (!window.electron) return;
+    window.electron.windowIsMaximized().then(isMaximized => setMaximizeIcon(isMaximized));
+    window.electron.onWindowStateChanged(state => {
+        if (state.maximized !== undefined) setMaximizeIcon(state.maximized);
+    });
+}
+
+function setMaximizeIcon(isMaximized) {
+    const btn = document.getElementById('winMaximize');
+    if (!btn) return;
+    btn.querySelector('.icon-maximize').style.display = isMaximized ? 'none' : '';
+    btn.querySelector('.icon-restore').style.display = isMaximized ? '' : 'none';
+    btn.title = isMaximized ? 'Terugzetten' : 'Maximaliseren';
+}
 
 // Event Listeners
 function setupEventListeners() {
     // Navigation
     document.getElementById('backBtn').addEventListener('click', () => {
-        window.location.href = '../index.html';
+        if (window.electron && window.electron.windowClose) {
+            window.electron.windowClose();
+        } else {
+            window.close();
+        }
     });
 
     // File upload
@@ -54,8 +81,10 @@ function setupEventListeners() {
         e.preventDefault();
         uploadArea.classList.remove('drag-over');
         const file = e.dataTransfer.files[0];
-        if (file && file.type === 'application/json') {
+        if (file && isSupportedFile(file)) {
             loadFile(file);
+        } else if (file) {
+            showNotification('Fout', 'Gebruik een .sumd of .json bestand.', 'error');
         }
     });
 
@@ -124,9 +153,16 @@ function setupEventListeners() {
 // File handling
 function handleFileUpload(e) {
     const file = e.target.files[0];
-    if (file) {
+    if (file && isSupportedFile(file)) {
         loadFile(file);
+    } else if (file) {
+        showNotification('Fout', 'Gebruik een .sumd of .json bestand.', 'error');
     }
+}
+
+function isSupportedFile(file) {
+    const name = (file.name || '').toLowerCase();
+    return name.endsWith('.sumd') || name.endsWith('.json');
 }
 
 function loadFile(file) {
@@ -134,16 +170,18 @@ function loadFile(file) {
     reader.onload = (e) => {
         try {
             const data = JSON.parse(e.target.result);
-            if (!data.begrippen || !Array.isArray(data.begrippen)) {
+            const begrippen = Array.isArray(data.begrippen) ? data.begrippen
+                : (data.content && Array.isArray(data.content.begrippen)) ? data.content.begrippen
+                    : null;
+            if (!begrippen || begrippen.length === 0) {
                 showNotification('Fout', 'Dit bestand bevat geen begrippen.', 'error');
                 return;
             }
-
-            allBegrippen = data.begrippen;
+            allBegrippen = begrippen;
             showBegrippenSelection();
             showNotification('Bestand geladen', `${allBegrippen.length} begrippen gevonden.`, 'success');
         } catch (error) {
-            showNotification('Fout', 'Kon bestand niet laden. Zorg dat het een geldig JSON-bestand is.', 'error');
+            showNotification('Fout', 'Kon bestand niet laden. Zorg dat het een geldig .sumd of .json bestand is.', 'error');
         }
     };
     reader.readAsText(file);

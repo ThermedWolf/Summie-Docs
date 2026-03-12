@@ -102,3 +102,46 @@
 .summie-table tr:hover td {
     background: var(--bg-light);
 }
+
+/* Highlight overrides must beat td:focus specificity */
+.summie-table td.tbl-hl-add-above,
+.summie-table th.tbl-hl-add-above,
+.summie-table td.tbl-hl-add-above:focus,
+.summie-table th.tbl-hl-add-above:focus {
+    box-shadow: inset 0 3px 0 var(--ctx-accent) !important;
+    background: rgba(13, 148, 136, 0.06) !important;
+}
+
+.summie-table td.tbl-hl-add-below,
+.summie-table th.tbl-hl-add-below,
+.summie-table td.tbl-hl-add-below:focus,
+.summie-table th.tbl-hl-add-below:focus {
+    box-shadow: inset 0 -3px 0 var(--ctx-accent) !important;
+    background: rgba(13, 148, 136, 0.06) !important;
+}
+
+.summie-table td.tbl-hl-add-left,
+.summie-table th.tbl-hl-add-left,
+.summie-table td.tbl-hl-add-left:focus,
+.summie-table th.tbl-hl-add-left:focus {
+    box-shadow: inset 3px 0 0 var(--ctx-accent) !important;
+    background: rgba(13, 148, 136, 0.06) !important;
+}
+
+.summie-table td.tbl-hl-add-right,
+.summie-table th.tbl-hl-add-right,
+.summie-table td.tbl-hl-add-right:focus,
+.summie-table th.tbl-hl-add-right:focus {
+    box-shadow: inset -3px 0 0 var(--ctx-accent) !important;
+    background: rgba(13, 148, 136, 0.06) !important;
+}
+
+.summie-table td.tbl-hl-del,
+.summie-table th.tbl-hl-del,
+.summie-table td.tbl-hl-del:focus,
+.summie-table th.tbl-hl-del:focus {
+    background: rgba(239, 68, 68, 0.12) !important;
+    box-shadow: none !important;
+    outline: 2px solid rgba(239, 68, 68, 0.45) !important;
+    outline-offset: -1px;
+}

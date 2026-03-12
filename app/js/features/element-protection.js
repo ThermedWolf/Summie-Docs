@@ -131,10 +131,12 @@ window.ElementProtection = (function () {
     let _currentContext = null; // 'code' | 'table' | null
     let _currentPanel = null;
     let _hideTimer = null;
+    // Remember which panel was last active per context, so re-entering restores the right tab
+    const _lastPanelForContext = {}; // e.g. { table: 'tabel-formules', code: 'codeblock-styling' }
 
     const CONTEXT_TABS = {
         code: ['codeblock-styling'],
-        table: ['tabel-indeling', 'tabel-ontwerp'],
+        table: ['tabel-indeling', 'tabel-ontwerp', 'tabel-formules'],
     };
 
     // ── Build Context Tab Container ───────────────────────────────────────
@@ -196,20 +198,11 @@ window.ElementProtection = (function () {
         });
         container.classList.add('ctx-active');
 
-        if (isNew) {
-            // First time entering this context: auto-switch to its first panel
-            const firstTab = (CONTEXT_TABS[context] || [])[0];
-            if (firstTab) switchPanel(firstTab);
-        } else {
-            // Re-entering same context (e.g. clicking back into same codeblock):
-            // restore active state on whichever tab was last active
-            const lastPanel = _currentPanel || (CONTEXT_TABS[context] || [])[0];
-            if (lastPanel) {
-                document.querySelectorAll('.context-tab').forEach(t => t.classList.remove('active'));
-                const tab = document.getElementById('ctx-tab-' + lastPanel);
-                if (tab) tab.classList.add('active');
-            }
-        }
+        // Restore the last tab used for this context (or fall back to first)
+        const remembered = _lastPanelForContext[context];
+        const fallback = (CONTEXT_TABS[context] || [])[0];
+        const targetPanel = remembered || fallback;
+        if (targetPanel) switchPanel(targetPanel);
     }
 
     // Make context tabs visible but NOT active — a normal section panel is showing.
@@ -265,6 +258,8 @@ window.ElementProtection = (function () {
     function switchPanel(panelId) {
         if (!panelId) return;
         _currentPanel = panelId;
+        // Remember this panel for its context so re-entry restores it
+        if (_currentContext) _lastPanelForContext[_currentContext] = panelId;
 
         // Deactivate all toolbar-content panels
         document.querySelectorAll('.toolbar-content').forEach(p => {
@@ -331,6 +326,55 @@ window.ElementProtection = (function () {
         // let topbar.js handle switching the toolbar panel to the selected section.
         // Context tabs only disappear when the codeblock/table actually loses focus.
         // (No listener needed here — topbar.js switchSection handles everything)
+
+        // Detect cursor leaving a codeblock/table via keyboard or mouse when the editor
+        // already had focus (so focusin on the controls never fires).
+        // This handles the case where: context tabs are visible, user switches to another
+        // topbar section (editor keeps focus), then moves cursor out of the block/table.
+        document.addEventListener('selectionchange', () => {
+            if (!_currentContext) return;
+
+            // If the active element is in the toolbar, topbar, or any context UI,
+            // the user clicked a button — don't interpret the selection change as "left the element"
+            const ae = document.activeElement;
+            if (ae && (
+                ae.closest('.section-toolbar') ||
+                ae.closest('#contextTabsContainer') ||
+                ae.closest('.topbar') ||
+                ae.closest('.ctx-popup')
+            )) {
+                cancelHide();
+                return;
+            }
+
+            const sel = window.getSelection();
+            if (!sel || sel.rangeCount === 0) return;
+
+            const editorEl = document.getElementById('editor');
+            if (!editorEl) return;
+
+            // Only act when selection is inside the editor (not toolbar inputs etc.)
+            let node = sel.getRangeAt(0).startContainer;
+            if (node.nodeType === Node.TEXT_NODE) node = node.parentElement;
+            if (!editorEl.contains(node)) return;
+
+            if (_currentContext === 'code') {
+                const wrapper = node.closest && node.closest('.code-block-wrapper');
+                if (!wrapper || !editorEl.contains(wrapper)) {
+                    if (!_hideTimer) hideContext(false);
+                } else {
+                    cancelHide();
+                }
+            } else if (_currentContext === 'table') {
+                const cell = node.closest && node.closest('th, td');
+                const tbl = cell ? cell.closest('table') : null;
+                if (!tbl || !editorEl.contains(tbl)) {
+                    if (!_hideTimer) hideContext(false);
+                } else {
+                    cancelHide();
+                }
+            }
+        });
     }
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);

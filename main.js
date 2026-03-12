@@ -348,6 +348,37 @@ ipcMain.on('window-maximize', () => {
 ipcMain.on('window-close', () => { const w = getFocusedWin(); if (w) w.close(); });
 ipcMain.on('window-new', () => { createWindow(); });
 
+ipcMain.on('open-leren', (event) => {
+    const parentWin = BrowserWindow.fromWebContents(event.sender);
+    const bounds = parentWin ? parentWin.getBounds() : { x: undefined, y: undefined, width: 1400, height: 900 };
+    const lerenWin = new BrowserWindow({
+        width: bounds.width,
+        height: bounds.height,
+        x: bounds.x,
+        y: bounds.y,
+        minWidth: 800,
+        minHeight: 600,
+        title: 'Begrippen Leren — Summie',
+        icon: path.join(__dirname, 'app', 'icon.png'),
+        frame: false,
+        webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true,
+            preload: path.join(__dirname, 'preload.js'),
+        },
+        backgroundColor: '#f8fafc',
+        show: false,
+    });
+    lerenWin.loadFile(path.join(__dirname, 'app', 'leren', 'index.html'));
+    lerenWin.once('ready-to-show', () => {
+        if (parentWin && parentWin.isMaximized()) lerenWin.maximize();
+        lerenWin.show();
+    });
+    lerenWin.setMenu(null);
+    // Close handler — no unsaved changes to worry about
+    lerenWin.on('close', (e) => { lerenWin.destroy(); });
+});
+
 // Query current maximized state (used on load to sync button)
 ipcMain.handle('window-is-maximized', () => { const w = getFocusedWin(); return w ? w.isMaximized() : false; });
 

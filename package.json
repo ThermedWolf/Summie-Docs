@@ -19,8 +19,7 @@
     "files": [
       "main.js",
       "preload.js",
-      "app/**/*",
-      "!app/leren/**/*"
+      "app/**/*"
     ],
     "fileAssociations": [
       {
