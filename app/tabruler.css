@@ -324,16 +324,16 @@
     cursor: e-resize;
 }
 
-/* Real tab characters — white-space:pre-wrap makes \t visible,
-   tab-size is set per-paragraph by JS to match custom tabstops. */
-.a4-page p,
-.a4-page li,
-.a4-page h1,
-.a4-page h2,
-.a4-page h3,
-.a4-page h4,
-.a4-page h5,
-.a4-page h6 {
+/* Real tab characters — only paragraphs with tab stops get pre-wrap.
+   Applied via .has-tabstop class set by JS. */
+.a4-page p.has-tabstop,
+.a4-page li.has-tabstop,
+.a4-page h1.has-tabstop,
+.a4-page h2.has-tabstop,
+.a4-page h3.has-tabstop,
+.a4-page h4.has-tabstop,
+.a4-page h5.has-tabstop,
+.a4-page h6.has-tabstop {
     white-space: pre-wrap;
     tab-size: 120px;
     /* default ~12.5mm; overridden per-paragraph by JS */

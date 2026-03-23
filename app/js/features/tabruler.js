@@ -195,7 +195,10 @@
             if (para.parentNode === page) break;
             para = para.parentNode;
         }
-        if (para && para !== page && ruler) renderTabsInPara(para, ruler);
+        if (para && para !== page) {
+            para.classList.add('has-tabstop');
+            if (ruler) renderTabsInPara(para, ruler);
+        }
 
         page.dispatchEvent(new Event('input', { bubbles: true }));
         return true;
@@ -532,7 +535,10 @@
                     if (para && para.dataset.tabstops) {
                         // New paragraph from Enter — clear inherited tabstop
                         const hasTab = para.textContent.includes('\t');
-                        if (!hasTab) delete para.dataset.tabstops;
+                        if (!hasTab) {
+                            delete para.dataset.tabstops;
+                            para.classList.remove('has-tabstop');
+                        }
                         const ruler = getRulerForPage(getPageIdx(node));
                         if (ruler) renderStops(ruler, getPageIdx(node));
                     }
