@@ -165,6 +165,17 @@ function applyLoadedData(data) {
     window.updateWordCounter && window.updateWordCounter();
     window.updateBegrippenCounter && window.updateBegrippenCounter();
 
+    // Restore tab ruler and header/footer
+    if (data.tabRuler && window.TabRuler) {
+        setTimeout(() => window.TabRuler.loadTabStopsData(data.tabRuler), 350);
+    }
+    if (data.tabRulerIndents && window.TabRuler) {
+        setTimeout(() => window.TabRuler.loadIndentsData(data.tabRulerIndents), 350);
+    }
+    if (data.headerFooter && window.HeaderFooter) {
+        setTimeout(() => window.HeaderFooter.loadData(data.headerFooter), 350);
+    }
+
     // Wait for images/codeblocks to finish restoring, then lock in the saved baseline
     setTimeout(() => {
         localStorage.setItem('summie_saved_content', state.editor.innerHTML);

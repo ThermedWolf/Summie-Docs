@@ -168,6 +168,8 @@ body {
 .document-section {
     flex: 1;
     padding: 40px;
+    padding-top: calc(40px + 37px);
+    /* 37px = fixed ruler height + 1px border */
     overflow-y: auto;
     position: relative;
     z-index: 1;
@@ -320,6 +322,9 @@ body {
     --spellcheck: false;
     position: relative;
     z-index: auto;
+    /* Indent variabelen — niet meer via cascade, worden inline gezet op paragraaf */
+    padding-left: 25mm;
+    padding-right: 25mm;
 }
 
 .a4-page * {
@@ -2002,6 +2007,12 @@ ol li {
     font-family: var(--font-ui, sans-serif);
     user-select: none;
     pointer-events: none;
+}
+
+/* Met page-wrapper: badge relatief aan wrapper zodat hij boven de ruler uitsteekt */
+.page-wrapper .page-number-badge {
+    top: calc(-22px - 28px);
+    /* 28px = ruler hoogte */
 }
 
 /* Page list in bestand sidebar */

@@ -6,6 +6,9 @@ function saveToLocalStorage() {
     const imagesData = window.imageManager ? window.imageManager.getImagesData() : {};
     const codeBlocksData = window.codeBlockManager ? window.codeBlockManager.getCodeBlocksData() : [];
     const pagesData = window.PageManager ? window.PageManager.getPagesData() : null;
+    const tabRulerData = window.TabRuler ? window.TabRuler.getTabStopsData() : null;
+    const tabRulerIndents = window.TabRuler ? window.TabRuler.getIndentsData() : null;
+    const headerFooterData = window.HeaderFooter ? window.HeaderFooter.getData() : null;
     const data = {
         content: editor.innerHTML,
         pages: pagesData,
@@ -14,6 +17,9 @@ function saveToLocalStorage() {
         images: imagesData,
         codeBlocks: codeBlocksData,
         customStyles: window.StyleManager ? window.StyleManager.getCustomStyles() : {},
+        tabRuler: tabRulerData,
+        tabRulerIndents: tabRulerIndents,
+        headerFooter: headerFooterData,
         timestamp: new Date().toISOString()
     };
 
@@ -100,6 +106,17 @@ function loadFromLocalStorage() {
         window.highlightBegrippen && window.highlightBegrippen();
         window.updateBegrippenCounter && window.updateBegrippenCounter();
         window.updateWordCounter && window.updateWordCounter();
+
+        // Restore tab ruler and header/footer
+        if (data.tabRuler && window.TabRuler) {
+            setTimeout(() => window.TabRuler.loadTabStopsData(data.tabRuler), 350);
+        }
+        if (data.tabRulerIndents && window.TabRuler) {
+            setTimeout(() => window.TabRuler.loadIndentsData(data.tabRulerIndents), 350);
+        }
+        if (data.headerFooter && window.HeaderFooter) {
+            setTimeout(() => window.HeaderFooter.loadData(data.headerFooter), 350);
+        }
     } catch (e) {
         console.error('Error loading from localStorage:', e);
     }

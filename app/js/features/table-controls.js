@@ -956,6 +956,8 @@ window.TableControls = (function () {
     function evalFormula(tbl, formula) {
         formula = String(formula).trim();
         if (formula.startsWith('=')) formula = formula.slice(1).trim();
+
+        // If the entire formula is a single function call, handle directly
         const fnMatch = formula.match(/^([A-Za-z_][A-Za-z0-9_]*)\((.*)\)$/s);
         if (fnMatch) {
             const name = fnMatch[1].toUpperCase();
@@ -966,9 +968,36 @@ window.TableControls = (function () {
             }
             return '#NAAM?';
         }
-        // Arithmetic expression — replace cell refs with values
-        const substituted = formula
-            .replace(/[^0-9+\-*/.()^A-Za-z\s,<>=!%]/g, '')
+
+        // Mixed expression (e.g. CEILING(A1/B1)*C1) —
+        // recursively resolve all function calls, then evaluate as arithmetic
+        function resolveFunctions(expr) {
+            // Find outermost function calls and replace with their result
+            return expr.replace(/([A-Za-z_][A-Za-z0-9_]*)\(([^()]*)\)/g, (match, name, argsStr) => {
+                const fn = FN[name.toUpperCase()];
+                if (!fn) return match; // leave unknown names for #NAAM? below
+                const args = argsStr.trim() ? splitArgs(argsStr) : [];
+                try {
+                    const result = fn(tbl, args);
+                    return typeof result === 'number' ? String(result) : JSON.stringify(result);
+                } catch (e) { return '0'; }
+            });
+        }
+
+        // Resolve nested function calls (up to 5 levels deep)
+        let expr = formula;
+        for (let i = 0; i < 5; i++) {
+            const resolved = resolveFunctions(expr);
+            if (resolved === expr) break;
+            expr = resolved;
+        }
+
+        // Check for unresolved function names
+        if (/[A-Za-z_][A-Za-z0-9_]*\s*\(/.test(expr)) return '#NAAM?';
+
+        // Arithmetic expression — replace remaining cell refs with values
+        const substituted = expr
+            .replace(/[^0-9+\-*/.()^A-Za-z\s,<>=!%"']/g, '')
             .replace(/[A-Za-z]+\d+/g, ref => parseRef(ref) ? String(cellNumVal(tbl, ref)) : '0')
             .replace(/\^/g, '**');
         try {

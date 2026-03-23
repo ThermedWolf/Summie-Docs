@@ -79,6 +79,13 @@ document.addEventListener('DOMContentLoaded', () => {
         _initReferenceButton();
         _initViewReferencesBtn();
     }, 200);
+
+    // 9. Init Tab Ruler, Header/Footer, Margin Click
+    setTimeout(() => {
+        if (window.TabRuler) window.TabRuler.init();
+        if (window.HeaderFooter) window.HeaderFooter.init();
+        if (window.MarginClick) window.MarginClick.init();
+    }, 300);
 });
 
 function _initReferenceButton() {

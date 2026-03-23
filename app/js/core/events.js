@@ -38,6 +38,9 @@ function handleEditorInput(e) {
 function handleEditorKeydown(e) {
     const state = window.AppState;
 
+    // =rand() dummy tekst (moet vóór alles andere, want het consumeert Enter/Tab)
+    if (window.RandText && window.RandText.checkRandTrigger(e)) return;
+
     // Enter key: reset style and remove begrip-word on new line
     if (e.key === 'Enter') {
         const selection = window.getSelection();
@@ -122,6 +125,8 @@ function handleEditorKeydown(e) {
             const listItem = element.closest('li');
             if (listItem) {
                 document.execCommand(e.shiftKey ? 'outdent' : 'indent', false, null);
+            } else if (window.TabRuler && window.TabRuler.handleTabKey(e)) {
+                // TabRuler handled it — jumped to next tabstop
             } else {
                 document.execCommand('insertHTML', false, '&nbsp;&nbsp;&nbsp;&nbsp;');
             }

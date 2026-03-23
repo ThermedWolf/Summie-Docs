@@ -67,7 +67,7 @@ function createWindow(filePathToOpen = null) {
         y: isNewWindow ? undefined : (savedState ? savedState.y : undefined),
         minWidth: 1200,
         minHeight: 700,
-        title: 'Summie v3.2.6',
+        title: 'Summie v3.2.7',
         icon: path.join(__dirname, 'app', 'icon.png'),
         frame: false,
         webPreferences: {

@@ -1,0 +1,340 @@
+/* Wrapper die ruler + pagina samen houdt — zelfde breedte als de pagina */
+.page-wrapper {
+    display: flex;
+    flex-direction: column;
+    width: 210mm;
+}
+
+/* ==================== STICKY RULER BAR ==================== */
+.ruler-bar {
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+    display: flex;
+    justify-content: center;
+    background: transparent;
+    pointer-events: none;
+    /* let clicks pass through the wrapper to the ruler */
+}
+
+.ruler-bar .tab-ruler {
+    pointer-events: all;
+    border-radius: 0;
+    border-top: 1px solid var(--border-color, #e2e8f0);
+    border-bottom: none;
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.06);
+    margin: 0;
+}
+
+/* ==================== TAB RULER ==================== */
+.tab-ruler {
+    position: relative;
+    height: 36px;
+    width: 210mm;
+    background: var(--bg-white, #fff);
+    border: 1px solid var(--border-color, #e2e8f0);
+    border-radius: 4px 4px 0 0;
+    border-bottom: none;
+    user-select: none;
+    cursor: crosshair;
+    overflow: hidden;
+    flex-shrink: 0;
+    box-sizing: border-box;
+}
+
+/* Fixed ruler sits below the topbar, always visible */
+#fixed-tab-ruler {
+    position: fixed;
+    z-index: 99;
+    border-radius: 0;
+    border: none;
+    border-bottom: 1px solid var(--border-color, #e2e8f0);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
+    overflow: visible;
+    box-sizing: content-box;
+    /* Grey margin zones via gradient — no overflow/z-index issues */
+    background: linear-gradient(to right,
+            var(--bg-light, #f1f5f9) var(--ruler-margin, 11.905%),
+            var(--bg-white, #fff) var(--ruler-margin, 11.905%),
+            var(--bg-white, #fff) calc(100% - var(--ruler-margin, 11.905%)),
+            var(--bg-light, #f1f5f9) calc(100% - var(--ruler-margin, 11.905%)));
+}
+
+/* Schaal-laag: ticks + mm-labels */
+.tab-ruler-scale {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.tab-ruler-tick {
+    position: absolute;
+    bottom: 0;
+    width: 1px;
+    background: var(--text-secondary, #94a3b8);
+    transform: translateX(-50%);
+    pointer-events: none;
+}
+
+.tab-ruler-tick.major {
+    height: 12px;
+}
+
+.tab-ruler-tick.minor {
+    height: 7px;
+    opacity: .7;
+}
+
+.tab-ruler-tick.micro {
+    height: 4px;
+    opacity: .4;
+}
+
+.tab-ruler-label {
+    position: absolute;
+    bottom: 13px;
+    font-size: 9px;
+    color: var(--text-secondary, #94a3b8);
+    transform: translateX(-50%);
+    pointer-events: none;
+    line-height: 1;
+    font-family: -apple-system, sans-serif;
+}
+
+/* Tabstop-laag */
+.tab-ruler-stops {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 2;
+}
+
+/* ... */
+.tab-ruler-indents {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 3;
+}
+
+.tab-stop-marker {
+    position: absolute;
+    bottom: 0;
+    width: 12px;
+    height: 14px;
+    pointer-events: all;
+    cursor: ew-resize;
+    transform: translateX(-50%);
+}
+
+/* Ghost stops from other paragraphs — grey, not interactive */
+.tab-stop-marker.tab-stop-ghost {
+    pointer-events: none;
+    cursor: default;
+    opacity: 0.35;
+}
+
+.tab-stop-marker.tab-stop-ghost::before {
+    background: var(--text-secondary, #94a3b8);
+}
+
+.tab-stop-marker.tab-stop-ghost::after {
+    background: var(--text-secondary, #94a3b8);
+}
+
+/* L-shape: verticale streep */
+.tab-stop-marker::before {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: -1px;
+    width: 2px;
+    height: 10px;
+    background: var(--primary-color, #3b82f6);
+}
+
+/* L-shape: horizontale voet */
+.tab-stop-marker::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: -1px;
+    width: 7px;
+    height: 2px;
+    background: var(--primary-color, #3b82f6);
+}
+
+.tab-stop-marker:hover::before,
+.tab-stop-marker:hover::after {
+    background: var(--danger-color, #ef4444);
+}
+
+/* Snap indicator: blue vertical line at default margin position */
+.indent-snap-line {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: var(--primary-color, #3b82f6);
+    opacity: 0.4;
+    pointer-events: none;
+    transform: translateX(-50%);
+    z-index: 2;
+}
+
+.indent-handle {
+    position: absolute;
+    pointer-events: all;
+    cursor: ew-resize;
+}
+
+/* --- Eerste-regel inspringing (driehoek BOVEN, punt naar rechts) --- */
+.indent-handle.indent-first-tri {
+    top: 1px;
+    width: 0;
+    height: 0;
+    border-top: 6px solid transparent;
+    border-bottom: 6px solid transparent;
+    border-left: 9px solid var(--primary-color, #3b82f6);
+    transform: translateX(-50%);
+    cursor: ew-resize;
+}
+
+.indent-handle.indent-first-tri:hover {
+    border-left-color: var(--primary-hover, #2563eb);
+}
+
+/* --- Hangende inspringing / linker inspringing (driehoek ONDER, punt naar rechts) --- */
+.indent-handle.indent-hang-tri {
+    bottom: 2px;
+    width: 0;
+    height: 0;
+    border-top: 6px solid transparent;
+    border-bottom: 6px solid transparent;
+    border-left: 9px solid var(--secondary-color, #64748b);
+    transform: translateX(-50%);
+    cursor: ew-resize;
+}
+
+.indent-handle.indent-hang-tri:hover {
+    border-left-color: var(--primary-color, #3b82f6);
+}
+
+/* --- Blokje (linker inspringing — sleept beide driehoeken mee) --- */
+.indent-handle.indent-block {
+    bottom: 2px;
+    width: 9px;
+    height: 4px;
+    background: var(--secondary-color, #64748b);
+    transform: translateX(-50%);
+    border-radius: 1px;
+    cursor: ew-resize;
+    /* Positie = zelfde x als hang-tri, maar iets lager als overlay */
+    margin-bottom: -4px;
+}
+
+.indent-handle.indent-block:hover {
+    background: var(--primary-color, #3b82f6);
+}
+
+/* --- Rechter inspringing (driehoek BOVEN, punt naar links) --- */
+.indent-handle.indent-right-tri {
+    top: 1px;
+    width: 0;
+    height: 0;
+    border-top: 6px solid transparent;
+    border-bottom: 6px solid transparent;
+    border-right: 9px solid var(--primary-color, #3b82f6);
+    transform: translateX(-50%);
+    cursor: ew-resize;
+}
+
+.indent-handle.indent-right-tri:hover {
+    border-right-color: var(--primary-hover, #2563eb);
+}
+
+/* ==================== KOP- & VOETTEKST ==================== */
+.page-header-zone,
+.page-footer-zone {
+    display: block;
+    width: 100%;
+    min-height: 24px;
+    padding: 4px 25mm;
+    font-size: 10pt;
+    color: var(--text-secondary, #64748b);
+    border: none;
+    outline: none;
+    background: transparent;
+    box-sizing: border-box;
+    line-height: 1.4;
+    position: relative;
+}
+
+.page-header-zone {
+    border-bottom: 1px dashed var(--border-color, #e2e8f0);
+    margin-bottom: 4px;
+}
+
+.page-footer-zone {
+    border-top: 1px dashed var(--border-color, #e2e8f0);
+    margin-top: 4px;
+}
+
+.page-header-zone:empty::before,
+.page-footer-zone:empty::before {
+    content: attr(placeholder);
+    color: #c0c9d4;
+    pointer-events: none;
+    font-style: italic;
+}
+
+.page-header-zone:focus,
+.page-footer-zone:focus {
+    border-color: var(--primary-color, #3b82f6);
+    color: var(--text-primary, #0f172a);
+}
+
+.a4-page .page-header-zone,
+.a4-page .page-footer-zone {
+    margin-left: -25mm;
+    margin-right: -25mm;
+    width: calc(100% + 50mm);
+    padding-left: 25mm;
+    padding-right: 25mm;
+}
+
+/* ==================== KANTLIJN CURSOR ==================== */
+.a4-page::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -60px;
+    width: 60px;
+    cursor: e-resize;
+}
+
+.a4-page::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: -60px;
+    width: 60px;
+    cursor: e-resize;
+}
+
+/* Real tab characters — white-space:pre-wrap makes \t visible,
+   tab-size is set per-paragraph by JS to match custom tabstops. */
+.a4-page p,
+.a4-page li,
+.a4-page h1,
+.a4-page h2,
+.a4-page h3,
+.a4-page h4,
+.a4-page h5,
+.a4-page h6 {
+    white-space: pre-wrap;
+    tab-size: 120px;
+    /* default ~12.5mm; overridden per-paragraph by JS */
+}

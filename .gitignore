@@ -1,3 +1,43 @@
-*.zip
-backup/
+# Node modules (ALWAYS ignore)
+node_modules/
+
+# Build output
 dist/
+build/
+
+# Backup folders
+backup/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment variables (important)
+.env
+.env.local
+.env.*.local
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE / Editor
+.vscode/
+.idea/
+
+# Electron specific
+*.asar
+
+# Temporary files
+*.tmp
+*.temp
+
+# Package lock (optional, see note below)
+# package-lock.json
+
+# SVG exports (optional if generated)
+# SVG/
+
+# Git itself (just in case)
+.git/

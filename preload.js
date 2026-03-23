@@ -46,7 +46,7 @@ contextBridge.exposeInMainWorld(
 contextBridge.exposeInMainWorld(
     'appInfo',
     {
-        version: '3.2.6',
+        version: '3.2.7',
         name: 'Summie',
         isElectron: true
     }
