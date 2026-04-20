@@ -67,7 +67,7 @@ function createWindow(filePathToOpen = null) {
         y: isNewWindow ? undefined : (savedState ? savedState.y : undefined),
         minWidth: 1200,
         minHeight: 700,
-        title: 'Summie v3.2.7',
+        title: 'Summie v3.2.8',
         icon: path.join(__dirname, 'app', 'icon.png'),
         frame: false,
         webPreferences: {
@@ -347,6 +347,43 @@ ipcMain.on('window-maximize', () => {
 });
 ipcMain.on('window-close', () => { const w = getFocusedWin(); if (w) w.close(); });
 ipcMain.on('window-new', () => { createWindow(); });
+
+ipcMain.on('navigate-to-landing', async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) return;
+
+    let hasChanges = false;
+    try {
+        const result = await win.webContents.executeJavaScript(`
+            (function() {
+                if (window.checkUnsavedChanges) return window.checkUnsavedChanges();
+                return { hasChanges: false };
+            })()
+        `);
+        hasChanges = result && result.hasChanges;
+    } catch (err) { }
+
+    if (hasChanges) {
+        const choice = await dialog.showMessageBox(win, {
+            type: 'question',
+            buttons: ['Opslaan', 'Niet Opslaan', 'Annuleren'],
+            defaultId: 0,
+            cancelId: 2,
+            title: 'Niet-opgeslagen wijzigingen',
+            message: 'Wil je het huidige document opslaan?',
+            detail: 'Het huidige document gaat verloren als je teruggaat naar het startmenu'
+        });
+        if (choice.response === 2) return;
+        if (choice.response === 0) {
+            try {
+                const saved = await win.webContents.executeJavaScript('window.saveToFile(false)');
+                if (saved && saved.canceled) return;
+            } catch (e) { }
+        }
+    }
+
+    win.loadFile(path.join(__dirname, 'app', 'landing.html'));
+});
 
 ipcMain.on('open-leren', (event) => {
     const parentWin = BrowserWindow.fromWebContents(event.sender);

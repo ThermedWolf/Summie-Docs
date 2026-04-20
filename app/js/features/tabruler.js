@@ -715,6 +715,7 @@
         handleTabKey,
         getTabStopsData, loadTabStopsData,
         getIndentsData, loadIndentsData,
-        attachRulersToAllPages
+        attachRulersToAllPages,
+        reposition: positionFixedRuler
     };
 })();

@@ -183,6 +183,56 @@ window.TableControls = (function () {
         panel.style.display = 'none';
 
         panel.innerHTML = `
+            <!-- ① Tabelstijl presets -->
+            <div class="toolbar-group animate-item ctx-group">
+                <label class="toolbar-label">Tabelstijl</label>
+                <div class="toolbar-buttons" style="gap:4px;flex-wrap:wrap;">
+                    <button class="btn-toolbar ctx-btn tbl-style-btn ctx-btn-active" data-style="top"      title="Bovenste rij als kop">
+                        <svg width="22" height="18" viewBox="0 0 22 18"><rect x="0" y="0" width="22" height="6" rx="1" fill="currentColor" opacity=".7"/><rect x="0" y="7" width="22" height="5" rx="1" fill="currentColor" opacity=".2"/><rect x="0" y="13" width="22" height="5" rx="1" fill="currentColor" opacity=".2"/></svg>
+                        <span>Top rij</span>
+                    </button>
+                    <button class="btn-toolbar ctx-btn tbl-style-btn" data-style="left" title="Linkerkolom als kop">
+                        <svg width="22" height="18" viewBox="0 0 22 18"><rect x="0" y="0" width="6" height="18" rx="1" fill="currentColor" opacity=".7"/><rect x="7" y="0" width="7" height="18" rx="1" fill="currentColor" opacity=".2"/><rect x="15" y="0" width="7" height="18" rx="1" fill="currentColor" opacity=".2"/></svg>
+                        <span>Linker rij</span>
+                    </button>
+                    <button class="btn-toolbar ctx-btn tbl-style-btn" data-style="top-left" title="Bovenste rij en linkerkolom als kop">
+                        <svg width="22" height="18" viewBox="0 0 22 18"><rect x="0" y="0" width="22" height="6" rx="1" fill="currentColor" opacity=".7"/><rect x="0" y="7" width="6" height="11" rx="1" fill="currentColor" opacity=".7"/><rect x="7" y="7" width="15" height="11" rx="1" fill="currentColor" opacity=".2"/></svg>
+                        <span>Top + links</span>
+                    </button>
+                    <button class="btn-toolbar ctx-btn tbl-style-btn" data-style="top-right" title="Bovenste rij en rechterkolom als kop">
+                        <svg width="22" height="18" viewBox="0 0 22 18"><rect x="0" y="0" width="22" height="6" rx="1" fill="currentColor" opacity=".7"/><rect x="15" y="7" width="7" height="11" rx="1" fill="currentColor" opacity=".7"/><rect x="0" y="7" width="14" height="11" rx="1" fill="currentColor" opacity=".2"/></svg>
+                        <span>Top + rechts</span>
+                    </button>
+                    <button class="btn-toolbar ctx-btn tbl-style-btn" data-style="right" title="Rechterkolom als kop">
+                        <svg width="22" height="18" viewBox="0 0 22 18"><rect x="15" y="0" width="7" height="18" rx="1" fill="currentColor" opacity=".7"/><rect x="0" y="0" width="14" height="18" rx="1" fill="currentColor" opacity=".2"/></svg>
+                        <span>Rechter rij</span>
+                    </button>
+                    <button class="btn-toolbar ctx-btn tbl-style-btn" data-style="none" title="Geen kopcellen">
+                        <svg width="22" height="18" viewBox="0 0 22 18"><rect x="0" y="0" width="22" height="18" rx="1" fill="currentColor" opacity=".2"/></svg>
+                        <span>Leeg</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="toolbar-separator animate-item"></div>
+
+            <!-- ② Koptijl op huidig rij/kolom -->
+            <div class="toolbar-group animate-item ctx-group">
+                <label class="toolbar-label">Huidige selectie</label>
+                <div class="toolbar-buttons">
+                    <button class="btn-toolbar ctx-btn" id="tblMakeHeaderRow" title="Maak huidige rij een koprij (vet + lichtgrijs)">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="7" rx="1"/><rect x="3" y="14" width="18" height="7" rx="1" opacity=".4"/></svg>
+                        <span>Koptijl rij</span>
+                    </button>
+                    <button class="btn-toolbar ctx-btn" id="tblMakeHeaderCol" title="Maak huidige kolom een kopkolom (vet + lichtgrijs)">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="18" rx="1" opacity=".4"/></svg>
+                        <span>Koptijl kolom</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="toolbar-separator animate-item"></div>
+
             <div class="toolbar-group animate-item ctx-group">
                 <label class="toolbar-label">Tabelkleuren</label>
                 <div class="toolbar-buttons">
@@ -234,11 +284,13 @@ window.TableControls = (function () {
                         <span class="ctx-size-label">Rijhoogte</span>
                         <input type="number" id="tblRowHeight" class="ctx-size-input" min="20" max="300" value="32" step="2">
                         <span class="ctx-size-unit">px</span>
+                        <button class="btn-toolbar ctx-btn tbl-size-reset" id="tblRowHeightReset" title="Standaard hoogte herstellen" style="padding:2px 5px;font-size:11px;">↺</button>
                     </div>
                     <div class="ctx-size-group">
                         <span class="ctx-size-label">Kolombreedte</span>
                         <input type="number" id="tblColWidth" class="ctx-size-input" min="40" max="600" value="100" step="5">
                         <span class="ctx-size-unit">px</span>
+                        <button class="btn-toolbar ctx-btn tbl-size-reset" id="tblColWidthReset" title="Standaard breedte herstellen" style="padding:2px 5px;font-size:11px;">↺</button>
                     </div>
                 </div>
             </div>
@@ -374,13 +426,34 @@ window.TableControls = (function () {
         }
 
         if (action === 'addColLeft' || action === 'addColRight') {
+            const isRatio = _activeTable.classList.contains('summie-ratio-table');
             rows.forEach((tr, trIdx) => {
                 const cells = Array.from(tr.querySelectorAll('th,td'));
                 const refCell = cells[ci] || cells[cells.length - 1];
-                const newCell = makeCell(trIdx === 0 ? 'th' : 'td');
+                // Ratio tables: all rows use td (no th header row); stamp data-ratio-cell
+                // unless it's the label column (ci === 0)
+                const tag = (!isRatio && trIdx === 0) ? 'th' : 'td';
+                const newCell = makeCell(tag);
+                if (isRatio && ci > 0) {
+                    newCell.dataset.ratioCell = '1';
+                    newCell.textContent = '';
+                    newCell.innerHTML = '';
+                }
                 if (action === 'addColLeft') refCell.parentNode.insertBefore(newCell, refCell);
                 else refCell.parentNode.insertBefore(newCell, refCell.nextSibling);
             });
+            // Re-trigger ratio recalc + arrow redraw after column added
+            if (_activeTable.classList.contains('summie-ratio-table')) {
+                const tblRef = _activeTable;
+                const wrapper = tblRef.closest('.ratio-table-wrapper');
+                const svg = wrapper?.querySelector('.ratio-arrows-svg');
+                if (wrapper && svg) {
+                    // Two rAFs ensure layout is fully settled before measuring offsets
+                    requestAnimationFrame(() => requestAnimationFrame(() => {
+                        window.TableManager?._recalcRatioTable(wrapper, tblRef, svg);
+                    }));
+                }
+            }
         }
 
         if (action === 'delCol') {
@@ -399,6 +472,86 @@ window.TableControls = (function () {
         }
 
         window.saveToLocalStorage?.();
+        // Re-stamp cell refs after structural changes (add/del row/col)
+        if (_activeTable) stampCellRefs(_activeTable);
+        // Re-trigger ratio recalc + arrow redraw for ratio tables
+        if (_activeTable?.classList.contains('summie-ratio-table')) {
+            const tblRef = _activeTable;
+            const wrapper = tblRef.closest('.ratio-table-wrapper');
+            const svg = wrapper?.querySelector('.ratio-arrows-svg');
+            if (wrapper && svg) {
+                requestAnimationFrame(() => requestAnimationFrame(() => {
+                    window.TableManager?._recalcRatioTable(wrapper, tblRef, svg);
+                }));
+            }
+        }
+    }
+
+    // ── Ontwerp: apply tabel style preset ───────────────────────────────
+
+    const HEADER_BG = 'rgba(59,130,246,0.06)';
+    const HEADER_FW = '600';
+
+    // Swap a cell between th and td, preserving all content, styles and data attributes
+    function swapCellTag(cell, toTag) {
+        if (cell.tagName.toLowerCase() === toTag) return cell;
+        const replacement = document.createElement(toTag);
+        // Copy all attributes
+        Array.from(cell.attributes).forEach(attr => replacement.setAttribute(attr.name, attr.value));
+        // Copy inner content
+        replacement.innerHTML = cell.innerHTML;
+        cell.parentNode.replaceChild(replacement, cell);
+        return replacement;
+    }
+
+    function applyTabelStijl(tbl, stijl) {
+        if (!tbl) return;
+        tbl.dataset.tabelStijl = stijl;
+        const rows = allRows(tbl);
+        const numCols = Array.from(rows[0]?.querySelectorAll('th,td') || []).length;
+
+        rows.forEach((tr, ri) => {
+            // Re-query after potential swaps in previous iterations
+            const cells = Array.from(tr.querySelectorAll('th,td'));
+            cells.forEach((cell, ci) => {
+                const isTopRow = ri === 0;
+                const isLeftCol = ci === 0;
+                const isRightCol = ci === numCols - 1;
+
+                let isHeader = false;
+                if (stijl === 'top') isHeader = isTopRow;
+                if (stijl === 'left') isHeader = isLeftCol;
+                if (stijl === 'top-left') isHeader = isTopRow || isLeftCol;
+                if (stijl === 'top-right') isHeader = isTopRow || isRightCol;
+                if (stijl === 'right') isHeader = isRightCol;
+                // 'none' leaves isHeader = false
+
+                // Swap tag: th = header, td = normal
+                swapCellTag(cell, isHeader ? 'th' : 'td');
+            });
+        });
+        window.saveToLocalStorage?.();
+    }
+
+    function syncOntwerpStijlButtons(tbl) {
+        const stijl = tbl?.dataset.tabelStijl || 'top';
+        document.querySelectorAll('.tbl-style-btn').forEach(btn => {
+            btn.classList.toggle('ctx-btn-active', btn.dataset.style === stijl);
+        });
+    }
+
+    function syncOntwerpSizeInputs(cell, tbl) {
+        const rowHeightInput = document.getElementById('tblRowHeight');
+        const colWidthInput = document.getElementById('tblColWidth');
+        if (!cell || !tbl) return;
+        if (rowHeightInput) {
+            const h = cell.getBoundingClientRect().height;
+            rowHeightInput.value = Math.round(h);
+        }
+        if (colWidthInput) {
+            const w = cell.getBoundingClientRect().width;
+            colWidthInput.value = Math.round(w);
+        }
     }
 
     // ── Ontwerp Panel Events ──────────────────────────────────────────────
@@ -406,6 +559,38 @@ window.TableControls = (function () {
     function bindOntwerpEvents(panel) {
         panel.addEventListener('mousedown', e => {
             if (!e.target.matches('input[type="number"], input[type="color"]')) e.preventDefault();
+        });
+
+        // Tabelstijl preset buttons
+        panel.querySelectorAll('.tbl-style-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (!_activeTable) return;
+                panel.querySelectorAll('.tbl-style-btn').forEach(b => b.classList.remove('ctx-btn-active'));
+                btn.classList.add('ctx-btn-active');
+                applyTabelStijl(_activeTable, btn.dataset.style);
+            });
+        });
+
+        // Koptijl rij / kolom buttons
+        panel.querySelector('#tblMakeHeaderRow')?.addEventListener('click', () => {
+            if (!_activeTable) return;
+            const info = getFocusedCellInfo(_activeTable);
+            if (info.rowIdx < 0) return;
+            const tr = allRows(_activeTable)[info.rowIdx];
+            Array.from(tr?.querySelectorAll('th,td') || []).forEach(cell => swapCellTag(cell, 'th'));
+            window.saveToLocalStorage?.();
+        });
+
+        panel.querySelector('#tblMakeHeaderCol')?.addEventListener('click', () => {
+            if (!_activeTable) return;
+            const info = getFocusedCellInfo(_activeTable);
+            if (info.colIdx < 0) return;
+            allRows(_activeTable).forEach(tr => {
+                const cells = Array.from(tr.querySelectorAll('th,td'));
+                const cell = cells[info.colIdx];
+                if (cell) swapCellTag(cell, 'th');
+            });
+            window.saveToLocalStorage?.();
         });
 
         // Color buttons — applyFn receives (color, snapshotTable, snapshotInfo)
@@ -471,6 +656,43 @@ window.TableControls = (function () {
                 const cells = Array.from(tr.querySelectorAll('th,td'));
                 if (cells[info.colIdx]) { cells[info.colIdx].style.width = w + 'px'; cells[info.colIdx].style.minWidth = w + 'px'; }
             });
+            window.saveToLocalStorage?.();
+        });
+
+        // Afmetingen reset buttons
+        panel.querySelector('#tblRowHeightReset')?.addEventListener('click', () => {
+            const tbl = _sizeSnapshotTable || _activeTable;
+            const info = _sizeSnapshotInfo || (tbl ? getFocusedCellInfo(tbl) : null);
+            if (!tbl || !info || info.rowIdx < 0) return;
+            allRows(tbl)[info.rowIdx]?.querySelectorAll('th,td').forEach(c => {
+                c.style.height = '';
+                c.style.minHeight = '';
+            });
+            // Sync input back to actual rendered height
+            const firstCell = allRows(tbl)[info.rowIdx]?.querySelector('th,td');
+            if (firstCell && rowHeightInput) {
+                rowHeightInput.value = Math.round(firstCell.getBoundingClientRect().height);
+            }
+            window.saveToLocalStorage?.();
+        });
+
+        panel.querySelector('#tblColWidthReset')?.addEventListener('click', () => {
+            const tbl = _sizeSnapshotTable || _activeTable;
+            const info = _sizeSnapshotInfo || (tbl ? getFocusedCellInfo(tbl) : null);
+            if (!tbl || !info || info.colIdx < 0) return;
+            allRows(tbl).forEach(tr => {
+                const cells = Array.from(tr.querySelectorAll('th,td'));
+                if (cells[info.colIdx]) {
+                    cells[info.colIdx].style.width = '';
+                    cells[info.colIdx].style.minWidth = '';
+                }
+            });
+            // Sync input back to actual rendered width
+            const firstRow = allRows(tbl)[0];
+            const firstCell = firstRow ? Array.from(firstRow.querySelectorAll('th,td'))[info.colIdx] : null;
+            if (firstCell && colWidthInput) {
+                colWidthInput.value = Math.round(firstCell.getBoundingClientRect().width);
+            }
             window.saveToLocalStorage?.();
         });
 
@@ -605,6 +827,12 @@ window.TableControls = (function () {
 
     // ── Focus / Click Detection ───────────────────────────────────────────
 
+    function setCellFocused(cell) {
+        // Remove .cell-focused from all cells in editor, then apply to this one
+        document.querySelectorAll('.summie-table .cell-focused').forEach(c => c.classList.remove('cell-focused'));
+        if (cell) cell.classList.add('cell-focused');
+    }
+
     function onEditorFocusin(e) {
         const editor = document.getElementById('editor');
         if (!editor) return;
@@ -614,19 +842,41 @@ window.TableControls = (function () {
         if (cell) {
             const tbl = cell.closest('table');
             if (tbl && editor.contains(tbl)) {
+                setCellFocused(cell);
+                // If user focuses a ratio auto-filled cell, mark it as manually edited
+                // so the auto-fill won't overwrite it on next recalc
+                if (cell.dataset.ratioAutoFilled === 'true') {
+                    cell.addEventListener('input', () => {
+                        cell.dataset.ratioAutoFilled = 'false';
+                    }, { once: true });
+                }
                 window.ElementProtection?.cancelHide();
                 if (_activeTable !== tbl) {
                     _activeTable = tbl;
                     window.ElementProtection?.showContext('table');
                     window.TableFormulas?.watchTable(tbl);
+                    // Grey-out add/del row buttons for ratio tables (fixed 2-row structure)
+                    _updateRatioRowButtons(tbl);
                 }
                 // Always update the saved cell position
                 const info = getFocusedCellInfo(tbl);
                 if (info.rowIdx !== -1) _activeCellInfo = { rowIdx: info.rowIdx, colIdx: info.colIdx };
                 // Notify formula tab
                 window.TableFormulas?.onCellFocused(cell, tbl);
+                // Sync ontwerp panel inputs to current cell
+                syncOntwerpSizeInputs(cell, tbl);
+                syncOntwerpStijlButtons(tbl);
                 return;
             }
+        }
+        // Focus is in editor but NOT in a table cell - clear all cell highlights
+        // Only clear if focus didn't move to the toolbar/formula bar
+        if (!e.relatedTarget?.closest || (
+            !e.target.closest('.section-toolbar') &&
+            !e.target.closest('#contextTabsContainer') &&
+            !e.target.closest('.topbar')
+        )) {
+            setCellFocused(null);
         }
     }
 
@@ -638,10 +888,19 @@ window.TableControls = (function () {
         if (cell) {
             const tbl = cell.closest('table');
             if (tbl && editor.contains(tbl)) {
+                setCellFocused(cell);
+                // If user focuses a ratio auto-filled cell, mark it as manually edited
+                // so the auto-fill won't overwrite it on next recalc
+                if (cell.dataset.ratioAutoFilled === 'true') {
+                    cell.addEventListener('input', () => {
+                        cell.dataset.ratioAutoFilled = 'false';
+                    }, { once: true });
+                }
                 window.ElementProtection?.cancelHide();
                 if (_activeTable !== tbl) {
                     _activeTable = tbl;
                     window.ElementProtection?.showContext('table');
+                    _updateRatioRowButtons(tbl);
                 }
                 window.TableFormulas?.watchTable(tbl);
                 // Always update the saved cell position
@@ -649,13 +908,16 @@ window.TableControls = (function () {
                 if (info.rowIdx !== -1) _activeCellInfo = { rowIdx: info.rowIdx, colIdx: info.colIdx };
                 // Notify formula tab
                 window.TableFormulas?.onCellFocused(cell, tbl);
+                // Sync ontwerp panel inputs to current cell
+                syncOntwerpSizeInputs(cell, tbl);
+                syncOntwerpStijlButtons(tbl);
                 return;
             }
         }
     }
 
     function onDocumentFocusin(e) {
-        // If focus went to toolbar/topbar/popup, cancel hide
+        // If focus went to toolbar/topbar/popup, cancel hide and keep cell border
         if (e.target.closest && (
             e.target.closest('.section-toolbar') ||
             e.target.closest('#contextTabsContainer') ||
@@ -663,7 +925,7 @@ window.TableControls = (function () {
             e.target.closest('.ctx-popup')
         )) {
             window.ElementProtection?.cancelHide();
-            return;
+            return;  // Keep .cell-focused intact — user is working in the formula bar
         }
 
         // Focus left the table — hide if we are the active context
@@ -682,10 +944,30 @@ window.TableControls = (function () {
             _activeTable._fmlWatching = false;
             _activeTable._fmlObserver = null;
         }
+        setCellFocused(null);
+        _updateRatioRowButtons(null); // restore row buttons
         _activeTable = null;
         _activeCellInfo = { rowIdx: -1, colIdx: -1 };
         window.TableFormulas?.onTableCleared();
         window.ElementProtection?.hideContext(false);
+    }
+
+    // ── Ratio table: grey-out row buttons ────────────────────────────────
+
+    function _updateRatioRowButtons(tbl) {
+        const isRatio = tbl?.classList.contains('summie-ratio-table');
+        const addRowAbove = document.getElementById('tblAddRowAbove');
+        const addRowBelow = document.getElementById('tblAddRowBelow');
+        const delRow = document.getElementById('tblDelRow');
+        [addRowAbove, addRowBelow, delRow].forEach(btn => {
+            if (!btn) return;
+            btn.disabled = !!isRatio;
+            btn.style.opacity = isRatio ? '0.35' : '';
+            btn.title = isRatio
+                ? 'Rijen aanpassen niet mogelijk in een verhoudingstabel'
+                : btn.dataset.origTitle || btn.title;
+            if (!btn.dataset.origTitle && !isRatio) btn.dataset.origTitle = btn.title;
+        });
     }
 
     // ── Init ──────────────────────────────────────────────────────────────
@@ -707,9 +989,71 @@ window.TableControls = (function () {
             if (window.ElementProtection?.getContext() !== 'table') return;
             const cell = e.target.closest && e.target.closest('th, td');
             if (!cell) {
+                setCellFocused(null);
+                _updateRatioRowButtons(null);
                 _activeTable = null;
                 _activeCellInfo = { rowIdx: -1, colIdx: -1 };
                 window.ElementProtection?.hideContext(false);
+            }
+        });
+
+        // Observe the Formules panel — toggle body.fml-panel-active so CSS can show cell coords
+        const coordObserver = new MutationObserver(() => {
+            const panel = document.getElementById('ctx-panel-tabel-formules');
+            const isActive = panel && panel.classList.contains('active');
+            document.body.classList.toggle('fml-panel-active', !!isActive);
+            // Re-stamp any active table in case rows were added
+            if (isActive && _activeTable) stampCellRefs(_activeTable);
+        });
+        // Observe the toolbar container for panel class changes
+        const toolbar = document.querySelector('.section-toolbar');
+        if (toolbar) coordObserver.observe(toolbar, { subtree: true, attributes: true, attributeFilter: ['class'] });
+
+        // Inline formula trigger (Excel-style)
+        // Typing '=' as the first char in a cell switches to the Formules tab
+        // and pipes input straight into fmlInput — no manual tab click needed.
+        editor.addEventListener('keydown', (e) => {
+            const cell = document.activeElement && document.activeElement.closest('th, td');
+            if (!cell) return;
+            const tbl = cell.closest('table');
+            if (!tbl || !editor.contains(tbl)) return;
+
+            if (e.key === '=' && (cell.textContent.trim() === '' || window.getSelection()?.toString() === cell.textContent.trim())) {
+                e.preventDefault();
+                // Make sure this cell is registered as the active output cell
+                window.TableFormulas?.onCellFocused(cell, tbl);
+                // Switch to Formules context tab
+                window.ElementProtection?.switchPanel('tabel-formules');
+                // Seed fmlInput with '=' and focus it
+                const fmlInput = document.getElementById('fmlInput');
+                if (fmlInput) {
+                    fmlInput.value = '=';
+                    fmlInput.focus();
+                    fmlInput.setSelectionRange(1, 1);
+                }
+                return;
+            }
+        });
+
+        // When fmlInput is focused: Enter applies, Escape returns focus to cell
+        document.addEventListener('keydown', (e) => {
+            const fmlInput = document.getElementById('fmlInput');
+            if (!fmlInput || document.activeElement !== fmlInput) return;
+
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const applyBtn = document.getElementById('fmlApplyBtn');
+                if (applyBtn) applyBtn.click();
+                // Return focus to the active cell
+                setTimeout(() => {
+                    const activeCell = window.TableFormulas?.getActiveCell();
+                    if (activeCell) activeCell.focus();
+                }, 50);
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                fmlInput.value = '';
+                const activeCell = window.TableFormulas?.getActiveCell();
+                if (activeCell) activeCell.focus();
             }
         });
     }
@@ -845,9 +1189,19 @@ window.TableControls = (function () {
     // ── Live recalc on source cell edit ──────────────────────────────────
 
     // Watch a table for cell edits and recalc dependent formula cells
+    function stampCellRefs(tbl) {
+        const rows = Array.from(tbl.querySelectorAll('tr'));
+        rows.forEach((tr, r) => {
+            Array.from(tr.querySelectorAll('th,td')).forEach((cell, c) => {
+                cell.dataset.cellRef = colLetter(c) + (r + 1);
+            });
+        });
+    }
+
     function watchTable(tbl) {
         if (tbl._fmlWatching) return;
         tbl._fmlWatching = true;
+        stampCellRefs(tbl);
 
         // Table cells aren't individually contenteditable — the whole editor div is.
         // MutationObserver catches any text/subtree change inside the table.
@@ -871,6 +1225,10 @@ window.TableControls = (function () {
                         cell.dataset.formulaDecimals || '2'
                     );
                 });
+                // Recalc ratio labels if this is a ratio table
+                if (tbl.classList.contains('summie-ratio-table')) {
+                    window.TableManager?._recalcRatioLabels(tbl);
+                }
             }, 300);
         });
 
@@ -1014,7 +1372,7 @@ window.TableControls = (function () {
         const num = typeof value === 'number' ? value : parseFloat(value);
         if (isNaN(num)) return String(value);
         const d = parseInt(decimals) || 0;
-        if (fmt === 'pct') return (num * 100).toFixed(d) + '%';
+        if (fmt === 'pct') return num.toFixed(d) + '\u202f%';
         if (fmt === 'eur') return '€\u202f' + num.toFixed(Math.max(d, 2)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
         return parseFloat(num.toFixed(d)).toString();
     }
@@ -1040,6 +1398,10 @@ window.TableControls = (function () {
                 cell.dataset.formulaDecimals || '2'
             );
         });
+        // If this is a ratio table, recalc ratio labels too
+        if (tbl.classList.contains('summie-ratio-table')) {
+            window.TableManager?._recalcRatioLabels(tbl);
+        }
     }
 
     // ── State ─────────────────────────────────────────────────────────────
@@ -1488,6 +1850,24 @@ window.TableControls = (function () {
         if (tog) tog.classList.remove('ctx-btn-active');
     }
 
+    // ── Ratio table: grey-out row buttons ────────────────────────────────
+
+    function _updateRatioRowButtons(tbl) {
+        const isRatio = tbl?.classList.contains('summie-ratio-table');
+        const addRowAbove = document.getElementById('tblAddRowAbove');
+        const addRowBelow = document.getElementById('tblAddRowBelow');
+        const delRow = document.getElementById('tblDelRow');
+        [addRowAbove, addRowBelow, delRow].forEach(btn => {
+            if (!btn) return;
+            btn.disabled = !!isRatio;
+            btn.style.opacity = isRatio ? '0.35' : '';
+            btn.title = isRatio
+                ? 'Rijen aanpassen niet mogelijk in een verhoudingstabel'
+                : btn.dataset.origTitle || btn.title;
+            if (!btn.dataset.origTitle && !isRatio) btn.dataset.origTitle = btn.title;
+        });
+    }
+
     // ── Init ──────────────────────────────────────────────────────────────
 
     function init() {
@@ -1503,6 +1883,7 @@ window.TableControls = (function () {
         onTableCleared,
         recalcTable,
         watchTable,
+        stampCellRefs,
         getActiveCell: () => _activeCell,
         isPickerActive: () => _pickerMode,
     };

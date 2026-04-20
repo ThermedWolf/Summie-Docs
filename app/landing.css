@@ -714,3 +714,116 @@ body {
     background: var(--border);
     border-radius: 3px;
 }
+
+/* ── Loader screen ────────────────────────────────────────────────────── */
+
+.summie-loader-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    background: #f8fafc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.35s ease;
+}
+
+.summie-loader-overlay.summie-loader-done {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.summie-loader-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+}
+
+.summie-loader-logo {
+    width: 64px;
+    height: 64px;
+    object-fit: contain;
+    animation: summieLogoPulse 2s ease-in-out infinite;
+}
+
+@keyframes summieLogoPulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    50% {
+        transform: scale(1.06);
+        opacity: 0.85;
+    }
+}
+
+.summie-loader-name {
+    font-size: 22px;
+    font-weight: 700;
+    color: #1e293b;
+    letter-spacing: -0.02em;
+    margin-top: -8px;
+}
+
+/* The provided loader animation */
+.loader {
+    width: 55px;
+    aspect-ratio: 1;
+    --g1: conic-gradient(from 90deg at top 3px left 3px, #0000 90deg, #3b82f6 0);
+    --g2: conic-gradient(from -90deg at bottom 3px right 3px, #0000 90deg, #3b82f6 0);
+    background:
+        var(--g1), var(--g1), var(--g1), var(--g1),
+        var(--g2), var(--g2), var(--g2), var(--g2);
+    background-position: 0 0, 100% 0, 100% 100%, 0 100%;
+    background-size: 25px 25px;
+    background-repeat: no-repeat;
+    animation: l11 1.5s infinite;
+}
+
+@keyframes l11 {
+    0% {
+        background-size: 35px 15px, 15px 15px, 15px 35px, 35px 35px,
+            35px 15px, 15px 15px, 15px 35px, 35px 35px;
+    }
+
+    25% {
+        background-size: 35px 35px, 15px 35px, 15px 15px, 35px 15px,
+            35px 35px, 15px 35px, 15px 15px, 35px 15px;
+    }
+
+    50% {
+        background-size: 15px 35px, 35px 35px, 35px 15px, 15px 15px,
+            15px 35px, 35px 35px, 35px 15px, 15px 15px;
+    }
+
+    75% {
+        background-size: 15px 15px, 35px 15px, 35px 35px, 15px 35px,
+            15px 15px, 35px 15px, 35px 35px, 15px 35px;
+    }
+
+    100% {
+        background-size: 35px 15px, 15px 15px, 15px 35px, 35px 35px,
+            35px 15px, 15px 15px, 15px 35px, 35px 35px;
+    }
+}
+
+/* Progress bar */
+.summie-loader-bar-track {
+    width: 180px;
+    height: 3px;
+    background: #e2e8f0;
+    border-radius: 99px;
+    overflow: hidden;
+}
+
+.summie-loader-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #3b82f6, #6366f1);
+    border-radius: 99px;
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}

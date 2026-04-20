@@ -93,8 +93,17 @@
     background: var(--bg-white);
 }
 
+/* :focus suppressed - JS adds/removes .cell-focused for precise control */
 .summie-table td:focus,
-.summie-table th:focus {
+.summie-table th:focus,
+.summie-table td:focus-visible,
+.summie-table th:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+.summie-table td.cell-focused,
+.summie-table th.cell-focused {
     background: rgba(59, 130, 246, 0.05);
     box-shadow: inset 0 0 0 2px rgba(59, 130, 246, 0.3);
 }
@@ -144,4 +153,70 @@
     box-shadow: none !important;
     outline: 2px solid rgba(239, 68, 68, 0.45) !important;
     outline-offset: -1px;
+}
+
+/* ── Formula tab: cell coordinate labels ──────────────────────────────── */
+/* Shown only when the Formules context panel is active (body.fml-panel-active) */
+
+.fml-panel-active .summie-table td[data-cell-ref],
+.fml-panel-active .summie-table th[data-cell-ref] {
+    position: relative;
+}
+
+.fml-panel-active .summie-table td[data-cell-ref]::after,
+.fml-panel-active .summie-table th[data-cell-ref]::after {
+    content: attr(data-cell-ref);
+    position: absolute;
+    top: 2px;
+    right: 3px;
+    font-size: 9px;
+    font-weight: 600;
+    line-height: 1;
+    color: rgba(59, 130, 246, 0.55);
+    pointer-events: none;
+    user-select: none;
+    font-family: 'Consolas', 'Monaco', monospace;
+    letter-spacing: 0.02em;
+}
+
+/* Slightly more visible on the active/focused cell */
+.fml-panel-active .summie-table td.cell-focused[data-cell-ref]::after,
+.fml-panel-active .summie-table th.cell-focused[data-cell-ref]::after,
+.fml-panel-active .summie-table td.fml-output-cell[data-cell-ref]::after,
+.fml-panel-active .summie-table th.fml-output-cell[data-cell-ref]::after {
+    color: rgba(59, 130, 246, 0.85);
+}
+
+/* ── Verhoudingstabel ─────────────────────────────────────────────────── */
+
+.ratio-table-wrapper {
+    position: relative;
+    margin: 8px 0 16px;
+    /* padding matches PAD_TOP/PAD_BOTTOM in JS so arrows have space */
+    padding-top: 30px;
+    padding-bottom: 30px;
+}
+
+/* First column (names) — bold + blue tint */
+.summie-ratio-table .ratio-name-col {
+    background: rgba(59, 130, 246, 0.06) !important;
+    font-weight: 600;
+    color: var(--text-primary);
+    min-width: 90px;
+}
+
+/* Value cells — centered */
+.summie-ratio-table td[data-ratio-cell],
+.summie-ratio-table th[data-ratio-cell] {
+    text-align: center;
+    min-width: 70px;
+}
+
+/* SVG arrow overlay — covers the full wrapper including padding zones */
+.ratio-arrows-svg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+    overflow: visible;
 }

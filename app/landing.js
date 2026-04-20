@@ -406,8 +406,25 @@ function generateId() {
 // ==================== INIT ====================
 
 document.addEventListener('DOMContentLoaded', async () => {
+    // Animate the loading bar while content loads
+    const loaderBar = document.getElementById('summieLoaderBar');
+    if (loaderBar) {
+        loaderBar.style.width = '30%';
+        setTimeout(() => { loaderBar.style.width = '65%'; }, 200);
+    }
+
     loadCurrentDocPreview();
     await renderRecentDocs();
+
+    // Hide loader with a short fade after content is ready
+    if (loaderBar) loaderBar.style.width = '100%';
+    setTimeout(() => {
+        const loader = document.getElementById('summieLoader');
+        if (loader) {
+            loader.classList.add('summie-loader-done');
+            setTimeout(() => loader.remove(), 400);
+        }
+    }, 150);
 
     // Action card buttons (inside current-doc section)
     document.getElementById('newDocBtn').addEventListener('click', () => openNewDocument(false));

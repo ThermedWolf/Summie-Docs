@@ -41,6 +41,9 @@ function handleEditorKeydown(e) {
     // =rand() dummy tekst (moet vóór alles andere, want het consumeert Enter/Tab)
     if (window.RandText && window.RandText.checkRandTrigger(e)) return;
 
+    // Rekendetectie — detecteer '12,7 x 23 =' en toon berekening-kaart chip
+    if (window.CalcDetect && window.CalcDetect.checkCalcTrigger(e)) return;
+
     // Enter key: reset style and remove begrip-word on new line
     if (e.key === 'Enter') {
         const selection = window.getSelection();

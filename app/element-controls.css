@@ -570,10 +570,9 @@
     outline-offset: -1px;
 }
 
-/* Output cell: subtle indicator */
+/* Output cell: visual handled by .cell-focused — no extra outline needed */
 .fml-output-cell {
-    outline: 2px solid rgba(59, 130, 246, 0.5) !important;
-    outline-offset: -1px;
+    outline: none;
 }
 
 /* Formula cell dot indicator */

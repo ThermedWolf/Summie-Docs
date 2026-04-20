@@ -29,6 +29,7 @@ contextBridge.exposeInMainWorld(
         windowMinimize: () => ipcRenderer.send('window-minimize'),
         windowMaximize: () => ipcRenderer.send('window-maximize'),
         windowClose: () => ipcRenderer.send('window-close'),
+        navigateToLanding: () => ipcRenderer.send('navigate-to-landing'),
         windowNew: () => ipcRenderer.send('window-new'),
         openLeren: () => ipcRenderer.send('open-leren'),
         windowIsMaximized: () => ipcRenderer.invoke('window-is-maximized'),
@@ -39,14 +40,14 @@ contextBridge.exposeInMainWorld(
         platform: process.platform,
 
         // App version
-        version: '3.2.5'
+        version: '3.2.8'
     }
 );
 
 contextBridge.exposeInMainWorld(
     'appInfo',
     {
-        version: '3.2.7',
+        version: '3.2.8',
         name: 'Summie',
         isElectron: true
     }

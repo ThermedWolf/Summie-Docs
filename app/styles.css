@@ -2082,3 +2082,112 @@ ol li {
     margin-bottom: 6px;
     padding: 0 2px;
 }
+
+/* ── Rekendetectie chip ───────────────────────────────────────────────── */
+
+.calc-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-white);
+    border: 1px solid var(--border-color);
+    border-left: 3px solid var(--primary-color);
+    border-radius: 8px;
+    padding: 6px 10px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    font-size: 13px;
+    color: var(--text-primary);
+    animation: calcChipIn 0.15s ease;
+    max-width: 480px;
+}
+
+@keyframes calcChipIn {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.calc-chip-expr {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.calc-chip-expr strong {
+    color: var(--primary-color);
+    font-weight: 700;
+}
+
+.calc-chip-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--primary-color);
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    padding: 3px 8px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s;
+}
+
+.calc-chip-btn:hover {
+    background: var(--primary-hover, #2563eb);
+}
+
+.calc-chip-close {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 13px;
+    padding: 2px 4px;
+    border-radius: 4px;
+    line-height: 1;
+    transition: color 0.1s;
+}
+
+.calc-chip-close:hover {
+    color: var(--text-primary);
+}
+
+/* ── Berekening-kaart tabel ──────────────────────────────────────────── */
+
+.calc-card-table {
+    max-width: 400px;
+}
+
+.calc-card-table .calc-card-header {
+    background: var(--primary-color) !important;
+    color: #fff !important;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.02em;
+    text-align: center;
+    padding: 8px 12px;
+}
+
+.calc-card-table th {
+    background: rgba(59, 130, 246, 0.06);
+    font-weight: 600;
+    width: 120px;
+}
+
+.calc-card-table td {
+    font-variant-numeric: tabular-nums;
+}
+
+.calc-card-table .calc-card-answer {
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--primary-color);
+}

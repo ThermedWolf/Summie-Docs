@@ -58,6 +58,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // 5. Populate UI
     window.initStyles && window.initStyles();
     updateBegrippenList();
+    // Default to 'inhoud' tab; switch to 'begrippen' only if the doc has begrippen
+    setTimeout(() => {
+        const hasBegrippen = window.AppState.begrippen && window.AppState.begrippen.length > 0;
+        window.switchTab && window.switchTab(hasBegrippen ? 'begrippen' : 'inhoud');
+    }, 150);
     updateInhoudList();
     updateActiveInhoudItem();
     updateWordCounter();

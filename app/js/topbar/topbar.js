@@ -37,7 +37,7 @@ class TopbarManager {
 
         if (minimize) minimize.addEventListener('click', () => window.electron && window.electron.windowMinimize());
         if (maximize) maximize.addEventListener('click', () => window.electron && window.electron.windowMaximize());
-        if (close) close.addEventListener('click', () => window.electron && window.electron.windowClose());
+        if (close) close.addEventListener('click', () => window.electron && window.electron.navigateToLanding());
 
         if (!window.electron) return;
 
@@ -224,12 +224,25 @@ class TopbarManager {
                     // Also reset any stuck toolbar height/overflow from prior transitions
                     toolbar.style.height = '';
                     toolbar.style.overflow = '';
-                    setTimeout(updateTopbarHeight, 50);
+                    // Wait for the toolbar expand transition (0.4s) before updating sidebar top
+                    const onToolbarExpanded = () => {
+                        updateTopbarHeight();
+                        toolbar.removeEventListener('transitionend', onToolbarExpanded);
+                    };
+                    toolbar.addEventListener('transitionend', onToolbarExpanded);
+                    // Fallback in case transitionend doesn't fire (e.g. no transition active)
+                    setTimeout(() => {
+                        updateTopbarHeight();
+                        toolbar.removeEventListener('transitionend', onToolbarExpanded);
+                    }, 450);
                 }
             }
         }
 
         this.currentSection = sectionName;
+
+        // Reposition tab ruler after the toolbar animation completes (~400ms)
+        setTimeout(() => window.TabRuler?.reposition?.(), 420);
 
         // Restore editor focus after switching sections (except file sidebar)
         if (sectionName !== 'bestand') {
