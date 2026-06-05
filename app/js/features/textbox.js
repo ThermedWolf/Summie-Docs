@@ -397,6 +397,14 @@ window.TextboxManager = (function () {
                 _setActive(box);
             }
         });
+
+        // Mousedown delegation — ensures drag/resize listeners are attached even
+        // when the user clicks the drag handle before the inner div has received focus.
+        // Uses capture phase so this runs before the drag handler fires.
+        document.addEventListener('mousedown', e => {
+            const box = e.target.closest && e.target.closest('[data-textbox]');
+            if (box) _setupFocusIfNeeded(box);
+        }, true);
     }
 
     function _setupFocusIfNeeded(box) {
