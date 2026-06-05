@@ -4,9 +4,9 @@
 
 # Summie
 
-**A distraction-free document editor built for students. **
+**A distraction-free document editor built for everyone.**
 
-[![Version](https://img.shields.io/badge/version-3.2.6-blue?style=flat-square)](https://github.com/ThermedWolf/Summie-Docs/releases)
+[![Version](https://img.shields.io/badge/version-4.0.0-blue?style=flat-square)](https://github.com/ThermedWolf/Summie-Docs/releases)
 [![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey?style=flat-square)](#installation)
 [![Built with Electron](https://img.shields.io/badge/built%20with-Electron-47848f?style=flat-square&logo=electron)](https://www.electronjs.org/)
