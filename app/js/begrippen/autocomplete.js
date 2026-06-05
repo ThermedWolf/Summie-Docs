@@ -4,11 +4,15 @@
 // insertBegripOrAlias, insertBegrip.
 
 function checkAutocomplete() {
-    const { autocompletePopup, begrippen } = window.AppState;
+    const { begrippen } = window.AppState;
     const selection = window.getSelection();
     if (selection.rangeCount === 0) { hideAutocomplete(); return; }
 
     const range = selection.getRangeAt(0);
+    if (!range.collapsed) { hideAutocomplete(); return; }
+    const activePage = getAutocompletePage(range);
+    if (!activePage || !activePage.contains(range.startContainer)) { hideAutocomplete(); return; }
+
     const textNode = range.startContainer;
     if (textNode.nodeType !== 3) { hideAutocomplete(); return; }
 
@@ -32,13 +36,13 @@ function checkAutocomplete() {
 }
 
 function showAutocomplete(matches, range) {
-    const { editor, autocompletePopup } = window.AppState;
+    const { autocompletePopup } = window.AppState;
     autocompletePopup.innerHTML = '';
-    window.AppState.autocompleteIndex = -1;
+    window.AppState.autocompleteIndex = 0;
 
-    matches.forEach(begrip => {
+    matches.forEach((begrip, index) => {
         const item = document.createElement('div');
-        item.className = 'autocomplete-item';
+        item.className = index === 0 ? 'autocomplete-item selected' : 'autocomplete-item';
 
         let displayText = begrip.keyword;
         if (begrip.aliases && begrip.aliases.length > 0) displayText += ` (${begrip.aliases.join(', ')})`;
@@ -57,10 +61,16 @@ function showAutocomplete(matches, range) {
         autocompletePopup.appendChild(item);
     });
 
-    const rect = range.getBoundingClientRect();
-    const editorRect = editor.getBoundingClientRect();
-    autocompletePopup.style.left = (rect.left - editorRect.left + editor.scrollLeft) + 'px';
-    autocompletePopup.style.top = (rect.bottom - editorRect.top + editor.scrollTop + 50) + 'px';
+    const rect = getAutocompleteRangeRect(range);
+    if (!rect) { hideAutocomplete(); return; }
+
+    const container = autocompletePopup.parentElement;
+    const containerRect = container.getBoundingClientRect();
+    const left = rect.right - containerRect.left + container.scrollLeft;
+    const top = rect.bottom - containerRect.top + container.scrollTop + 4;
+
+    autocompletePopup.style.left = Math.max(0, left) + 'px';
+    autocompletePopup.style.top = Math.max(0, top) + 'px';
     autocompletePopup.classList.add('active');
 }
 
@@ -88,8 +98,8 @@ function navigateAutocomplete(direction) {
 
 function selectAutocomplete() {
     const { autocompletePopup, begrippen } = window.AppState;
-    const idx = window.AppState.autocompleteIndex;
     const items = autocompletePopup.querySelectorAll('.autocomplete-item');
+    const idx = window.AppState.autocompleteIndex >= 0 ? window.AppState.autocompleteIndex : 0;
     if (idx >= 0 && idx < items.length) {
         const keyword = items[idx].dataset.keyword;
         const begrip = begrippen.find(b => b.keyword === keyword);
@@ -102,6 +112,7 @@ function insertBegripOrAlias(begrip) {
     if (selection.rangeCount === 0) return;
 
     const range = selection.getRangeAt(0);
+    if (!range.collapsed || !getAutocompletePage(range)) return;
     const textNode = range.startContainer;
     if (textNode.nodeType !== 3) return;
 
@@ -111,16 +122,20 @@ function insertBegripOrAlias(begrip) {
     let wordStart = cursorPos;
     while (wordStart > 0 && /\S/.test(text[wordStart - 1])) wordStart--;
 
-    const typedWord = text.substring(wordStart, cursorPos).toLowerCase();
+    const typedWord = text.substring(wordStart, cursorPos);
 
     let wordToInsert = begrip.keyword;
     if (begrip.aliases) {
-        const matchingAlias = begrip.aliases.find(a => a.toLowerCase().startsWith(typedWord));
+        const matchingAlias = begrip.aliases.find(a => a.toLowerCase().startsWith(typedWord.toLowerCase()));
         if (matchingAlias) wordToInsert = matchingAlias;
     }
 
-    textNode.textContent = text.substring(0, wordStart) + wordToInsert + ' ' + text.substring(cursorPos);
-    const newCursorPos = wordStart + wordToInsert.length + 1;
+    // Keep the already-typed characters as-is; only append what is missing
+    const remainder = wordToInsert.slice(typedWord.length);
+    const fullWord = typedWord + remainder;
+
+    textNode.textContent = text.substring(0, wordStart) + fullWord + ' ' + text.substring(cursorPos);
+    const newCursorPos = wordStart + fullWord.length + 1;
 
     hideAutocomplete();
 
@@ -144,6 +159,7 @@ function insertBegrip(keyword) {
     if (selection.rangeCount === 0) return;
 
     const range = selection.getRangeAt(0);
+    if (!range.collapsed || !getAutocompletePage(range)) return;
     const textNode = range.startContainer;
     if (textNode.nodeType !== 3) return;
 
@@ -171,6 +187,43 @@ function insertBegrip(keyword) {
         window.highlightBegrippen && window.highlightBegrippen();
         window.saveToLocalStorage && window.saveToLocalStorage();
     }, 100);
+}
+
+function getAutocompletePage(range) {
+    const state = window.AppState || {};
+    const node = range && range.startContainer;
+    const element = node && node.nodeType === 3 ? node.parentElement : node;
+    const page = element && element.closest && element.closest('.page[contenteditable="true"]');
+    return page || state.editor || null;
+}
+
+function getAutocompleteRangeRect(range) {
+    const rect = range.getBoundingClientRect();
+    if (rect && (rect.width || rect.height)) return rect;
+
+    const markerRange = range.cloneRange();
+    const marker = document.createElement('span');
+    marker.textContent = '\u200b';
+    marker.style.display = 'inline-block';
+    marker.style.width = '1px';
+    marker.style.height = '1em';
+    marker.style.overflow = 'hidden';
+
+    try {
+        markerRange.insertNode(marker);
+        const markerRect = marker.getBoundingClientRect();
+        marker.remove();
+
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+
+        return markerRect && (markerRect.width || markerRect.height) ? markerRect : null;
+    } catch (e) {
+        marker.remove();
+        console.error('Error measuring autocomplete position:', e);
+        return null;
+    }
 }
 
 // Expose

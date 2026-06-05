@@ -445,6 +445,8 @@ window.CodeblockControls = (function () {
     function onEditorFocusin(e) {
         const editor = document.getElementById('editor');
         if (!editor) return;
+        // Ignore focus on the copy button
+        if (e.target.closest && e.target.closest('.code-copy-btn')) return;
         const wrapper = e.target.closest && e.target.closest('.code-block-wrapper');
         if (wrapper && editor.contains(wrapper)) {
             window.ElementProtection?.cancelHide();
@@ -454,6 +456,8 @@ window.CodeblockControls = (function () {
     function onEditorClick(e) {
         const editor = document.getElementById('editor');
         if (!editor) return;
+        // Ignore clicks on the copy button — it shouldn't activate the context tab
+        if (e.target.closest && e.target.closest('.code-copy-btn')) return;
         const wrapper = e.target.closest && e.target.closest('.code-block-wrapper');
         if (wrapper && editor.contains(wrapper)) {
             window.ElementProtection?.cancelHide();

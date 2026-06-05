@@ -2,28 +2,71 @@
 // Placeholder behaviour, focus management, loading data into the editor.
 
 const PLACEHOLDER_TEXT = 'Begin hier met typen...';
+let _pendingEmptyEditorStyle = 'normal';
+
+function getEditorPlaceholderOverlay() {
+    return document.getElementById('editorPlaceholderOverlay');
+}
+
+function getEditorPlaceholderContainer() {
+    const { editor } = window.AppState;
+    return editor ? editor.closest('.pages-container') : null;
+}
+
+function isEditorEmpty() {
+    const { editor } = window.AppState;
+    if (!editor) return true;
+
+    const clone = editor.cloneNode(true);
+    clone.querySelectorAll('.placeholder-text').forEach(el => el.remove());
+
+    if (clone.querySelector('img, table, .code-block-wrapper, .summie-textbox')) return false;
+
+    const text = (clone.innerText || clone.textContent || '')
+        .replace(/\u00a0/g, ' ')
+        .trim();
+    return text === '';
+}
+
+function updateEditorPlaceholder() {
+    const container = getEditorPlaceholderContainer();
+    const overlay = getEditorPlaceholderOverlay();
+    if (!container || !overlay) return;
+
+    container.classList.toggle('editor-empty', isEditorEmpty());
+}
+
+function setPendingEmptyEditorStyle(styleKey) {
+    _pendingEmptyEditorStyle = styleKey || 'normal';
+}
+
+function getPendingEmptyEditorStyle() {
+    return _pendingEmptyEditorStyle || 'normal';
+}
 
 function isPlaceholderActive() {
-    const { editor } = window.AppState;
-    const p = editor.querySelector('p');
-    return editor.children.length === 1 && p && p.textContent === PLACEHOLDER_TEXT && p.classList.contains('placeholder-text');
+    return isEditorEmpty();
 }
 
 function setEditorPlaceholder() {
     const { editor } = window.AppState;
     while (editor.firstChild) editor.removeChild(editor.firstChild);
-    const p = document.createElement('p');
-    p.className = 'placeholder-text';
-    p.textContent = PLACEHOLDER_TEXT;
-    editor.appendChild(p);
+    setPendingEmptyEditorStyle('normal');
     editor.setAttribute('contenteditable', 'true');
+    updateEditorPlaceholder();
 }
 
 function focusEditor() {
     const { editor } = window.AppState;
     editor.setAttribute('contenteditable', 'true');
     editor.focus();
-    const p = editor.querySelector('p');
+    let p = editor.querySelector('p');
+    if (!p && isEditorEmpty()) {
+        p = document.createElement('p');
+        p.appendChild(document.createElement('br'));
+        editor.appendChild(p);
+        updateEditorPlaceholder();
+    }
     if (p) {
         const sel = window.getSelection();
         const range = document.createRange();
@@ -36,6 +79,7 @@ function focusEditor() {
 
 function setupPlaceholderBehavior() {
     const { editor } = window.AppState;
+    updateEditorPlaceholder();
 
     // Capture phase keydown: handle first keystroke while placeholder is active
     editor.addEventListener('keydown', (e) => {
@@ -52,15 +96,21 @@ function setupPlaceholderBehavior() {
         }
 
         e.preventDefault();
-        const p = editor.querySelector('p');
-        p.classList.remove('placeholder-text');
-        p.textContent = '';
+        while (editor.firstChild) editor.removeChild(editor.firstChild);
+        const p = document.createElement('p');
+        editor.appendChild(p);
+        const pendingStyle = getPendingEmptyEditorStyle();
+        if (pendingStyle !== 'normal' && window.StyleManager) {
+            window.StyleManager.applyStyleToBlock(p, pendingStyle);
+        }
+        setPendingEmptyEditorStyle('normal');
 
         if (e.key === 'Enter') {
             document.execCommand('insertParagraph', false, null);
         } else if (e.key.length === 1) {
             document.execCommand('insertText', false, e.key);
         }
+        updateEditorPlaceholder();
     }, true);
 
     // Click: force cursor to position 0 while placeholder is active
@@ -68,40 +118,24 @@ function setupPlaceholderBehavior() {
         if (!isPlaceholderActive()) return;
         const sel = window.getSelection();
         const range = document.createRange();
-        const p = editor.querySelector('p');
+        let p = editor.querySelector('p');
+        if (!p) {
+            p = document.createElement('p');
+            p.appendChild(document.createElement('br'));
+            editor.appendChild(p);
+        }
         range.setStart(p, 0);
         range.collapse(true);
         sel.removeAllRanges();
         sel.addRange(range);
+        updateEditorPlaceholder();
     });
 
-    // MutationObserver: re-show placeholder when editor becomes empty,
-    // and REMOVE it immediately when real content is added alongside it
+    // MutationObserver: fade the external placeholder in/out with editor emptiness.
     const placeholderObserver = new MutationObserver(() => {
-        const placeholderEl = editor.querySelector('.placeholder-text');
-
-        // If placeholder is present but there are other children too, remove it
-        if (placeholderEl && editor.children.length > 1) {
-            placeholderEl.remove();
-            return;
-        }
-
-        if (isPlaceholderActive()) return;
-
-        // Re-show placeholder only when editor is truly empty
-        const hasRealContent = Array.from(editor.children).some(el =>
-            !el.classList.contains('placeholder-text') && (
-                el.tagName !== 'P' ||
-                el.textContent.trim() !== '' ||
-                el.querySelector('img, table, .code-block-wrapper')
-            )
-        );
-        const hasRealElements = editor.querySelector('table, img, .code-block-wrapper');
-
-        if (!hasRealContent && !hasRealElements && editor.innerText.trim() === '') {
-            setEditorPlaceholder();
-            window.updateWordCounter && window.updateWordCounter();
-        }
+        editor.querySelectorAll('.placeholder-text').forEach(el => el.remove());
+        updateEditorPlaceholder();
+        window.updateWordCounter && window.updateWordCounter();
     });
     placeholderObserver.observe(editor, { childList: true, subtree: true, characterData: true });
 }
@@ -127,8 +161,12 @@ function applyLoadedData(data) {
     }
 
     state.editor.innerHTML = data.content || '';
+    setPendingEmptyEditorStyle('normal');
+    state.editor.querySelectorAll('.placeholder-text').forEach(el => el.remove());
     if (!data.content || data.content.trim() === '' || data.content === '<p>Begin hier met typen...</p>') {
         setEditorPlaceholder();
+    } else {
+        updateEditorPlaceholder();
     }
     state.begrippen = data.begrippen || [];
 
@@ -196,6 +234,10 @@ window.checkUnsavedChanges = function () {
 
 // Expose
 window.isPlaceholderActive = isPlaceholderActive;
+window.isEditorEmpty = isEditorEmpty;
+window.updateEditorPlaceholder = updateEditorPlaceholder;
+window.setPendingEmptyEditorStyle = setPendingEmptyEditorStyle;
+window.getPendingEmptyEditorStyle = getPendingEmptyEditorStyle;
 window.setEditorPlaceholder = setEditorPlaceholder;
 window.focusEditor = focusEditor;
 window.setupPlaceholderBehavior = setupPlaceholderBehavior;

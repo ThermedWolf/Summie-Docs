@@ -4,37 +4,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Summie - Start</title>
+    <title>Summie</title>
     <link rel="stylesheet" href="landing.css">
-    <link rel="stylesheet" href="styles.css">
-    <link rel="stylesheet" href="code-blocks.css">
-    <link rel="stylesheet" href="syntax-highlighting.css">
-    <link rel="stylesheet" href="tables.css">
 </head>
 
 <body>
-    <!-- ── Loader screen ───────────────────────────────────────────────── -->
-    <div id="summieLoader" class="summie-loader-overlay">
+
+    <!-- LOADER -->
+    <div id="summieLoader" class="summie-loader-overlay" style="display:none">
         <div class="summie-loader-box">
             <img src="icon.png" alt="Summie" class="summie-loader-logo">
             <span class="summie-loader-name">Summie</span>
-            <div class="loader"></div>
             <div class="summie-loader-bar-track">
                 <div class="summie-loader-bar" id="summieLoaderBar"></div>
             </div>
         </div>
     </div>
 
-    <!-- Topbar -->
+    <!-- TOPBAR -->
     <div class="landing-topbar">
         <div class="topbar-left">
             <div class="app-logo">
-                <img src="icon.png" alt="Summie" width="28" height="28" style="object-fit:contain;display:block;">
+                <img src="icon.png" alt="Summie" width="26" height="26" style="object-fit:contain;display:block;">
                 <span class="app-name">Summie</span>
-                <span class="version-badge">v3.2.7</span>
+                <span class="version-badge">v4.0.0</span>
             </div>
         </div>
         <div class="topbar-actions">
+            <button class="landing-settings-btn" id="landingSettingsBtn" title="Instellingen">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3" />
+                    <path
+                        d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                </svg>
+            </button>
             <div class="window-controls">
                 <button class="win-btn win-minimize" id="winMinimize" title="Minimaliseren">
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -42,11 +46,9 @@
                     </svg>
                 </button>
                 <button class="win-btn win-maximize" id="winMaximize" title="Maximaliseren">
-                    <!-- Maximize icon (shown when not maximized) -->
                     <svg class="icon-maximize" width="16" height="16" viewBox="0 0 16 16" fill="none">
                         <rect x="2" y="2" width="12" height="12" rx="1.5" stroke="currentColor" stroke-width="1.5" />
                     </svg>
-                    <!-- Restore icon (shown when maximized) -->
                     <svg class="icon-restore" width="16" height="16" viewBox="0 0 16 16" fill="none"
                         style="display:none">
                         <rect x="4" y="2" width="10" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5" />
@@ -66,192 +68,295 @@
         </div>
     </div>
 
-    <!-- Main landing content -->
-    <div class="landing-content">
+    <!-- MAIN TWO-COLUMN LAYOUT -->
+    <div class="landing-layout">
 
-        <!-- Current Document Section -->
-        <div class="current-doc-section" id="currentDocSection" style="display:none;">
-            <h2 class="section-title">Huidige Document</h2>
-            <div class="current-doc-wrapper">
-                <div class="a4-preview-container" id="currentDocPreview" title="Klik om te openen">
-                    <div class="a4-preview">
-                        <div class="a4-title" id="previewTitle"></div>
-                        <div class="a4-body" id="previewBody"></div>
-                    </div>
-                </div>
-                <div class="action-cards">
-                    <div class="action-cards-new">
-                        <div class="action-card" id="newDocBtn" title="Nieuw document — één doorlopende pagina">
-                            <div class="action-card-inner">
-                                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                    stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                                    <polyline points="14 2 14 8 20 8" />
-                                    <line x1="12" y1="18" x2="12" y2="12" />
-                                    <line x1="9" y1="15" x2="15" y2="15" />
-                                </svg>
-                                <span>Nieuw Document</span>
-                                <small class="action-card-sub">Één pagina</small>
-                            </div>
-                        </div>
-                        <div class="action-card" id="newDocPaginatedBtn" title="Nieuw document — met losse pagina's">
-                            <div class="action-card-inner">
-                                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                    stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                                    <polyline points="14 2 14 8 20 8" />
-                                    <rect x="3" y="14" width="7" height="7" rx="1" stroke-width="1.5" />
-                                    <rect x="14" y="14" width="7" height="7" rx="1" stroke-width="1.5" />
-                                </svg>
-                                <span>Nieuw Document</span>
-                                <small class="action-card-sub">Met paginering</small>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="action-card action-card-tall" id="openDocBtn" title="Open Document">
-                        <div class="action-card-inner">
-                            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-                                <line x1="12" y1="11" x2="12" y2="17" />
-                                <polyline points="9 14 12 11 15 14" />
-                            </svg>
-                            <span>Open Document</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="current-doc-info">
-                    <div class="doc-info-name" id="currentDocName"></div>
-                    <div class="doc-info-date" id="currentDocDate"></div>
-                    <button class="open-current-btn" id="openCurrentBtn">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2">
-                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                            <polyline points="15 3 21 3 21 9" />
-                            <line x1="10" y1="14" x2="21" y2="3" />
-                        </svg>
-                        Openen
-                    </button>
-                </div>
-            </div>
-        </div>
+        <!-- LEFT SIDEBAR -->
+        <aside class="landing-sidebar">
 
-        <!-- Quick Actions (shown when no current doc) -->
-        <div class="quick-actions-section" id="quickActionsSection" style="display:none;">
-            <h2 class="section-title">Aan de slag</h2>
-            <div class="quick-actions-wrapper">
-                <div class="action-card action-card-lg" id="newDocBtnAlt"
-                    title="Nieuw document — één doorlopende pagina">
-                    <div class="action-card-inner">
-                        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                            <polyline points="14 2 14 8 20 8" />
-                            <line x1="12" y1="18" x2="12" y2="12" />
-                            <line x1="9" y1="15" x2="15" y2="15" />
-                        </svg>
-                        <span>Nieuw Document</span>
-                        <small class="action-card-sub">Één pagina</small>
-                    </div>
-                </div>
-                <div class="action-card action-card-lg" id="newDocPaginatedBtnAlt"
-                    title="Nieuw document — met losse pagina's">
-                    <div class="action-card-inner">
-                        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                            <polyline points="14 2 14 8 20 8" />
-                            <rect x="3" y="14" width="7" height="7" rx="1" stroke-width="1.5" />
-                            <rect x="14" y="14" width="7" height="7" rx="1" stroke-width="1.5" />
-                        </svg>
-                        <span>Nieuw Document</span>
-                        <small class="action-card-sub">Met paginering</small>
-                    </div>
-                </div>
-                <div class="action-card action-card-lg" id="openDocBtnAlt" title="Open Document">
-                    <div class="action-card-inner">
-                        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-                            <line x1="12" y1="11" x2="12" y2="17" />
-                            <polyline points="9 14 12 11 15 14" />
-                        </svg>
-                        <span>Open Document</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Recent Documents Section -->
-        <div class="recent-docs-section">
-            <h2 class="section-title">Recente Documenten</h2>
-            <div class="recent-docs-list" id="recentDocsList">
-                <div class="empty-recent" id="emptyRecent">
-                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
-                        opacity="0.3">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                        <polyline points="14 2 14 8 20 8" />
+            <!-- New / Open -->
+            <div class="sidebar-section">
+                <p class="sidebar-label">Nieuw</p>
+                <button class="sidebar-btn sidebar-btn-primary" id="newDocBtn">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 5v14M5 12h14" />
                     </svg>
-                    <p>Geen recente documenten gevonden</p>
-                    <span>Maak een nieuw document of open een bestaand bestand</span>
-                </div>
+                    Leeg document
+                </button>
+                <button class="sidebar-btn sidebar-btn-ghost" id="newDocPaginatedBtn">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="7" height="9" rx="1" />
+                        <rect x="14" y="3" width="7" height="9" rx="1" />
+                        <rect x="3" y="16" width="7" height="5" rx="1" />
+                        <rect x="14" y="16" width="7" height="5" rx="1" />
+                    </svg>
+                    Gepagineerd
+                </button>
+                <button class="sidebar-btn sidebar-btn-secondary" id="openDocBtn">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                    </svg>
+                    Bestand openen
+                </button>
             </div>
-        </div>
+
+            <div class="sidebar-divider"></div>
+
+            <!-- Current document (when editor has open doc) -->
+            <div class="sidebar-current" id="currentDocSection" style="display:none">
+                <p class="sidebar-label">Huidig document</p>
+                <div class="current-doc-card" id="currentDocPreview" title="Klik om te openen">
+                    <div class="doc-preview-container" id="docPreviewContainer"></div>
+                </div>
+                <div class="current-doc-meta">
+                    <span class="current-doc-name" id="currentDocName"></span>
+                    <span class="current-doc-date" id="currentDocDate"></span>
+                </div>
+                <button class="sidebar-btn sidebar-btn-primary" id="openCurrentBtn">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M5 12h14M12 5l7 7-7 7" />
+                    </svg>
+                    Doorgaan
+                </button>
+                <div class="sidebar-divider"></div>
+            </div>
+
+            <!-- Quick start (when no current doc) -->
+            <div class="sidebar-quick" id="quickActionsSection" style="display:none">
+                <p class="sidebar-label">Aan de slag</p>
+                <button class="sidebar-btn sidebar-btn-primary" id="newDocBtnAlt">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 5v14M5 12h14" />
+                    </svg>
+                    Nieuw document
+                </button>
+                <button class="sidebar-btn sidebar-btn-ghost" id="newDocPaginatedBtnAlt">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="7" height="9" rx="1" />
+                        <rect x="14" y="3" width="7" height="9" rx="1" />
+                        <rect x="3" y="16" width="7" height="5" rx="1" />
+                        <rect x="14" y="16" width="7" height="5" rx="1" />
+                    </svg>
+                    Gepagineerd
+                </button>
+                <button class="sidebar-btn sidebar-btn-secondary" id="openDocBtnAlt">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                    </svg>
+                    Bestand openen
+                </button>
+                <div class="sidebar-divider"></div>
+            </div>
+
+            <!-- Manage documents -->
+            <button class="manage-link-btn" id="manageDocsBtnMain">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                    <line x1="8" y1="13" x2="16" y2="13" />
+                    <line x1="8" y1="17" x2="12" y2="17" />
+                </svg>
+                Documenten beheren
+            </button>
+
+        </aside>
+
+        <!-- MAIN CONTENT AREA -->
+        <div class="landing-main-wrap">
+            <!-- Sticky search bar (outside scroll area) -->
+            <div class="landing-search-sticky">
+                <div class="landing-search-bar">
+                    <div class="landing-search-top-row">
+                        <div class="landing-search-input-wrap">
+                            <svg class="landing-search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="11" cy="11" r="8" />
+                                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                            </svg>
+                            <input type="text" id="landingSearchInput" class="landing-search-input"
+                                placeholder="Documenten zoeken...">
+                            <button class="landing-search-clear" id="landingSearchClear" style="display:none"
+                                title="Wissen">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2.5" stroke-linecap="round">
+                                    <line x1="18" y1="6" x2="6" y2="18" />
+                                    <line x1="6" y1="6" x2="18" y2="18" />
+                                </svg>
+                            </button>
+                        </div>
+                        <button class="landing-filter-toggle-btn" id="landingFilterToggle"
+                            title="Filters tonen/verbergen">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+                            </svg>
+                            Filters
+                        </button>
+                    </div>
+                    <div class="landing-filters" id="landingFilters" style="display:none">
+                        <button class="filter-chip" id="filterCodeblock" title="Heeft codeblok">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="16 18 22 12 16 6" />
+                                <polyline points="8 6 2 12 8 18" />
+                            </svg>
+                            Code
+                        </button>
+                        <button class="filter-chip" id="filterTable" title="Heeft tabel">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="3" width="18" height="18" rx="2" />
+                                <line x1="3" y1="9" x2="21" y2="9" />
+                                <line x1="3" y1="15" x2="21" y2="15" />
+                                <line x1="9" y1="3" x2="9" y2="21" />
+                            </svg>
+                            Tabel
+                        </button>
+                        <button class="filter-chip" id="filterImage" title="Heeft afbeelding">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="3" width="18" height="18" rx="2" />
+                                <circle cx="8.5" cy="8.5" r="1.5" />
+                                <polyline points="21 15 16 10 5 21" />
+                            </svg>
+                            Afbeelding
+                        </button>
+                        <div class="filter-sep"></div>
+                        <div class="filter-date-group">
+                            <span class="filter-label">Van</span>
+                            <input type="date" id="filterDateFrom" class="filter-date-input" title="Geopend na">
+                            <span class="filter-label">tot</span>
+                            <input type="date" id="filterDateTo" class="filter-date-input" title="Geopend voor">
+                        </div>
+                        <div class="filter-sep"></div>
+                        <div class="filter-size-group">
+                            <span class="filter-label">Grootte</span>
+                            <input type="number" id="filterSizeMin" class="filter-size-input" placeholder="Min" min="0"
+                                title="Minimale bestandsgrootte (KB)">
+                            <span class="filter-label">–</span>
+                            <input type="number" id="filterSizeMax" class="filter-size-input" placeholder="Max" min="0"
+                                title="Maximale bestandsgrootte (KB)">
+                            <span class="filter-label">KB</span>
+                        </div>
+                        <div class="filter-sep"></div>
+                        <button class="filter-clear-btn" id="clearFiltersBtn" title="Filters wissen">Wis
+                            filters</button>
+                    </div>
+                </div>
+            </div><!-- /.landing-search-sticky -->
+
+            <main class="landing-main">
+                <!-- Favourites -->
+                <section class="favourites-section" id="favouritesSection">
+                    <h2 class="section-title">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                            <path
+                                d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                        </svg>
+                        Favorieten
+                    </h2>
+                    <div class="favourites-list" id="favouritesList"></div>
+                </section>
+
+                <!-- Recent documents -->
+                <section class="recent-docs-section">
+                    <h2 class="section-title">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10" />
+                            <polyline points="12 6 12 12 16 14" />
+                        </svg>
+                        Recente documenten
+                        <span class="section-hint-inline">· sleep naar favorieten om vast te zetten</span>
+                    </h2>
+                    <div class="recent-docs-list" id="recentDocsList">
+                        <div class="empty-recent" id="emptyRecent">
+                            <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="1.5" opacity="0.2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                <polyline points="14 2 14 8 20 8" />
+                            </svg>
+                            <p>Geen recente documenten</p>
+                            <span>Maak een nieuw document of open een bestaand bestand.</span>
+                        </div>
+                    </div>
+                </section>
+
+            </main>
+        </div><!-- /.landing-main-wrap -->
     </div>
 
-    <!-- Context Menu -->
-    <div class="context-menu" id="contextMenu" style="display:none;">
-        <button class="context-item" id="ctxRename">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-            </svg>
-            Hernoemen
-        </button>
+    <!-- CONTEXT MENU -->
+    <div class="context-menu" id="contextMenu" style="display:none">
         <button class="context-item" id="ctxOpen">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
                 <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
                 <polyline points="15 3 21 3 21 9" />
                 <line x1="10" y1="14" x2="21" y2="3" />
             </svg>
             Openen
         </button>
+        <button class="context-item" id="ctxRename">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+            </svg>
+            Hernoemen
+        </button>
         <button class="context-item" id="ctxShowInExplorer">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
                 <path d="M3 3h8l2 3h8a1 1 0 0 1 1 1v11a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a1 1 0 0 1 1-1z" />
             </svg>
-            Openen in Verkenner
+            Tonen in Verkenner
         </button>
         <div class="context-separator"></div>
-        <button class="context-item danger" id="ctxRemoveFromList">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="9" y1="9" x2="15" y2="15" />
-                <line x1="15" y1="9" x2="9" y2="15" />
-                <rect x="2" y="4" width="20" height="16" rx="2" />
+        <button class="context-item context-item-danger" id="ctxRemoveFromList">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
             </svg>
             Verwijder uit lijst
         </button>
-        <button class="context-item danger" id="ctxDelete">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <button class="context-item context-item-danger" id="ctxDelete">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="3 6 5 6 21 6" />
                 <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
                 <path d="M10 11v6M14 11v6" />
                 <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
             </svg>
-            Verwijderen
+            Bestand verwijderen
         </button>
     </div>
 
-    <!-- Rename Modal -->
-    <div class="modal-overlay" id="renameModal" style="display:none;">
+    <!-- RENAME MODAL -->
+    <div class="modal-overlay" id="renameModal" style="display:none">
         <div class="modal-box">
             <div class="modal-header">
-                <h3>Document Hernoemen</h3>
-                <button class="modal-close" id="closeRenameModal">&times;</button>
+                <h3>Document hernoemen</h3>
+                <button class="modal-close" id="closeRenameModal">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                        stroke-linecap="round">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                </button>
             </div>
             <div class="modal-body">
                 <label>Nieuwe naam</label>
-                <input type="text" id="renameInput" placeholder="Documentnaam..." />
+                <input type="text" id="renameInput" placeholder="Documentnaam...">
             </div>
             <div class="modal-footer">
                 <button class="btn-cancel" id="cancelRename">Annuleren</button>
@@ -260,6 +365,95 @@
         </div>
     </div>
 
+    <!-- SETTINGS OVERLAY -->
+    <div class="settings-overlay" id="settingsOverlay">
+        <div class="settings-page">
+            <div class="settings-page-header">
+                <h2>Instellingen</h2>
+                <button class="settings-close-btn" id="settingsCloseBtn" title="Sluiten">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                </button>
+            </div>
+            <div class="settings-page-body">
+                <div class="settings-group">
+                    <h3 class="settings-group-title">Taal</h3>
+                    <div class="settings-item">
+                        <div class="settings-item-info">
+                            <span class="settings-item-label">Taal van de applicatie</span>
+                            <span class="settings-item-desc">Engels is momenteel nog niet beschikbaar, maar komt
+                                binnenkort.</span>
+                        </div>
+                        <select class="settings-select" id="settingLanguage">
+                            <option value="nl">Nederlands</option>
+                            <option value="en">English (binnenkort)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="settings-group">
+                    <h3 class="settings-group-title">Getallen &amp; formules</h3>
+                    <div class="settings-item">
+                        <div class="settings-item-info">
+                            <span class="settings-item-label">Getalnotatie</span>
+                            <span class="settings-item-desc">Europees: 1.234,56 — puntkomma in formules. Amerikaans:
+                                1,234.56 — komma in formules.</span>
+                        </div>
+                        <select class="settings-select" id="settingNumberLocale">
+                            <option value="eu">Europees (1.234,56)</option>
+                            <option value="us">Amerikaans (1,234.56)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="settings-group">
+                    <h3 class="settings-group-title">Automatisch opslaan</h3>
+                    <div class="settings-item">
+                        <div class="settings-item-info">
+                            <span class="settings-item-label">Sla nieuwe documenten automatisch op</span>
+                            <span class="settings-item-desc">Nieuwe documenten worden direct opgeslagen in de gekozen
+                                map.</span>
+                        </div>
+                        <label class="landing-toggle"><input type="checkbox" id="settingAutoSaveNew"><span
+                                class="landing-toggle-track"><span class="landing-toggle-thumb"></span></span></label>
+                    </div>
+                    <div class="settings-item settings-item-dir" id="settingDirRow">
+                        <div class="settings-item-info">
+                            <span class="settings-item-label">Standaard map</span>
+                            <span class="settings-item-desc">Nieuwe documenten worden hier opgeslagen.</span>
+                        </div>
+                        <div class="settings-dir-picker">
+                            <span class="settings-dir-path" id="settingDirPath">/Documents</span>
+                            <button class="settings-dir-btn" id="settingPickDir">Wijzigen</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="settings-group">
+                    <h3 class="settings-group-title">Venster</h3>
+                    <div class="settings-item">
+                        <div class="settings-item-info">
+                            <span class="settings-item-label">Sluitknop gaat naar beginscherm</span>
+                            <span class="settings-item-desc">Terug naar het beginscherm in plaats van de app volledig
+                                afsluiten.</span>
+                        </div>
+                        <label class="landing-toggle"><input type="checkbox" id="settingCloseToHome"><span
+                                class="landing-toggle-track"><span class="landing-toggle-thumb"></span></span></label>
+                    </div>
+                </div>
+                <div class="settings-group settings-group-about">
+                    <h3 class="settings-group-title">Over Summie</h3>
+                    <div class="settings-item">
+                        <div class="settings-item-info"><span class="settings-item-label">Versie</span></div>
+                        <span class="settings-version">v4.0.0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="document-preview.js"></script>
+    <script src="document-preview.js"></script>
     <script src="landing.js"></script>
 </body>
 

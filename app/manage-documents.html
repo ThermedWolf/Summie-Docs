@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="nl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Summie — Documentbeheer</title>
+    <link rel="stylesheet" href="landing.css">
+    <link rel="stylesheet" href="manage-documents.css">
+</head>
+
+<body>
+
+    <!-- TOPBAR (reuses landing.css topbar styles) -->
+    <div class="landing-topbar">
+        <div class="topbar-left">
+            <button class="md-back-btn" id="mdBackBtn" title="Terug naar beginscherm">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15 18 9 12 15 6" />
+                </svg>
+                Terug
+            </button>
+            <div class="md-topbar-divider"></div>
+            <div class="app-logo">
+                <img src="icon.png" alt="Summie" width="22" height="22" style="object-fit:contain;display:block;">
+                <span class="md-page-title">Documentbeheer</span>
+            </div>
+        </div>
+        <div class="topbar-actions">
+            <div class="window-controls">
+                <button class="win-btn win-minimize" id="winMinimize" title="Minimaliseren">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <rect x="2" y="7.5" width="12" height="1.5" rx="0.75" fill="currentColor" />
+                    </svg>
+                </button>
+                <button class="win-btn win-maximize" id="winMaximize" title="Maximaliseren">
+                    <svg class="icon-maximize" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <rect x="2" y="2" width="12" height="12" rx="1.5" stroke="currentColor" stroke-width="1.5" />
+                    </svg>
+                    <svg class="icon-restore" width="16" height="16" viewBox="0 0 16 16" fill="none"
+                        style="display:none">
+                        <rect x="4" y="2" width="10" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5" />
+                        <path d="M2 5v7a2 2 0 0 0 2 2h7" stroke="currentColor" stroke-width="1.5"
+                            stroke-linecap="round" />
+                    </svg>
+                </button>
+                <button class="win-btn win-close" id="winClose" title="Sluiten">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <line x1="3" y1="3" x2="13" y2="13" stroke="currentColor" stroke-width="1.6"
+                            stroke-linecap="round" />
+                        <line x1="13" y1="3" x2="3" y2="13" stroke="currentColor" stroke-width="1.6"
+                            stroke-linecap="round" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- LAYOUT -->
+    <div class="landing-layout">
+
+        <!-- SIDEBAR -->
+        <aside class="landing-sidebar">
+            <div class="sidebar-section">
+                <p class="sidebar-label">Zoeken</p>
+                <div class="md-search-wrap">
+                    <svg class="md-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8" />
+                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    </svg>
+                    <input type="text" id="mdSearchInput" class="md-search-input"
+                        placeholder="Naam, beschrijving, tag...">
+                    <button class="md-search-clear" id="mdSearchClear" style="display:none" title="Wissen">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.5">
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <div class="sidebar-divider"></div>
+
+            <div class="sidebar-section">
+                <p class="sidebar-label">Documenten</p>
+                <div class="md-doc-count-badge" id="mdDocCount">— documenten</div>
+            </div>
+
+            <div class="sidebar-divider"></div>
+
+            <div class="sidebar-section">
+                <p class="sidebar-label">Filters</p>
+                <div class="md-filters">
+                    <button class="filter-chip md-filter-chip" id="mdFilterCodeblock">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="16 18 22 12 16 6" />
+                            <polyline points="8 6 2 12 8 18" />
+                        </svg>
+                        Codeblok
+                    </button>
+                    <button class="filter-chip md-filter-chip" id="mdFilterTable">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="3" width="18" height="18" rx="2" />
+                            <line x1="3" y1="9" x2="21" y2="9" />
+                            <line x1="3" y1="15" x2="21" y2="15" />
+                            <line x1="9" y1="3" x2="9" y2="21" />
+                        </svg>
+                        Tabel
+                    </button>
+                    <button class="filter-chip md-filter-chip" id="mdFilterImage">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="3" width="18" height="18" rx="2" />
+                            <circle cx="8.5" cy="8.5" r="1.5" />
+                            <polyline points="21 15 16 10 5 21" />
+                        </svg>
+                        Afbeelding
+                    </button>
+                    <div style="height:8px"></div>
+                    <label class="filter-label" style="font-size:10px;color:var(--text-tertiary)">Geopend van</label>
+                    <input type="date" id="mdFilterDateFrom" class="filter-date-input"
+                        style="width:100%;margin-bottom:4px">
+                    <label class="filter-label" style="font-size:10px;color:var(--text-tertiary)">tot</label>
+                    <input type="date" id="mdFilterDateTo" class="filter-date-input"
+                        style="width:100%;margin-bottom:8px">
+                    <button class="filter-clear-btn" id="mdClearFilters"
+                        style="padding:5px 0;width:100%;text-align:center">Wis filters</button>
+                </div>
+            </div>
+
+            <div class="sidebar-divider"></div>
+
+            <div class="sidebar-section">
+                <p class="sidebar-label">Info</p>
+                <p class="md-sidebar-info">Klik een document aan om de naam te wijzigen, een beschrijving toe te voegen
+                    of tags in te stellen.</p>
+            </div>
+        </aside>
+
+        <!-- MAIN LIST -->
+        <main class="landing-main md-main">
+            <div class="md-list" id="mdList">
+                <div class="md-empty" id="mdEmpty" style="display:none">
+                    <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                        opacity="0.2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                        <polyline points="14 2 14 8 20 8" />
+                    </svg>
+                    <p>Geen documenten gevonden</p>
+                    <span>Open een document in Summie om het hier te zien verschijnen.</span>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- EDIT PANEL — slides up from bottom -->
+    <div class="md-edit-backdrop" id="mdEditBackdrop"></div>
+    <div class="md-edit-sheet" id="mdEditSheet">
+        <div class="md-sheet-handle"></div>
+        <div class="md-sheet-inner">
+
+            <!-- Sheet header -->
+            <div class="md-sheet-header">
+                <div class="md-sheet-header-left">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                        <polyline points="14 2 14 8 20 8" />
+                    </svg>
+                    <h3 id="mdEditTitle">Document bewerken</h3>
+                </div>
+                <button class="md-sheet-close" id="mdEditClose" title="Sluiten">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                        stroke-linecap="round">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Sheet body — two columns -->
+            <div class="md-sheet-body">
+
+                <!-- Left: name + description -->
+                <div class="md-sheet-col">
+                    <input type="hidden" id="mdEditDocId">
+                    <input type="hidden" id="mdEditDocPath">
+
+                    <div class="md-field">
+                        <label class="md-field-label">Naam</label>
+                        <div class="md-name-row">
+                            <input type="text" id="mdEditName" class="md-input" placeholder="Documentnaam">
+                            <button class="md-save-name-btn" id="mdSaveNameBtn" title="Hernoemen">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2.5">
+                                    <polyline points="20 6 9 17 4 12" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="md-field">
+                        <label class="md-field-label">Beschrijving</label>
+                        <textarea id="mdEditDesc" class="md-textarea" placeholder="Voeg een korte beschrijving toe..."
+                            rows="4"></textarea>
+                    </div>
+
+                    <div class="md-edit-meta" id="mdEditMeta"></div>
+                </div>
+
+                <!-- Right: tags + actions -->
+                <div class="md-sheet-col">
+                    <div class="md-field">
+                        <label class="md-field-label">Tags</label>
+                        <div class="md-tags-wrap">
+                            <div class="md-tags-list" id="mdTagsList"></div>
+                            <div class="md-tag-input-row">
+                                <input type="text" id="mdTagInput" class="md-input md-tag-input"
+                                    placeholder="Tag toevoegen...">
+                                <button class="md-add-tag-btn" id="mdAddTagBtn" title="Toevoegen">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2.5" stroke-linecap="round">
+                                        <path d="M12 5v14M5 12h14" />
+                                    </svg>
+                                </button>
+                            </div>
+                            <div class="md-tag-suggestions" id="mdTagSuggestions"></div>
+                        </div>
+                    </div>
+
+                    <div class="md-sheet-actions">
+                        <button class="md-btn-primary" id="mdSaveBtn">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2.5">
+                                <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                            Opslaan
+                        </button>
+                        <button class="md-btn-secondary" id="mdCancelBtn">Annuleren</button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script src="manage-documents.js"></script>
+</body>
+
+</html>

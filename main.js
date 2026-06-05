@@ -31,6 +31,82 @@ app.on('second-instance', (event, argv) => {
 
 // ==================== WINDOW STATE ====================
 const windowStatePath = path.join(app.getPath('userData'), 'window-state.json');
+const autoSaveSettingsPath = path.join(app.getPath('userData'), 'autosave-settings.json');
+const appSettingsPath = path.join(app.getPath('userData'), 'app-settings.json');
+const recentDocsPath = path.join(app.getPath('userData'), 'recent-docs.json');
+const knownDocsPath = path.join(app.getPath('userData'), 'known-docs.json');
+const favouritesPath = path.join(app.getPath('userData'), 'favourites.json');
+const knownTagsPath = path.join(app.getPath('userData'), 'known-tags.json');
+
+// ── Recent docs ───────────────────────────────────────────────────────────
+function readRecentDocs() {
+    try { return JSON.parse(fs.readFileSync(recentDocsPath, 'utf8')); }
+    catch { return []; }
+}
+function writeRecentDocs(docs) {
+    fs.writeFileSync(recentDocsPath, JSON.stringify(docs, null, 2), 'utf8');
+}
+
+function readKnownDocs() {
+    try { return JSON.parse(fs.readFileSync(knownDocsPath, 'utf8')); }
+    catch { return []; }
+}
+function writeKnownDocs(docs) {
+    fs.writeFileSync(knownDocsPath, JSON.stringify(docs, null, 2), 'utf8');
+}
+function rememberKnownDoc(entry) {
+    if (!entry || !entry.path) return readKnownDocs();
+    let docs = readKnownDocs();
+    docs = docs.filter(d => d.path !== entry.path && d.id !== entry.id);
+    docs.unshift({
+        id: entry.id || Date.now().toString(36),
+        name: entry.name || path.basename(entry.path, path.extname(entry.path)),
+        path: entry.path,
+        lastOpened: entry.lastOpened || new Date().toISOString()
+    });
+    writeKnownDocs(docs);
+    return docs;
+}
+
+// ── Favourites ────────────────────────────────────────────────────────────
+function readFavourites() {
+    try { return JSON.parse(fs.readFileSync(favouritesPath, 'utf8')); }
+    catch { return []; }
+}
+function writeFavourites(favs) {
+    fs.writeFileSync(favouritesPath, JSON.stringify(favs, null, 2), 'utf8');
+}
+
+// ── App settings ──────────────────────────────────────────────────────────
+const DEFAULT_APP_SETTINGS = {
+    language: 'nl',                     // 'nl' | 'en'
+    autoSaveNewFiles: false,            // automatically save new documents
+    newFilesDirectory: path.join(app.getPath('home'), 'Documents'),
+    closeToHome: true,                  // close button → landing page instead of quitting
+    numberLocale: 'eu',                 // 'eu' = komma decimaal | 'us' = punt decimaal
+};
+
+function readAppSettings() {
+    try {
+        const raw = JSON.parse(fs.readFileSync(appSettingsPath, 'utf8'));
+        return { ...DEFAULT_APP_SETTINGS, ...raw };
+    } catch { return { ...DEFAULT_APP_SETTINGS }; }
+}
+
+function writeAppSettings(settings) {
+    const merged = { ...DEFAULT_APP_SETTINGS, ...settings };
+    fs.writeFileSync(appSettingsPath, JSON.stringify(merged, null, 2), 'utf8');
+}
+
+function readAutoSaveSettings() {
+    try {
+        return JSON.parse(fs.readFileSync(autoSaveSettingsPath, 'utf8'));
+    } catch { return {}; }
+}
+
+function writeAutoSaveSettings(settings) {
+    fs.writeFileSync(autoSaveSettingsPath, JSON.stringify(settings, null, 2), 'utf8');
+}
 
 function loadWindowState() {
     try {
@@ -67,7 +143,7 @@ function createWindow(filePathToOpen = null) {
         y: isNewWindow ? undefined : (savedState ? savedState.y : undefined),
         minWidth: 1200,
         minHeight: 700,
-        title: 'Summie v3.2.8',
+        title: 'Summie v4.0.0',
         icon: path.join(__dirname, 'app', 'icon.png'),
         frame: false,
         webPreferences: {
@@ -118,6 +194,15 @@ function createWindow(filePathToOpen = null) {
             return;
         }
 
+        // Flush any pending auto-save before checking for unsaved changes
+        try {
+            await win.webContents.executeJavaScript(`
+                (function() {
+                    if (window.AutoSave) window.AutoSave.flush();
+                })();
+            `);
+        } catch (err) { /* ignore */ }
+
         let hasChanges = false;
         try {
             const result = await win.webContents.executeJavaScript(`
@@ -132,7 +217,12 @@ function createWindow(filePathToOpen = null) {
         }
 
         if (!hasChanges) {
-            win.destroy();
+            const settings = readAppSettings();
+            if (settings.closeToHome) {
+                win.loadFile(path.join(__dirname, 'app', 'landing.html'));
+            } else {
+                win.destroy();
+            }
             return;
         }
 
@@ -151,9 +241,19 @@ function createWindow(filePathToOpen = null) {
                 const result = await win.webContents.executeJavaScript('window.saveToFile(false)');
                 if (result && result.canceled) return;
             } catch (e) { }
-            win.destroy();
+            const settings = readAppSettings();
+            if (settings.closeToHome) {
+                win.loadFile(path.join(__dirname, 'app', 'landing.html'));
+            } else {
+                win.destroy();
+            }
         } else if (choice.response === 1) {
-            win.destroy();
+            const settings = readAppSettings();
+            if (settings.closeToHome) {
+                win.loadFile(path.join(__dirname, 'app', 'landing.html'));
+            } else {
+                win.destroy();
+            }
         }
     });
 
@@ -169,7 +269,7 @@ function loadFileIntoWindow(win, filePath) {
     try {
         const fileContent = fs.readFileSync(filePath, 'utf8');
         const data = JSON.parse(fileContent);
-        win.webContents.send('load-sumd-file', data);
+        win.webContents.send('load-sumd-file', data, filePath);
     } catch (error) {
         console.error('Error loading .sumd file:', error);
     }
@@ -287,6 +387,90 @@ ipcMain.handle('show-in-explorer', async (event, filePath) => {
     }
 });
 
+// Recent docs — file-based storage (replaces localStorage)
+ipcMain.handle('recents-get', () => readRecentDocs());
+ipcMain.handle('recents-add', (event, entry) => {
+    rememberKnownDoc(entry);
+    let docs = readRecentDocs();
+    docs = docs.filter(d => d.path !== entry.path && d.id !== entry.id);
+    docs.unshift(entry);
+    if (docs.length > 10) docs = docs.slice(0, 10);
+    writeRecentDocs(docs);
+    return docs;
+});
+ipcMain.handle('recents-remove', (event, id) => {
+    const docs = readRecentDocs().filter(d => d.id !== id);
+    writeRecentDocs(docs);
+    return docs;
+});
+ipcMain.handle('recents-save', (event, docs) => {
+    docs.forEach(rememberKnownDoc);
+    writeRecentDocs(docs);
+    return docs;
+});
+
+ipcMain.handle('known-docs-get', () => {
+    const recentDocs = readRecentDocs();
+    recentDocs.forEach(rememberKnownDoc);
+    return readKnownDocs();
+});
+ipcMain.handle('known-docs-save', (event, docs) => {
+    writeKnownDocs(docs);
+    return docs;
+});
+
+// Favourites — file-based storage
+ipcMain.handle('favourites-get', () => readFavourites());
+ipcMain.handle('favourites-save', (event, favs) => {
+    writeFavourites(favs);
+    return favs;
+});
+
+// App-wide settings (language, auto-save new files, default directory, etc.)
+ipcMain.handle('settings-get', () => readAppSettings());
+ipcMain.handle('settings-set', (event, patch) => {
+    const current = readAppSettings();
+    writeAppSettings({ ...current, ...patch });
+    return readAppSettings();
+});
+ipcMain.handle('settings-get-number-locale', () => readAppSettings().numberLocale || 'eu');
+ipcMain.handle('settings-pick-directory', async () => {
+    const current = readAppSettings();
+    const result = await dialog.showOpenDialog({
+        title: 'Kies standaard map voor nieuwe documenten',
+        defaultPath: current.newFilesDirectory,
+        properties: ['openDirectory', 'createDirectory'],
+    });
+    if (result.canceled || !result.filePaths.length) return null;
+    return result.filePaths[0];
+});
+
+// Auto-save settings — persisted to userData/autosave-settings.json
+// Key = filePath, value = true. Absent = off (default).
+ipcMain.handle('autosave-get', (event, filePath) => {
+    const settings = readAutoSaveSettings();
+    return !!settings[filePath];
+});
+
+ipcMain.handle('autosave-set', (event, filePath, enabled) => {
+    const settings = readAutoSaveSettings();
+    if (enabled) {
+        settings[filePath] = true;
+    } else {
+        delete settings[filePath];
+    }
+    writeAutoSaveSettings(settings);
+    return true;
+});
+
+// Update the window title to show the current document name
+ipcMain.on('set-window-title', (event, documentName) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) return;
+    const title = documentName ? `${documentName} - Summie` : 'Summie';
+    win.setTitle(title);
+});
+
 // Open a source code file via dialog and return path + content
 ipcMain.handle('open-code-file', async () => {
     const result = await dialog.showOpenDialog(mainWindow, {
@@ -348,9 +532,70 @@ ipcMain.on('window-maximize', () => {
 ipcMain.on('window-close', () => { const w = getFocusedWin(); if (w) w.close(); });
 ipcMain.on('window-new', () => { createWindow(); });
 
+// Known tags
+ipcMain.handle('known-tags-get', () => {
+    try { return JSON.parse(fs.readFileSync(knownTagsPath, 'utf8')); }
+    catch { return []; }
+});
+ipcMain.handle('known-tags-save', (event, tags) => {
+    fs.writeFileSync(knownTagsPath, JSON.stringify(tags, null, 2), 'utf8');
+    return true;
+});
+
+// Read/write description+tags metadata from a .sumd file
+// Read raw file content (for preview renderer)
+ipcMain.handle('read-file-content', (event, filePath) => {
+    try { return fs.readFileSync(filePath, 'utf8'); }
+    catch { return null; }
+});
+
+ipcMain.handle('open-sumd-file-by-path', (event, filePath) => {
+    try {
+        return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    } catch { return null; }
+});
+
+ipcMain.handle('scan-sumd-elements', (event, filePath) => {
+    try {
+        const raw = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+        const content = raw.content || '';
+        const stat = fs.statSync(filePath);
+        return {
+            hasCodeblock: /<div[^>]*code-block/i.test(content),
+            hasTable: /<table/i.test(content),
+            hasImage: /<img/i.test(content),
+            fileSize: stat.size,
+        };
+    } catch { return null; }
+});
+
+ipcMain.handle('read-sumd-meta', (event, filePath) => {
+    try {
+        const raw = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+        return { description: raw.description || '', tags: raw.tags || [] };
+    } catch { return null; }
+});
+ipcMain.handle('write-sumd-meta', (event, filePath, meta) => {
+    try {
+        const raw = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+        raw.description = meta.description || '';
+        raw.tags = meta.tags || [];
+        fs.writeFileSync(filePath, JSON.stringify(raw), 'utf8');
+        return true;
+    } catch { return false; }
+});
+
+ipcMain.on('navigate-to-manage', (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (win) win.loadFile(path.join(__dirname, 'app', 'manage-documents.html'));
+});
+
 ipcMain.on('navigate-to-landing', async (event) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (!win) return;
+
+    const settings = readAppSettings();
+    const goToLanding = settings.closeToHome;
 
     let hasChanges = false;
     try {
@@ -382,7 +627,11 @@ ipcMain.on('navigate-to-landing', async (event) => {
         }
     }
 
-    win.loadFile(path.join(__dirname, 'app', 'landing.html'));
+    if (goToLanding) {
+        win.loadFile(path.join(__dirname, 'app', 'landing.html'));
+    } else {
+        win.destroy();
+    }
 });
 
 ipcMain.on('open-leren', (event) => {

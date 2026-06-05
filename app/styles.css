@@ -226,6 +226,23 @@ body {
     display: inline-block;
 }
 
+.doc-name-field {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.doc-name-field.has-unsaved::after {
+    content: '*';
+    position: absolute;
+    left: calc(100% + 2px);
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
 /* doc name input inside bottom bar */
 .doc-name-input {
     background: transparent;
@@ -347,11 +364,30 @@ body {
     margin-bottom: 12px;
 }
 
+.pages-container {
+    position: relative;
+}
+
 /* Placeholder text */
-.placeholder-text {
+.editor-placeholder-overlay {
+    position: absolute;
+    top: 25mm;
+    left: 50%;
+    width: calc(210mm - 50mm);
+    transform: translateX(-50%);
     color: #9ca3af;
     user-select: none;
+    pointer-events: none;
     cursor: text;
+    font-size: 12pt;
+    line-height: 1.6;
+    opacity: 0;
+    transition: opacity 0.22s ease;
+    z-index: 2;
+}
+
+.pages-container.editor-empty .editor-placeholder-overlay {
+    opacity: 1;
 }
 
 /* Text Styles */

@@ -168,12 +168,11 @@ function updateWordCounter() {
 
     if (!wordCountEl) return;
 
-    // Clone editor, strip code blocks and placeholder text
-    const editorClone = editor.cloneNode(true);
-    editorClone.querySelectorAll('.code-block-wrapper, .placeholder-text').forEach(el => el.remove());
-    const totalText = editorClone.innerText.trim();
-    const totalWords = totalText.length > 0 ? totalText.split(/\s+/).filter(w => w.length > 0).length : 0;
-    const totalChars = totalText.length;
+    const totalCounts = window.SummieTextCount
+        ? window.SummieTextCount.countNode(editor)
+        : { words: 0, chars: 0 };
+    const totalWords = totalCounts.words;
+    const totalChars = totalCounts.chars;
 
     // Milestone celebrations
     const currentMilestone = Math.floor(totalWords / 1000) * 1000;
@@ -195,10 +194,13 @@ function updateWordCounter() {
     if (charCountEl) _applyOdometerSplit(charCountEl, totalChars, totalChars === 1 ? '\u00A0teken' : '\u00A0tekens');
 
     // Selection info
-    if (selection && selection.toString().trim().length > 0) {
-        const selectedText = selection.toString().trim();
-        const selectedWords = selectedText.split(/\s+/).filter(w => w.length > 0).length;
-        const selectedChars = selectedText.length;
+    const selectedCounts = window.SummieTextCount
+        ? window.SummieTextCount.countSelection(selection, editor)
+        : { words: 0, chars: 0 };
+
+    if (selectedCounts.words > 0 || selectedCounts.chars > 0) {
+        const selectedWords = selectedCounts.words;
+        const selectedChars = selectedCounts.chars;
 
         if (selectionCountEl && selectionCountEl.textContent === '') {
             selectionCountEl.classList.add('animate');

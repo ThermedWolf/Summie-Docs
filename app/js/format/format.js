@@ -70,6 +70,18 @@ function applyStyle(styleOrEvent) {
     const SM = window.StyleManager;
     if (!SM) return;
 
+    if (window.isEditorEmpty && window.isEditorEmpty()) {
+        const editor = window.AppState && window.AppState.editor;
+        if (editor) {
+            while (editor.firstChild) editor.removeChild(editor.firstChild);
+            window.updateEditorPlaceholder && window.updateEditorPlaceholder();
+        }
+        window.setPendingEmptyEditorStyle && window.setPendingEmptyEditorStyle(style);
+        window.topbarManager && window.topbarManager.updateStyleButtons(style);
+        if (typeof styleOrEvent !== 'string') styleOrEvent.target.value = '';
+        return;
+    }
+
     const selection = window.getSelection();
     if (selection.rangeCount > 0) {
         const range = selection.getRangeAt(0);

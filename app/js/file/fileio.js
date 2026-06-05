@@ -1,6 +1,15 @@
 // ==================== FILE I/O ====================
 // saveToFile, loadFromFile, newSummary, trackRecentDocument, generateDocId.
 
+function updateWindowTitle(filePath) {
+    if (!window.electron || !window.electron.setWindowTitle) return;
+    const name = filePath
+        ? filePath.split('\\').pop().split('/').pop().replace(/\.sumd$/i, '')
+        : 'Nieuw Document';
+    window.electron.setWindowTitle(name);
+}
+window.updateWindowTitle = updateWindowTitle;
+
 function generateDocId() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2);
 }
@@ -8,17 +17,23 @@ function generateDocId() {
 function trackRecentDocument(filePath, name) {
     if (!filePath) return;
     try {
-        const RECENT_KEY = 'summie_recent_docs';
-        let docs = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
-        docs = docs.filter(d => d.path !== filePath);
-        docs.unshift({
+        const entry = {
             id: generateDocId(),
             name: name || filePath.split('\\').pop().split('/').pop().replace('.sumd', ''),
             path: filePath,
             lastOpened: new Date().toISOString()
-        });
-        if (docs.length > 20) docs = docs.slice(0, 20);
-        localStorage.setItem(RECENT_KEY, JSON.stringify(docs));
+        };
+        if (window.electron && window.electron.recentsAdd) {
+            window.electron.recentsAdd(entry);
+        } else {
+            // Fallback: localStorage for non-Electron
+            const RECENT_KEY = 'summie_recent_docs';
+            let docs = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
+            docs = docs.filter(d => d.path !== filePath);
+            docs.unshift(entry);
+            if (docs.length > 10) docs = docs.slice(0, 10);
+            localStorage.setItem(RECENT_KEY, JSON.stringify(docs));
+        }
     } catch (e) {
         console.error('Error tracking recent document:', e);
     }
@@ -39,6 +54,18 @@ async function saveToFile(saveAs = false) {
         timestamp: new Date().toISOString()
     };
 
+    // Preserve description and tags from the existing file so they aren't
+    // wiped when the user saves normally via Ctrl+S or the save button.
+    if (window.currentFilePath && window.electron && window.electron.readSumdMeta) {
+        try {
+            const meta = await window.electron.readSumdMeta(window.currentFilePath);
+            if (meta) {
+                if (meta.description) data.description = meta.description;
+                if (meta.tags && meta.tags.length) data.tags = meta.tags;
+            }
+        } catch (e) { }
+    }
+
     if (window.electron && window.appInfo && window.appInfo.isElectron) {
         // Quick save
         if (window.currentFilePath && !saveAs) {
@@ -53,6 +80,7 @@ async function saveToFile(saveAs = false) {
                 window.showSaveStatusSuccess && window.showSaveStatusSuccess();
                 window.updateDocNameInput && window.updateDocNameInput();
                 window.updateUnsavedIndicator && window.updateUnsavedIndicator();
+                updateWindowTitle(window.currentFilePath);
                 return;
             }
         }
@@ -71,6 +99,8 @@ async function saveToFile(saveAs = false) {
             window.showSaveStatusSuccess && window.showSaveStatusSuccess();
             window.updateDocNameInput && window.updateDocNameInput();
             window.updateUnsavedIndicator && window.updateUnsavedIndicator();
+            updateWindowTitle(result.path);
+            window.AutoSave && window.AutoSave.onFileChanged();
         } else if (!result.canceled) {
             window.showNotification && window.showNotification('Fout', `Kon niet opslaan: ${result.error}`, 'error');
         }
@@ -163,6 +193,8 @@ async function loadFromFile(e) {
         if (window.currentFilePath) {
             trackRecentDocument(window.currentFilePath, fileName ? fileName.replace('.sumd', '') : null);
             localStorage.setItem('summie_current_file_path', window.currentFilePath);
+            updateWindowTitle(window.currentFilePath);
+            window.AutoSave && window.AutoSave.onFileChanged();
         }
         state.lastSavedContent = state.editor.innerHTML;
         state.lastSavedBegrippen = JSON.stringify(state.begrippen);
@@ -191,6 +223,8 @@ function newSummary() {
         state.begrippen = [];
         window.currentFilePath = null;
         localStorage.removeItem('summie_current_file_path');
+        updateWindowTitle(null);
+        window.AutoSave && window.AutoSave.onFileChanged();
         window.clearLocalStorage && window.clearLocalStorage();
         if (window.StyleManager) window.StyleManager.clearCustomStyles();
         window.updateBegrippenList && window.updateBegrippenList();

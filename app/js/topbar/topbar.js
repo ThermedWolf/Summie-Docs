@@ -608,6 +608,15 @@ class TopbarManager {
                 underlineBtn.classList.remove('active');
             }
         }
+
+        // Inline code: check if cursor is inside a .summie-inline-code element
+        const inlineCodeBtn = document.getElementById('insertInlineCodeBtn');
+        if (inlineCodeBtn) {
+            const sel = window.getSelection();
+            const node = sel && sel.anchorNode;
+            const insideCode = !!(node && node.parentElement && node.parentElement.closest('.summie-inline-code'));
+            inlineCodeBtn.classList.toggle('active', insideCode);
+        }
     }
 
     // ==================== FILE SIDEBAR ====================
@@ -730,6 +739,10 @@ class TopbarManager {
     // Detect current style from selection using StyleManager
     updateStyleFromSelection() {
         if (!window.StyleManager) return;
+        if (window.isEditorEmpty && window.isEditorEmpty()) {
+            this.updateStyleButtons(window.getPendingEmptyEditorStyle ? window.getPendingEmptyEditorStyle() : 'normal');
+            return;
+        }
         const activeKey = window.StyleManager.getActiveStyleKey();
         this.updateStyleButtons(activeKey);
     }

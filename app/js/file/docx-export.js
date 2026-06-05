@@ -85,6 +85,17 @@
         return /^(p|div|h[1-6]|blockquote|pre|ul|ol|hr|li)$/i.test(node.tagName);
     }
 
+    function hasBlockDescendant(node) {
+        if (!node || node.nodeType !== Node.ELEMENT_NODE) return false;
+        return Array.from(node.childNodes).some(child =>
+            isBlockTag(child) || hasBlockDescendant(child)
+        );
+    }
+
+    function hasStyleClass(el) {
+        return !!(el && el.classList && Array.from(el.classList).some(c => c.startsWith('style-')));
+    }
+
     // ── Inline → TextRun ─────────────────────────────────────────────────
 
     function nodeToRuns(node, docxLib, inheritedProps) {
@@ -186,10 +197,10 @@
     function flattenBlocks(root) {
         const blocks = [];
 
-        function visit(node) {
+        function visit(node, forcedEl) {
             if (node.nodeType === Node.TEXT_NODE) {
                 const text = node.textContent.replace(/\u00a0/g, ' ').trim();
-                if (text) blocks.push({ type: 'para', el: null, nodes: [node] });
+                if (text) blocks.push({ type: 'para', el: forcedEl || null, nodes: [node] });
                 return;
             }
             if (node.nodeType !== Node.ELEMENT_NODE) return;
@@ -208,7 +219,7 @@
             // ref-select-btn-wrapper: skip the button child, just visit the content
             if (node.classList.contains('ref-select-btn-wrapper')) {
                 Array.from(node.children).forEach(child => {
-                    if (!child.classList.contains('ref-select-btn')) visit(child);
+                    if (!child.classList.contains('ref-select-btn')) visit(child, forcedEl);
                 });
                 return;
             }
@@ -217,12 +228,14 @@
             if (tag === 'ul' || tag === 'ol') { blocks.push({ type: 'list', el: node }); return; }
 
             if (isBlockTag(node)) {
-                // Does this block contain block-level children?
-                const blockChildren = Array.from(node.childNodes).filter(
-                    c => isBlockTag(c)
+                // Does this block contain block-level children? The editor can
+                // produce invalid-but-browser-tolerated HTML where spans inside a
+                // paragraph contain more paragraphs, so look past direct children.
+                const hasNestedBlocks = Array.from(node.childNodes).some(
+                    c => isBlockTag(c) || hasBlockDescendant(c)
                 );
 
-                if (blockChildren.length === 0) {
+                if (!hasNestedBlocks) {
                     // Pure leaf — all children are inline
                     const inlineNodes = Array.from(node.childNodes);
                     // Check if it's just whitespace / <br>
@@ -233,13 +246,15 @@
                     if (allEmpty && inlineNodes.length > 0) {
                         blocks.push({ type: 'spacer' });
                     } else if (inlineNodes.length > 0) {
-                        blocks.push({ type: 'para', el: node, nodes: inlineNodes });
+                        blocks.push({ type: 'para', el: forcedEl || node, nodes: inlineNodes });
                     } else {
                         blocks.push({ type: 'spacer' });
                     }
                 } else {
                     // Container — visit children, collecting inline runs between blocks
-                    // If this is a heading element, remember it so children inherit heading level
+                    // If this is a heading element, only direct text/inline content should
+                    // inherit its heading level. Broken editor HTML can leave large chunks of
+                    // normal content nested inside a heading; those blocks must stay normal.
                     const headingContainerEl = /^h[1-6]$/i.test(tag) ? node : null;
                     let pendingInline = [];
 
@@ -250,15 +265,15 @@
                             (n.nodeType === Node.ELEMENT_NODE && n.tagName === 'BR')
                         );
                         if (allEmpty) blocks.push({ type: 'spacer' });
-                        else blocks.push({ type: 'para', el: headingContainerEl || containerEl, nodes: [...pendingInline] });
+                        else blocks.push({ type: 'para', el: forcedEl || headingContainerEl || containerEl, nodes: [...pendingInline] });
                         pendingInline = [];
                     };
 
                     node.childNodes.forEach(child => {
-                        if (isBlockTag(child)) {
+                        if (isBlockTag(child) || hasBlockDescendant(child)) {
                             flushInline(node);
                             // If child is a plain p/div inside a heading container, wrap it with heading context
-                            if (headingContainerEl && !child.dataset.style && !child.classList.contains('style-')) {
+                            if (headingContainerEl && isBlockTag(child) && !child.dataset.style && !hasStyleClass(child)) {
                                 // visit as if it were a para under the heading container
                                 const childInlines = Array.from(child.childNodes);
                                 const allEmpty = childInlines.every(n =>
@@ -271,7 +286,7 @@
                                     blocks.push({ type: 'spacer' });
                                 }
                             } else {
-                                visit(child);
+                                visit(child, forcedEl || null);
                             }
                         } else {
                             pendingInline.push(child);
@@ -282,11 +297,37 @@
                 return;
             }
 
+            if (hasBlockDescendant(node)) {
+                let pendingInline = [];
+
+                const flushInline = () => {
+                    if (pendingInline.length === 0) return;
+                    const allEmpty = pendingInline.every(n =>
+                        (n.nodeType === Node.TEXT_NODE && n.textContent.replace(/\u00a0/g, ' ').trim() === '') ||
+                        (n.nodeType === Node.ELEMENT_NODE && n.tagName === 'BR')
+                    );
+                    if (allEmpty) blocks.push({ type: 'spacer' });
+                    else blocks.push({ type: 'para', el: forcedEl || null, nodes: [...pendingInline] });
+                    pendingInline = [];
+                };
+
+                node.childNodes.forEach(child => {
+                    if (isBlockTag(child) || hasBlockDescendant(child)) {
+                        flushInline();
+                        visit(child, forcedEl || null);
+                    } else {
+                        pendingInline.push(child);
+                    }
+                });
+                flushInline();
+                return;
+            }
+
             // Inline element at root — treat as paragraph
-            blocks.push({ type: 'para', el: null, nodes: [node] });
+            blocks.push({ type: 'para', el: forcedEl || null, nodes: [node] });
         }
 
-        root.childNodes.forEach(visit);
+        root.childNodes.forEach(node => visit(node, null));
         return blocks;
     }
 

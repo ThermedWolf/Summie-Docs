@@ -69,11 +69,15 @@
     function getTargetParagraph(idx) {
         const page = getPageEl(idx);
         if (!page) return null;
-        const live = getActiveParagraph(page);
+        let live = getActiveParagraph(page);
+        // If cursor is in a list item, target the whole list instead
+        if (live && live.tagName === 'LI') {
+            live = live.closest('ul, ol') || live;
+        }
         if (live) { lastActivePara.set(idx, live); return live; }
         const last = lastActivePara.get(idx);
         if (last && page.contains(last)) return last;
-        return page.querySelector('p, div, li, h1, h2, h3, h4, h5, h6') || null;
+        return page.querySelector('p, div, h1, h2, h3, h4, h5, h6') || null;
     }
 
     // Like getTargetParagraph but falls back to the page element itself
@@ -85,6 +89,7 @@
     // ── Helpers ────────────────────────────────────────────────────────────
     let fixedRuler = null;
     let activePageIdx = 0;
+    let isDragging = false;
 
     function getRulerForPage(idx) {
         if (fixedRuler && parseInt(fixedRuler.dataset.pageIndex || 0) === idx) return fixedRuler;
@@ -214,9 +219,14 @@
         const ind = getIndent(idx);
         const para = getTargetParagraph(idx);
         if (!para) return;
+        // Don't apply to individual list items — always target the ul/ol parent
+        if (para.tagName === 'LI') return;
         para.style.marginLeft = ind.left + 'mm';
         para.style.marginRight = ind.right + 'mm';
-        para.style.textIndent = ind.firstLine + 'mm';
+        // textIndent doesn't make sense on a list container
+        if (para.tagName !== 'UL' && para.tagName !== 'OL') {
+            para.style.textIndent = ind.firstLine + 'mm';
+        }
     }
 
     // ── Scale ──────────────────────────────────────────────────────────────
@@ -416,10 +426,12 @@
         layer.appendChild(line);
     }
 
+    const HANDLE_HALF = 9; // half of the 18px handle width
+
     function makeHandle(cls, x, title) {
         const h = document.createElement('div');
         h.className = 'indent-handle ' + cls;
-        h.style.left = x + 'px';
+        h.style.left = (x - HANDLE_HALF) + 'px';
         h.title = title;
         return h;
     }
@@ -433,8 +445,15 @@
             const startX = e.clientX;
             const ind0 = { ...getIndent(idx) };
             const SNAP = 1.5;
-            const MIN = -MARGIN_MM;
-            const MAX = CONTENT_MM + MARGIN_MM;
+            const MIN = -MARGIN_MM + 0.5;
+            const MAX = CONTENT_MM + MARGIN_MM - 0.5;
+
+            // Grab sibling handles so we can move them live without re-rendering
+            const layer = ruler.querySelector('.tab-ruler-indents');
+            const blockEl = layer && layer.querySelector('.indent-block');
+            const hangEl = layer && layer.querySelector('.indent-hang-tri');
+            const firstLineEl = layer && layer.querySelector('.indent-first-tri');
+            const rightEl = layer && layer.querySelector('.indent-right-tri');
 
             const onMove = (ev) => {
                 const rw = getRulerWidth(ruler);
@@ -467,22 +486,34 @@
                 ind.right = Math.abs(nR) <= SNAP ? 0 : nR;
                 ind.firstLine = Math.abs(nL + nF) <= SNAP ? -ind.left : nF;
 
-                renderIndents(ruler, idx);
+                // Move handles directly — never destroy them mid-drag
+                const leftX = mmToPx(MARGIN_MM + ind.left, rw);
+                const firstLineX = mmToPx(MARGIN_MM + ind.left + ind.firstLine, rw);
+                const rightX = mmToPx(PAGE_WIDTH_MM - MARGIN_MM - ind.right, rw);
+                if (blockEl) blockEl.style.left = (leftX - HANDLE_HALF) + 'px';
+                if (hangEl) hangEl.style.left = (leftX - HANDLE_HALF) + 'px';
+                if (firstLineEl) firstLineEl.style.left = (firstLineX - HANDLE_HALF) + 'px';
+                if (rightEl) rightEl.style.left = (rightX - HANDLE_HALF) + 'px';
+
                 applyIndentToPage(idx);
             };
 
             const onUp = () => {
+                isDragging = false;
                 document.removeEventListener('mousemove', onMove);
                 document.removeEventListener('mouseup', onUp);
+                // Full re-render only after drag ends (safe — no live element)
+                renderIndents(ruler, idx);
                 save();
             };
+            isDragging = true;
             document.addEventListener('mousemove', onMove);
             document.addEventListener('mouseup', onUp);
         });
     }
 
-    // ── Selection sync ─────────────────────────────────────────────────────
     function trackActivePara() {
+        if (isDragging) return;
         const sel = window.getSelection();
         if (!sel || sel.rangeCount === 0) return;
         let node = sel.getRangeAt(0).startContainer;
@@ -501,12 +532,12 @@
                     ind.left = parseFloat(para.style.marginLeft) || 0;
                     ind.right = parseFloat(para.style.marginRight) || 0;
                     ind.firstLine = parseFloat(para.style.textIndent) || 0;
-                }
 
-                const ruler = getRulerForPage(idx);
-                if (ruler) {
-                    renderIndents(ruler, idx);
-                    renderStops(ruler, idx);
+                    const ruler = getRulerForPage(idx);
+                    if (ruler) {
+                        renderIndents(ruler, idx);
+                        renderStops(ruler, idx);
+                    }
                 }
                 break;
             }

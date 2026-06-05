@@ -30,6 +30,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (pending.path) {
                         window.currentFilePath = pending.path;
                         localStorage.setItem('summie_current_file_path', pending.path);
+                        window.updateWindowTitle && window.updateWindowTitle(pending.path);
+                        window.AutoSave && window.AutoSave.onFileChanged();
                     }
                     state.lastSavedContent = state.editor.innerHTML;
                     state.lastSavedBegrippen = JSON.stringify(state.begrippen);
@@ -49,6 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const storedPath = localStorage.getItem('summie_current_file_path');
         if (storedPath) window.currentFilePath = storedPath;
     }
+    window.updateWindowTitle && window.updateWindowTitle(window.currentFilePath || null);
 
     // 4. Wire up all event listeners
     setupEventListeners();
@@ -177,4 +180,24 @@ function _switchToTab(tabName) {
         const list = document.getElementById('referencesList');
         if (list) window.ReferencesManager.renderReferencesList(list);
     }
+}
+
+// ==================== IPC: OPEN FILE VIA DOUBLE-CLICK ====================
+// main.js (Electron) sends 'load-sumd-file' when the user double-clicks a
+// .sumd file in Explorer. We listen here and load it directly into the editor,
+// bypassing localStorage so the correct file is always shown.
+if (window.electron && window.electron.onLoadSumdFile) {
+    window.electron.onLoadSumdFile((data, filePath) => {
+        if (!data) return;
+        applyLoadedData(data);
+        if (filePath) {
+            window.currentFilePath = filePath;
+            localStorage.setItem('summie_current_file_path', filePath);
+            window.updateWindowTitle && window.updateWindowTitle(filePath);
+        }
+        const state = window.AppState;
+        state.lastSavedContent = state.editor.innerHTML;
+        state.lastSavedBegrippen = JSON.stringify(state.begrippen);
+        localStorage.setItem('summie_saved_content', state.editor.innerHTML);
+    });
 }

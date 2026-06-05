@@ -1,62 +1,170 @@
 // ==================== SUMMIE LANDING SCREEN ====================
-// Manages recent documents, current document preview, and navigation
+// Manages recent documents, favourites, current document preview, and navigation
 
-const RECENT_KEY = 'summie_recent_docs';
 const CURRENT_DATA_KEY = 'summaryData';
-const MAX_RECENT = 20;
 
 let contextTargetId = null; // ID of the doc the context menu is for
+let _cachedRecents = null;
+let _cachedFavourites = null;
+let _favouritePreviews = [];
+let _allDocsCache = null;
+let _searchFuse = null;
+let _searchTimer = null;
+let _searchState = {
+    query: '',
+    active: false,
+    results: null,
+    filters: {
+        hasCodeblock: false,
+        hasTable: false,
+        hasImage: false,
+        dateFrom: '',
+        dateTo: '',
+        minSize: '',
+        maxSize: ''
+    }
+};
 
-// ==================== RECENT DOCS STORAGE ====================
+// ==================== UTILITIES ====================
 
-function getRecentDocs() {
-    try {
-        return JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
-    } catch {
-        return [];
+function formatDate(date) {
+    if (!date || isNaN(date)) return '';
+    const now = new Date(), diff = now - date, day = 86400000;
+    if (diff < 60000) return 'Zojuist';
+    if (diff < 3600000) return `${Math.floor(diff / 60000)} min geleden`;
+    if (diff < day) return `${Math.floor(diff / 3600000)} uur geleden`;
+    if (diff < 2 * day) return 'Gisteren';
+    if (diff < 7 * day) return `${Math.floor(diff / day)} dagen geleden`;
+    return date.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+// ==================== RECENT DOCS STORAGE (file-based) ====================
+
+async function getRecentDocs() {
+    if (window.electron && window.electron.recentsGet) {
+        _cachedRecents = await window.electron.recentsGet();
+        return _cachedRecents;
+    }
+    try { return JSON.parse(localStorage.getItem('summie_recent_docs') || '[]'); }
+    catch { return []; }
+}
+
+async function saveRecentDocs(docs) {
+    _cachedRecents = docs;
+    _allDocsCache = null;
+    _searchFuse = null;
+    if (window.electron && window.electron.recentsSave) {
+        await window.electron.recentsSave(docs);
+    } else {
+        localStorage.setItem('summie_recent_docs', JSON.stringify(docs));
     }
 }
 
-function saveRecentDocs(docs) {
-    localStorage.setItem(RECENT_KEY, JSON.stringify(docs));
+async function removeRecentDoc(id) {
+    if (window.electron && window.electron.recentsRemove) {
+        _cachedRecents = await window.electron.recentsRemove(id);
+        _allDocsCache = null;
+        _searchFuse = null;
+    } else {
+        const docs = (await getRecentDocs()).filter(d => d.id !== id);
+        await saveRecentDocs(docs);
+    }
 }
 
-function addRecentDoc(entry) {
-    // entry: { id, name, path, lastOpened, wordCount }
-    let docs = getRecentDocs();
-    // Remove existing entry with same path
-    docs = docs.filter(d => d.path !== entry.path && d.id !== entry.id);
-    // Add to front
-    docs.unshift(entry);
-    // Trim to max
-    if (docs.length > MAX_RECENT) docs = docs.slice(0, MAX_RECENT);
-    saveRecentDocs(docs);
+async function renameRecentDoc(id, newName) {
+    const docs = (await getRecentDocs()).map(d => d.id === id ? { ...d, name: newName } : d);
+    await saveRecentDocs(docs);
 }
 
-function removeRecentDoc(id) {
-    let docs = getRecentDocs().filter(d => d.id !== id);
-    saveRecentDocs(docs);
+// ==================== FAVOURITES STORAGE (file-based) ====================
+
+async function getFavourites() {
+    if (window.electron && window.electron.favouritesGet) {
+        _cachedFavourites = await window.electron.favouritesGet();
+        return _cachedFavourites;
+    }
+    return [];
 }
 
-function renameRecentDoc(id, newName) {
-    let docs = getRecentDocs().map(d => d.id === id ? { ...d, name: newName } : d);
-    saveRecentDocs(docs);
+async function saveFavourites(favs) {
+    _cachedFavourites = favs;
+    if (window.electron && window.electron.favouritesSave) {
+        await window.electron.favouritesSave(favs);
+    }
+}
+
+async function addFavourite(doc) {
+    const favs = await getFavourites();
+    if (favs.find(f => f.path === doc.path)) return; // already favourite
+    favs.push({ id: doc.id, name: doc.name, path: doc.path });
+    await saveFavourites(favs);
+}
+
+async function removeFavourite(path) {
+    const favs = (await getFavourites()).filter(f => f.path !== path);
+    await saveFavourites(favs);
+}
+
+async function getFavouritePathSet() {
+    const favs = await getFavourites();
+    return new Set(favs.map(f => f.path).filter(Boolean));
+}
+
+// ==================== MIGRATION: localStorage → file ====================
+// Runs on every landing page load. Picks up any docs in localStorage that
+// aren't in the file-based store yet (covers old installs and any code that
+// still accidentally writes to localStorage).
+
+async function migrateLocalStorageRecents() {
+    if (!window.electron || !window.electron.recentsGet) return;
+
+    let lsDocs = [];
+    try {
+        lsDocs = JSON.parse(localStorage.getItem('summie_recent_docs') || '[]');
+    } catch { lsDocs = []; }
+
+    if (lsDocs.length === 0) return;
+
+    // Get what's already on disk
+    const fileDocs = await window.electron.recentsGet();
+    const filePaths = new Set(fileDocs.map(d => d.path).filter(Boolean));
+
+    // Find docs in localStorage that aren't on disk yet
+    const newDocs = lsDocs.filter(d => d.path && !filePaths.has(d.path));
+    if (newDocs.length === 0) return;
+
+    // Merge: file docs take priority (they're newer), append missing LS docs at the end
+    const merged = [...fileDocs, ...newDocs]
+        .sort((a, b) => new Date(b.lastOpened) - new Date(a.lastOpened))
+        .slice(0, 10);
+
+    await window.electron.recentsSave(merged);
+
+    // Clear localStorage so this migration only runs once per doc
+    localStorage.setItem('summie_recent_docs', '[]');
 }
 
 // ==================== CURRENT DOCUMENT PREVIEW ====================
 
-function loadCurrentDocPreview() {
+async function loadCurrentDocPreview() {
     const section = document.getElementById('currentDocSection');
-    const previewTitle = document.getElementById('previewTitle');
-    const previewBody = document.getElementById('previewBody');
     const currentDocName = document.getElementById('currentDocName');
     const currentDocDate = document.getElementById('currentDocDate');
 
     const raw = localStorage.getItem(CURRENT_DATA_KEY);
     if (!raw) {
         section.style.display = 'none';
-        const quickActionsNone = document.getElementById('quickActionsSection');
-        if (quickActionsNone) quickActionsNone.style.display = 'block';
+        const qs = document.getElementById('quickActionsSection');
+        if (qs) qs.style.display = 'block';
         return;
     }
 
@@ -64,91 +172,473 @@ function loadCurrentDocPreview() {
         const data = JSON.parse(raw);
         const content = data.content || '';
 
-        // Extract title — check Summie's .style-title class first, then semantic headings
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = content;
-        const heading = tempDiv.querySelector('.style-title, h1, h2, h3, h4, h5, h6');
-        const titleText = heading ? heading.textContent.trim() : '';
-        if (heading) heading.remove();
-        const bodyHtml = tempDiv.innerHTML;
-
-        previewBody.innerHTML = bodyHtml;
-
-        // Resolve document name from file path (source of truth)
+        // Extract document name
         const currentPath = localStorage.getItem('summie_current_file_path') || '';
         let docName = '';
-
         if (currentPath) {
-            docName = currentPath.split('\\').pop().split('/').pop().replace('.sumd', '');
+            docName = currentPath.split('\\').pop().split('/').pop().replace(/\.sumd$/i, '');
         }
-
-        // Check recent docs for a custom name
-        const recents = getRecentDocs();
+        const recents = await getRecentDocs();
         const matchingRecent = recents.find(d => d.path === currentPath);
-        if (matchingRecent && matchingRecent.name) {
-            docName = matchingRecent.name;
+        if (matchingRecent && matchingRecent.name) docName = matchingRecent.name;
+        if (!docName) {
+            const tmp = document.createElement('div');
+            tmp.innerHTML = content;
+            const h = tmp.querySelector('.style-title, h1, h2, h3');
+            docName = h ? h.textContent.trim() : 'Naamloos Document';
         }
 
-        // Fall back to heading text, then generic label
-        if (!docName) docName = titleText || 'Naamloos Document';
-
-        // Both the A4 preview title AND the info panel name use the same resolved name
-        previewTitle.textContent = docName;
         currentDocName.textContent = docName;
 
-        // Check for unsaved changes
+        // Date / unsaved indicator
         const savedContent = localStorage.getItem('summie_saved_content');
         const hasUnsaved = savedContent !== null && content !== savedContent;
-
-        // Format timestamp or show unsaved warning
         if (hasUnsaved) {
             currentDocDate.innerHTML = '<span style="color:#f59e0b;font-weight:500;">Niet opgeslagen wijzigingen</span>';
         } else if (data.timestamp) {
-            const date = new Date(data.timestamp);
-            currentDocDate.textContent = 'Laatst bewerkt: ' + formatDate(date);
+            currentDocDate.textContent = 'Bewerkt: ' + formatDate(new Date(data.timestamp));
         } else {
             currentDocDate.textContent = '';
         }
 
-        section.style.display = 'block';
-        const quickActionsBlock = document.getElementById('quickActionsSection');
-        if (quickActionsBlock) quickActionsBlock.style.display = 'none';
+        // Render preview using DocumentPreview
+        const container = document.getElementById('docPreviewContainer');
+        if (container && window.DocumentPreview) {
+            // Reuse existing preview instance or create one
+            if (!window._currentDocPreview) {
+                window._currentDocPreview = new DocumentPreview(container);
+            }
+            window._currentDocPreview.loadFromData(data);
+        }
 
-        // Click to open
-        document.getElementById('currentDocPreview').onclick = openCurrentDocument;
-        document.getElementById('openCurrentBtn').onclick = openCurrentDocument;
+        section.style.display = 'block';
+        const qs = document.getElementById('quickActionsSection');
+        if (qs) qs.style.display = 'none';
+
+        document.getElementById('currentDocPreview').onclick = () => navigateToEditor(null);
+        document.getElementById('openCurrentBtn').onclick = () => navigateToEditor(null);
 
     } catch (e) {
         section.style.display = 'none';
-        const quickActionsCatch = document.getElementById('quickActionsSection');
-        if (quickActionsCatch) quickActionsCatch.style.display = 'block';
+        const qs = document.getElementById('quickActionsSection');
+        if (qs) qs.style.display = 'block';
     }
 }
 
-function openCurrentDocument() {
-    // Navigate to editor
-    navigateToEditor(null);
+
+async function loadAllDocsForSearch() {
+    const docs = await getRecentDocs();
+    if (!docs.length) return [];
+
+    // Load Fuse.js if not loaded
+    if (!window.Fuse) {
+        await new Promise(resolve => {
+            const s = document.createElement('script');
+            s.src = 'https://cdnjs.cloudflare.com/ajax/libs/fuse.js/7.0.0/fuse.min.js';
+            s.onload = resolve; s.onerror = resolve;
+            document.head.appendChild(s);
+        });
+    }
+
+    // Read metadata from each .sumd file
+    const enriched = await Promise.all(docs.map(async doc => {
+        let description = '', tags = [], hasCodeblock = false, hasTable = false, hasImage = false, fileSize = 0;
+        if (doc.path && window.electron) {
+            try {
+                const meta = await window.electron.readSumdMeta(doc.path);
+                if (meta) { description = meta.description || ''; tags = meta.tags || []; }
+                const scanResult = await window.electron.scanSumdElements(doc.path);
+                if (scanResult) {
+                    hasCodeblock = !!scanResult.hasCodeblock;
+                    hasTable = !!scanResult.hasTable;
+                    hasImage = !!scanResult.hasImage;
+                    fileSize = scanResult.fileSize || 0;
+                }
+            } catch (e) { }
+        }
+        return { ...doc, description, tags, hasCodeblock, hasTable, hasImage, fileSize };
+    }));
+
+    _allDocsCache = enriched;
+
+    if (window.Fuse) {
+        _searchFuse = new window.Fuse(enriched, {
+            keys: [
+                { name: 'name', weight: 0.5 },
+                { name: 'description', weight: 0.25 },
+                { name: 'tags', weight: 0.15 },
+                { name: 'path', weight: 0.1 },
+            ],
+            threshold: 0.4,
+            includeScore: true,
+            ignoreLocation: true,
+        });
+    }
+
+    return enriched;
 }
 
-// ==================== RECENT DOCS LIST ==================== 
+function applyFilters(docs) {
+    const f = _searchState.filters;
+    return docs.filter(doc => {
+        if (f.hasCodeblock && !doc.hasCodeblock) return false;
+        if (f.hasTable && !doc.hasTable) return false;
+        if (f.hasImage && !doc.hasImage) return false;
+        if (f.dateFrom) {
+            const from = new Date(f.dateFrom);
+            if (new Date(doc.lastOpened) < from) return false;
+        }
+        if (f.dateTo) {
+            const to = new Date(f.dateTo);
+            to.setHours(23, 59, 59, 999);
+            if (new Date(doc.lastOpened) > to) return false;
+        }
+        if (f.minSize && doc.fileSize < parseInt(f.minSize) * 1024) return false;
+        if (f.maxSize && doc.fileSize > parseInt(f.maxSize) * 1024) return false;
+        return true;
+    });
+}
 
-function formatDate(date) {
-    const now = new Date();
-    const diff = now - date;
-    const day = 86400000;
+async function doLandingSearch() {
+    const q = _searchState.query.trim();
+    const hasFilters = Object.values(_searchState.filters).some(v => v === true || (typeof v === 'string' && v !== ''));
+    _searchState.active = !!(q || hasFilters);
 
-    if (diff < 60000) return 'Zojuist';
-    if (diff < 3600000) return `${Math.floor(diff / 60000)} min geleden`;
-    if (diff < day) return `${Math.floor(diff / 3600000)} uur geleden`;
-    if (diff < 2 * day) return 'Gisteren';
+    const favSection = document.getElementById('favouritesSection');
 
-    return date.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' });
+    if (!_searchState.active) {
+        // Clear search — restore normal view
+        _searchState.results = null;
+        if (favSection) favSection.style.display = 'block';
+        document.querySelector('.recent-docs-section h2').innerHTML = `
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Recente documenten
+            <span class="section-hint-inline">· sleep naar favorieten om vast te zetten</span>
+        `;
+        renderRecentDocs();
+        return;
+    }
+
+    // Hide favourites while searching
+    if (favSection) favSection.style.display = 'none';
+    document.querySelector('.recent-docs-section h2').innerHTML = `
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        Zoekresultaten
+    `;
+
+    // Show loader if scanning takes >0.5s
+    let loaderTimer = null;
+    const list = document.getElementById('recentDocsList');
+    loaderTimer = setTimeout(() => {
+        Array.from(list.children).forEach(c => { if (c.id !== 'emptyRecent') c.remove(); });
+        if (!list.querySelector('.search-loader')) {
+            const loader = document.createElement('div');
+            loader.className = 'search-loader';
+            loader.id = 'searchLoader';
+            loader.innerHTML = `
+                <div class="search-loader-spinner"></div>
+                <span>Documenten doorzoeken...</span>
+            `;
+            list.prepend(loader);
+        }
+    }, 500);
+
+    // Load+scan docs (cached after first run)
+    let docs = _allDocsCache || await loadAllDocsForSearch();
+    clearTimeout(loaderTimer);
+    document.getElementById('searchLoader')?.remove();
+
+    // Apply text search
+    if (q && _searchFuse) {
+        docs = _searchFuse.search(q).map(r => r.item);
+    } else if (q) {
+        const ql = q.toLowerCase();
+        docs = docs.filter(d =>
+            (d.name || '').toLowerCase().includes(ql) ||
+            (d.description || '').toLowerCase().includes(ql) ||
+            (d.tags || []).some(t => t.toLowerCase().includes(ql))
+        );
+    }
+
+    // Apply element/date/size filters
+    docs = applyFilters(docs);
+    _searchState.results = docs;
+
+    renderSearchResults(docs);
+}
+
+function renderSearchResults(docs) {
+    const list = document.getElementById('recentDocsList');
+    const emptyMsg = document.getElementById('emptyRecent');
+    Array.from(list.children).forEach(c => { if (c.id !== 'emptyRecent' && c.id !== 'searchLoader') c.remove(); });
+
+    if (docs.length === 0) {
+        emptyMsg.style.display = 'flex';
+        emptyMsg.querySelector('p').textContent = 'Geen documenten gevonden';
+        emptyMsg.querySelector('span').textContent = 'Probeer een andere zoekterm of pas de filters aan.';
+        return;
+    }
+    emptyMsg.style.display = 'none';
+
+    docs.forEach(doc => {
+        const item = document.createElement('div');
+        item.className = 'recent-doc-item';
+        item.dataset.id = doc.id;
+
+        const displayName = doc.name || (doc.path ? doc.path.split(/[\\/]/).pop().replace(/\.sumd$/i, '') : 'Naamloos');
+        const tagsHtml = (doc.tags || []).slice(0, 3).map(t => `<span class="rdi-tag">${escapeHtml(t)}</span>`).join('');
+
+        item.innerHTML = `
+            <div class="rdi-thumb"><img src="icon.png" width="24" height="24"></div>
+            <div class="rdi-body">
+                <div class="rdi-top">
+                    <span class="rdi-name">${escapeHtml(displayName)}</span>
+                    <span class="rdi-date">${formatDate(new Date(doc.lastOpened))}</span>
+                </div>
+                ${doc.description ? `<div class="rdi-desc">${escapeHtml(doc.description)}</div>` : ''}
+                <div class="rdi-bottom">
+                    <span class="rdi-path">${escapeHtml(doc.path || '')}</span>
+                    ${tagsHtml ? `<div class="rdi-tags">${tagsHtml}</div>` : ''}
+                </div>
+            </div>
+            <button class="recent-doc-menu" title="Opties" data-id="${doc.id}">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+            </button>
+        `;
+
+        item.addEventListener('click', e => {
+            if (e.target.closest('.recent-doc-menu')) return;
+            openRecentDoc(doc);
+        });
+
+        item.querySelector('.recent-doc-menu').addEventListener('click', e => {
+            e.stopPropagation();
+            contextTargetId = doc.id;
+            showContextMenu(e.clientX, e.clientY);
+        });
+
+        list.appendChild(item);
+    });
+}
+
+async function renderFavourites() {
+    const section = document.getElementById('favouritesSection');
+    const list = document.getElementById('favouritesList');
+    if (!section || !list) return;
+
+    const favs = await getFavourites();
+    _favouritePreviews.forEach(preview => preview.destroy());
+    _favouritePreviews = [];
+    list.innerHTML = '';
+
+    // Always show the section so it acts as a drop target
+    section.style.display = 'block';
+
+    if (favs.length === 0) {
+        // Show a subtle empty drop zone
+        const empty = document.createElement('div');
+        empty.className = 'fav-empty-zone';
+        empty.id = 'favEmptyZone';
+        empty.textContent = 'Sleep een document hiernaartoe om het toe te voegen aan favorieten';
+        list.appendChild(empty);
+        updateFavouriteScrollButton();
+        return;
+    }
+
+    favs.forEach((fav, idx) => {
+        const chip = document.createElement('div');
+        chip.className = 'fav-doc-card';
+        chip.dataset.path = fav.path;
+        chip.dataset.idx = idx;
+        chip.draggable = true;
+        chip.title = fav.path || fav.name;
+
+        chip.innerHTML = `
+            <div class="fav-doc-preview" aria-hidden="true"></div>
+            <div class="fav-doc-footer">
+                <img src="icon.png" width="16" height="16" alt="" class="fav-doc-icon">
+                <span class="fav-chip-name">${escapeHtml(fav.name || 'Naamloos')}</span>
+                <button class="fav-chip-remove" title="Verwijder uit favorieten">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+        `;
+
+        const previewContainer = chip.querySelector('.fav-doc-preview');
+        if (previewContainer && fav.path && window.DocumentPreview) {
+            const preview = new DocumentPreview(previewContainer);
+            _favouritePreviews.push(preview);
+            preview.loadFromFile(fav.path);
+        }
+
+        // Click to open
+        chip.addEventListener('click', e => {
+            if (e.target.closest('.fav-chip-remove')) return;
+            const docs = _cachedRecents || [];
+            const doc = docs.find(d => d.path === fav.path);
+            if (doc) openRecentDoc(doc);
+            else openRecentDoc({ path: fav.path, name: fav.name, id: fav.id });
+        });
+
+        // Remove from favourites
+        chip.querySelector('.fav-chip-remove').addEventListener('click', async e => {
+            e.stopPropagation();
+            await removeFavourite(fav.path);
+            renderFavourites();
+            if (!_searchState.active) renderRecentDocs();
+        });
+
+        // Drag to reorder within favourites
+        chip.addEventListener('dragstart', e => {
+            e.dataTransfer.setData('fav-idx', idx);
+            e.dataTransfer.setData('type', 'fav-reorder');
+            chip.classList.add('dragging');
+        });
+        chip.addEventListener('dragend', () => chip.classList.remove('dragging'));
+        chip.addEventListener('dragover', e => {
+            if (e.dataTransfer.types.includes('type')) e.preventDefault();
+            chip.classList.add('drag-over');
+        });
+        chip.addEventListener('dragleave', () => chip.classList.remove('drag-over'));
+        chip.addEventListener('drop', async e => {
+            e.preventDefault();
+            chip.classList.remove('drag-over');
+            const type = e.dataTransfer.getData('type');
+            if (type === 'fav-reorder') {
+                const fromIdx = parseInt(e.dataTransfer.getData('fav-idx'));
+                const toIdx = idx;
+                if (fromIdx === toIdx) return;
+                const favs = await getFavourites();
+                const [moved] = favs.splice(fromIdx, 1);
+                favs.splice(toIdx, 0, moved);
+                await saveFavourites(favs);
+                renderFavourites();
+            } else if (type === 'recent-to-fav') {
+                const docId = e.dataTransfer.getData('doc-id');
+                const docs = await getRecentDocs();
+                const doc = docs.find(d => d.id === docId);
+                if (doc) {
+                    await addFavourite(doc);
+                    renderFavourites();
+                    if (!_searchState.active) renderRecentDocs();
+                }
+            }
+        });
+
+        list.appendChild(chip);
+    });
+
+    // Drop zone hint at the end of the list
+    const dropHint = document.createElement('div');
+    dropHint.className = 'fav-drop-hint';
+    dropHint.textContent = '+ Zet hier neer';
+    dropHint.addEventListener('dragover', e => { e.preventDefault(); dropHint.classList.add('drag-over'); });
+    dropHint.addEventListener('dragleave', () => dropHint.classList.remove('drag-over'));
+    dropHint.addEventListener('drop', async e => {
+        e.preventDefault();
+        dropHint.classList.remove('drag-over');
+        const type = e.dataTransfer.getData('type');
+        if (type === 'recent-to-fav') {
+            const docId = e.dataTransfer.getData('doc-id');
+            const docs = await getRecentDocs();
+            const doc = docs.find(d => d.id === docId);
+            if (doc) {
+                await addFavourite(doc);
+                renderFavourites();
+                if (!_searchState.active) renderRecentDocs();
+            }
+        }
+    });
+    list.appendChild(dropHint);
+    updateFavouriteScrollButton();
+}
+
+function scrollFavouritesToNextSection() {
+    const list = document.getElementById('favouritesList');
+    if (!list) return;
+
+    const firstCard = list.querySelector('.fav-doc-card');
+    const cardWidth = firstCard ? firstCard.getBoundingClientRect().width : 220;
+    const gap = parseFloat(getComputedStyle(list).columnGap || getComputedStyle(list).gap) || 12;
+    const step = Math.max(cardWidth + gap, list.clientWidth - 32);
+
+    list.scrollBy({ left: step, behavior: 'smooth' });
+}
+
+function updateFavouriteScrollButton() {
+    const section = document.getElementById('favouritesSection');
+    const list = document.getElementById('favouritesList');
+    if (!section || !list) return;
+
+    let button = section.querySelector('.fav-scroll-next');
+    const canScroll = list.scrollWidth > list.clientWidth + 4;
+    const canScrollNext = list.scrollLeft < list.scrollWidth - list.clientWidth - 4;
+
+    if (!canScroll || !canScrollNext) {
+        button?.remove();
+        return;
+    }
+
+    if (!button) {
+        button = document.createElement('button');
+        button.className = 'fav-scroll-next';
+        button.type = 'button';
+        button.title = 'Ga naar de volgende favorieten';
+        button.setAttribute('aria-label', 'Ga naar de volgende favorieten');
+        button.innerHTML = `
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 18l6-6-6-6"/>
+            </svg>
+        `;
+        button.addEventListener('click', scrollFavouritesToNextSection);
+        section.appendChild(button);
+    }
+}
+
+// Also show favourites drop zone even when section is hidden
+function initFavouritesDropZone() {
+    const section = document.getElementById('favouritesSection');
+    if (!section) return;
+
+    section.addEventListener('dragover', e => {
+        e.preventDefault();
+        section.classList.add('drag-target');
+        const emptyZone = document.getElementById('favEmptyZone');
+        if (emptyZone) emptyZone.classList.add('drag-over');
+    });
+    section.addEventListener('dragleave', e => {
+        // Only remove if leaving the section entirely
+        if (!section.contains(e.relatedTarget)) {
+            section.classList.remove('drag-target');
+            const emptyZone = document.getElementById('favEmptyZone');
+            if (emptyZone) emptyZone.classList.remove('drag-over');
+        }
+    });
+    section.addEventListener('drop', async e => {
+        e.preventDefault();
+        section.classList.remove('drag-target');
+        const emptyZone = document.getElementById('favEmptyZone');
+        if (emptyZone) emptyZone.classList.remove('drag-over');
+        const type = e.dataTransfer.getData('type');
+        if (type === 'recent-to-fav') {
+            const docId = e.dataTransfer.getData('doc-id');
+            const docs = await getRecentDocs();
+            const doc = docs.find(d => d.id === docId);
+            if (doc) {
+                await addFavourite(doc);
+                renderFavourites();
+                if (!_searchState.active) renderRecentDocs();
+            }
+        }
+    });
 }
 
 async function renderRecentDocs() {
     const list = document.getElementById('recentDocsList');
     const emptyMsg = document.getElementById('emptyRecent');
-    let docs = getRecentDocs();
+    let docs = await getRecentDocs();
 
     // Remove existing items (keep emptyRecent)
     Array.from(list.children).forEach(c => {
@@ -164,21 +654,34 @@ async function renderRecentDocs() {
         if (missing.length > 0) {
             // Remove missing docs from the stored list
             docs = docs.filter((_, i) => existenceChecks[i]);
-            saveRecentDocs(docs);
+            await saveRecentDocs(docs);
         }
     }
 
-    if (docs.length === 0) {
+    const favouritePaths = await getFavouritePathSet();
+    const visibleDocs = docs.filter(doc => !doc.path || !favouritePaths.has(doc.path));
+
+    if (visibleDocs.length === 0) {
         emptyMsg.style.display = 'flex';
         return;
     }
 
     emptyMsg.style.display = 'none';
 
-    docs.forEach(doc => {
+    await Promise.all(visibleDocs.map(async doc => {
         const item = document.createElement('div');
         item.className = 'recent-doc-item';
         item.dataset.id = doc.id;
+        item.draggable = true;
+
+        item.addEventListener('dragstart', e => {
+            e.dataTransfer.setData('type', 'recent-to-fav');
+            e.dataTransfer.setData('doc-id', doc.id);
+            item.classList.add('dragging');
+        });
+        item.addEventListener('dragend', () => {
+            item.classList.remove('dragging');
+        });
 
         // Determine file type for icon and display name
         const filePath = doc.path || '';
@@ -220,13 +723,35 @@ async function renderRecentDocs() {
             </svg>`;
         }
 
+        // Read description and tags from .sumd if available
+        let description = doc.description || '';
+        let tags = doc.tags || [];
+        if (!description && doc.path && window.electron && window.electron.readSumdMeta) {
+            try {
+                const meta = await window.electron.readSumdMeta(doc.path);
+                if (meta) { description = meta.description || ''; tags = meta.tags || []; }
+            } catch (e) { }
+        }
+
+        const tagsHtml = tags.slice(0, 3).map(t =>
+            `<span class="rdi-tag">${escapeHtml(t)}</span>`
+        ).join('');
+
         item.innerHTML = `
-            <div class="recent-doc-icon">${iconHtml}</div>
-            <div class="recent-doc-info">
-                <div class="recent-doc-name">${escapeHtml(displayName)}</div>
-                ${doc.path ? `<div class="recent-doc-path">${escapeHtml(doc.path)}</div>` : ''}
+            <div class="rdi-thumb">
+                ${iconHtml}
             </div>
-            <div class="recent-doc-date">${formatDate(new Date(doc.lastOpened))}</div>
+            <div class="rdi-body">
+                <div class="rdi-top">
+                    <span class="rdi-name">${escapeHtml(displayName)}</span>
+                    <span class="rdi-date">${formatDate(new Date(doc.lastOpened))}</span>
+                </div>
+                ${description ? `<div class="rdi-desc">${escapeHtml(description)}</div>` : ''}
+                <div class="rdi-bottom">
+                    <span class="rdi-path">${escapeHtml(doc.path || '')}</span>
+                    ${tagsHtml ? `<div class="rdi-tags">${tagsHtml}</div>` : ''}
+                </div>
+            </div>
             <button class="recent-doc-menu" title="Opties" data-id="${doc.id}">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>
@@ -245,13 +770,7 @@ async function renderRecentDocs() {
         });
 
         list.appendChild(item);
-    });
-}
-
-function escapeHtml(str) {
-    const d = document.createElement('div');
-    d.textContent = str;
-    return d.innerHTML;
+    }));
 }
 
 // ==================== OPEN DOCUMENT ====================
@@ -268,7 +787,7 @@ async function openRecentDoc(doc) {
                 name: doc.name
             }));
             // Update recent
-            addRecentDoc({ ...doc, lastOpened: new Date().toISOString() });
+            await window.electron.recentsAdd({ ...doc, lastOpened: new Date().toISOString() });
             localStorage.setItem('summie_current_file_path', doc.path);
             navigateToEditor(result.data);
         } else {
@@ -305,7 +824,7 @@ async function openFromFile() {
     const name = path.split('\\').pop().split('/').pop().replace('.sumd', '');
 
     // Save to recent
-    addRecentDoc({
+    if (window.electron && window.electron.recentsAdd) window.electron.recentsAdd({
         id: generateId(),
         name: name,
         path: path,
@@ -349,8 +868,8 @@ function hideContextMenu() {
 
 // ==================== RENAME MODAL ====================
 
-function showRenameModal(docId) {
-    const docs = getRecentDocs();
+async function showRenameModal(docId) {
+    const docs = await getRecentDocs();
     const doc = docs.find(d => d.id === docId);
     if (!doc) return;
 
@@ -376,15 +895,15 @@ function showRenameModal(docId) {
                 closeRenameModal();
                 return;
             }
-            let allDocs = getRecentDocs().map(d =>
+            let allDocs = (await getRecentDocs()).map(d =>
                 d.id === docId ? { ...d, name: newName, path: newPath } : d
             );
-            saveRecentDocs(allDocs);
+            await saveRecentDocs(allDocs);
             if (localStorage.getItem('summie_current_file_path') === doc.path) {
                 localStorage.setItem('summie_current_file_path', newPath);
             }
         } else {
-            renameRecentDoc(docId, newName);
+            await renameRecentDoc(docId, newName);
         }
 
         renderRecentDocs();
@@ -413,8 +932,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         setTimeout(() => { loaderBar.style.width = '65%'; }, 200);
     }
 
-    loadCurrentDocPreview();
+    await loadCurrentDocPreview();
+    await migrateLocalStorageRecents();
     await renderRecentDocs();
+    await renderFavourites();
+    initFavouritesDropZone();
+
+    const favouritesList = document.getElementById('favouritesList');
+    if (favouritesList) {
+        favouritesList.addEventListener('scroll', updateFavouriteScrollButton, { passive: true });
+        window.addEventListener('resize', updateFavouriteScrollButton);
+    }
 
     // Hide loader with a short fade after content is ready
     if (loaderBar) loaderBar.style.width = '100%';
@@ -486,29 +1014,29 @@ document.addEventListener('DOMContentLoaded', async () => {
         showRenameModal(id);
     });
 
-    document.getElementById('ctxOpen').addEventListener('click', () => {
+    document.getElementById('ctxOpen').addEventListener('click', async () => {
         const id = contextTargetId;
         hideContextMenu();
-        const docs = getRecentDocs();
+        const docs = await getRecentDocs();
         const doc = docs.find(d => d.id === id);
         if (doc) openRecentDoc(doc);
     });
 
-    document.getElementById('ctxShowInExplorer').addEventListener('click', () => {
+    document.getElementById('ctxShowInExplorer').addEventListener('click', async () => {
         const id = contextTargetId;
         hideContextMenu();
-        const docs = getRecentDocs();
+        const docs = await getRecentDocs();
         const doc = docs.find(d => d.id === id);
         if (doc && doc.path && window.electron) {
             window.electron.showInExplorer(doc.path);
         }
     });
 
-    document.getElementById('ctxRemoveFromList').addEventListener('click', () => {
+    document.getElementById('ctxRemoveFromList').addEventListener('click', async () => {
         const id = contextTargetId;
         hideContextMenu();
         if (confirm('Wil je dit document uit de lijst verwijderen?')) {
-            removeRecentDoc(id);
+            await removeRecentDoc(id);
             renderRecentDocs();
             loadCurrentDocPreview();
         }
@@ -517,7 +1045,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('ctxDelete').addEventListener('click', async () => {
         const id = contextTargetId;
         hideContextMenu();
-        const docs = getRecentDocs();
+        const docs = await getRecentDocs();
         const doc = docs.find(d => d.id === id);
         if (!doc) return;
         if (confirm(`Wil je "${doc.name || 'dit document'}" permanent verwijderen van de schijf? Dit kan niet ongedaan worden gemaakt.`)) {
@@ -526,7 +1054,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     await window.electron.deleteFile(doc.path);
                 } catch (e) { }
             }
-            removeRecentDoc(id);
+            await removeRecentDoc(id);
             renderRecentDocs();
             loadCurrentDocPreview();
         }
@@ -558,4 +1086,192 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.getElementById('confirmRename').click();
         }
     });
+
+    // Manage documents button
+    const manageBtn = document.getElementById('manageDocsBtnMain');
+    if (manageBtn) {
+        manageBtn.addEventListener('click', () => {
+            if (window.electron && window.electron.navigateToManage) {
+                window.electron.navigateToManage();
+            }
+        });
+    }
+
+    // ── Search bar ─────────────────────────────────────────────────────────
+    const landingSearch = document.getElementById('landingSearchInput');
+    const landingClear = document.getElementById('landingSearchClear');
+
+    if (landingSearch) {
+        landingSearch.addEventListener('input', () => {
+            _searchState.query = landingSearch.value;
+            landingClear.style.display = landingSearch.value ? 'flex' : 'none';
+            clearTimeout(_searchTimer);
+            _searchTimer = setTimeout(doLandingSearch, 250);
+        });
+
+        landingClear.addEventListener('click', () => {
+            landingSearch.value = '';
+            landingClear.style.display = 'none';
+            _searchState.query = '';
+            doLandingSearch();
+        });
+    }
+
+    // Filter toggle button
+    const filterToggleBtn = document.getElementById('landingFilterToggle');
+    const filtersBar = document.getElementById('landingFilters');
+    if (filterToggleBtn && filtersBar) {
+        filterToggleBtn.addEventListener('click', () => {
+            const open = filtersBar.style.display !== 'none';
+            filtersBar.style.display = open ? 'none' : 'flex';
+            filterToggleBtn.classList.toggle('active', !open);
+        });
+    }
+
+    // Filter toggles
+    ['filterCodeblock', 'filterTable', 'filterImage'].forEach(id => {
+        const btn = document.getElementById(id);
+        if (!btn) return;
+        btn.addEventListener('click', () => {
+            const key = { filterCodeblock: 'hasCodeblock', filterTable: 'hasTable', filterImage: 'hasImage' }[id];
+            _searchState.filters[key] = !_searchState.filters[key];
+            btn.classList.toggle('active', _searchState.filters[key]);
+            clearTimeout(_searchTimer);
+            _searchTimer = setTimeout(doLandingSearch, 100);
+        });
+    });
+
+    ['filterDateFrom', 'filterDateTo'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('change', () => {
+            const key = id === 'filterDateFrom' ? 'dateFrom' : 'dateTo';
+            _searchState.filters[key] = el.value;
+            clearTimeout(_searchTimer);
+            _searchTimer = setTimeout(doLandingSearch, 100);
+        });
+    });
+
+    ['filterSizeMin', 'filterSizeMax'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('input', () => {
+            const key = id === 'filterSizeMin' ? 'minSize' : 'maxSize';
+            _searchState.filters[key] = el.value;
+            clearTimeout(_searchTimer);
+            _searchTimer = setTimeout(doLandingSearch, 400);
+        });
+    });
+
+    const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+    if (clearFiltersBtn) {
+        clearFiltersBtn.addEventListener('click', () => {
+            _searchState.filters = { hasCodeblock: false, hasTable: false, hasImage: false, dateFrom: '', dateTo: '', minSize: '', maxSize: '' };
+            ['filterCodeblock', 'filterTable', 'filterImage'].forEach(id => document.getElementById(id)?.classList.remove('active'));
+            ['filterDateFrom', 'filterDateTo', 'filterSizeMin', 'filterSizeMax'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+            clearTimeout(_searchTimer);
+            doLandingSearch();
+        });
+    }
+
+    // ── Settings ──────────────────────────────────────────────────────────
+    await initSettings();
 });
+
+async function initSettings() {
+    if (!window.electron) return;
+
+    const settings = await window.electron.settingsGet();
+
+    const langSelect = document.getElementById('settingLanguage');
+    const autoSaveNew = document.getElementById('settingAutoSaveNew');
+    const dirRow = document.getElementById('settingDirRow');
+    const dirPath = document.getElementById('settingDirPath');
+    const pickDirBtn = document.getElementById('settingPickDir');
+    const closeToHome = document.getElementById('settingCloseToHome');
+    const numberLocale = document.getElementById('settingNumberLocale');
+    const overlay = document.getElementById('settingsOverlay');
+    const gearBtn = document.getElementById('landingSettingsBtn');
+    const closeBtn = document.getElementById('settingsCloseBtn');
+
+    if (!langSelect || !overlay) return;
+
+    // Populate UI from saved settings
+    langSelect.value = settings.language || 'nl';
+    autoSaveNew.checked = !!settings.autoSaveNewFiles;
+    dirPath.textContent = settings.newFilesDirectory || '/Documents';
+    dirRow.style.display = settings.autoSaveNewFiles ? '' : 'none';
+    if (closeToHome) closeToHome.checked = settings.closeToHome !== false;
+    if (numberLocale) numberLocale.value = settings.numberLocale || 'eu';
+
+    // Gear spin on hover — always finishes, 1s cooldown after
+    let _gearCooling = false;
+    gearBtn.addEventListener('mouseenter', () => {
+        if (_gearCooling || gearBtn.classList.contains('spinning')) return;
+        gearBtn.classList.add('spinning');
+        gearBtn.addEventListener('animationend', function onEnd() {
+            gearBtn.classList.remove('spinning');
+            gearBtn.removeEventListener('animationend', onEnd);
+            _gearCooling = true;
+            setTimeout(() => { _gearCooling = false; }, 1000);
+        }, { once: true });
+    });
+
+    // Open / close overlay
+    function openSettings() {
+        overlay.classList.add('settings-overlay--open');
+    }
+    function closeSettings() {
+        overlay.classList.remove('settings-overlay--open');
+    }
+
+    gearBtn.addEventListener('click', openSettings);
+    closeBtn.addEventListener('click', closeSettings);
+
+    // Close on backdrop click
+    overlay.addEventListener('click', e => {
+        if (e.target === overlay) closeSettings();
+    });
+
+    // Close on Escape
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape' && overlay.classList.contains('settings-overlay--open')) {
+            closeSettings();
+        }
+    });
+
+    // Number locale
+    if (numberLocale) {
+        numberLocale.addEventListener('change', async () => {
+            await window.electron.settingsSet({ numberLocale: numberLocale.value });
+        });
+    }
+
+    // Close to home
+    if (closeToHome) {
+        closeToHome.addEventListener('change', async () => {
+            await window.electron.settingsSet({ closeToHome: closeToHome.checked });
+        });
+    }
+
+    // Language
+    langSelect.addEventListener('change', async () => {
+        await window.electron.settingsSet({ language: langSelect.value });
+    });
+
+    // Auto-save new files toggle
+    autoSaveNew.addEventListener('change', async () => {
+        const enabled = autoSaveNew.checked;
+        await window.electron.settingsSet({ autoSaveNewFiles: enabled });
+        dirRow.style.display = enabled ? '' : 'none';
+    });
+
+    // Directory picker
+    pickDirBtn.addEventListener('click', async () => {
+        const chosen = await window.electron.settingsPickDirectory();
+        if (chosen) {
+            dirPath.textContent = chosen;
+            await window.electron.settingsSet({ newFilesDirectory: chosen });
+        }
+    });
+}

@@ -242,10 +242,12 @@ function updateLastSavedText() {
 function updateUnsavedIndicator() {
     const input = document.getElementById('docNameInput');
     if (!input) return;
+    const field = document.getElementById('docNameField');
     const hasUnsaved = _hasUnsavedChanges();
     const cleanName = input.dataset.cleanName || input.value.replace(/\s*\*$/, '');
     input.dataset.cleanName = cleanName;
-    input.value = cleanName + (hasUnsaved ? ' *' : '');
+    input.value = cleanName;
+    if (field) field.classList.toggle('has-unsaved', hasUnsaved);
 
     // Also update the status area — but never interrupt the "Opgeslagen!" lock
     if (_saveStatusLocked) return;
@@ -311,6 +313,7 @@ function setupDocNameInput() {
                 window.AppState.lastSavedContent = editor.innerHTML;
                 window.AppState.lastSavedBegrippen = JSON.stringify(begrippen);
                 const savedName = result.path.split('\\').pop().split('/').pop().replace('.sumd', '');
+                input.dataset.cleanName = savedName;
                 input.value = savedName;
                 showSaveStatusSuccess();
                 updateUnsavedIndicator();
@@ -343,9 +346,13 @@ function setupDocNameInput() {
             localStorage.setItem('summie_saved_begrippen', JSON.stringify(begrippen));
             window.AppState.lastSavedContent = editor.innerHTML;
             window.AppState.lastSavedBegrippen = JSON.stringify(begrippen);
+            input.dataset.cleanName = newName;
+            input.value = newName;
             showSaveStatusSuccess();
             updateUnsavedIndicator();
             window.trackRecentDocument && window.trackRecentDocument(newPath, newName);
+            window.updateWindowTitle && window.updateWindowTitle(newPath);
+            window.AutoSave && window.AutoSave.onFileChanged();
         } else {
             window.showNotification && window.showNotification('Fout', `Kon niet hernoemen: ${result.error || ''}`, 'error');
             loadDocName();
@@ -353,13 +360,21 @@ function setupDocNameInput() {
     }
 
     input.addEventListener('blur', commitDocName);
+    input.addEventListener('input', () => {
+        input.dataset.cleanName = input.value.replace(/\s*\*$/, '');
+    });
     input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
         if (e.key === 'Escape') { loadDocName(); input.blur(); }
     });
 
     window.updateDocNameInput = loadDocName;
-    window.clearDocNameInput = () => { input.value = ''; input.dataset.cleanName = ''; };
+    window.clearDocNameInput = () => {
+        input.value = '';
+        input.dataset.cleanName = '';
+        const field = document.getElementById('docNameField');
+        if (field) field.classList.remove('has-unsaved');
+    };
 }
 
 // Expose

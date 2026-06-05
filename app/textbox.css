@@ -1,0 +1,189 @@
+/* ==================== TEKSTVAK ==================== */
+.summie-textbox {
+    position: absolute;
+    min-width: 120px;
+    min-height: 60px;
+    width: 200px;
+    background: #ffffff;
+    border: 1.5px solid #cbd5e1;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.10);
+    box-sizing: border-box;
+    z-index: 10;
+    cursor: default;
+    transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.summie-textbox--active {
+    border-color: var(--primary-color, #3b82f6);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.18), 0 2px 8px rgba(0, 0, 0, 0.10);
+}
+
+/* Inline mode: in tekststroom */
+.summie-textbox--inline {
+    position: relative;
+    display: inline-block;
+    vertical-align: top;
+    float: left;
+    margin: 4px 12px 4px 0;
+}
+
+.summie-textbox-inner {
+    width: 100%;
+    min-height: 40px;
+    padding: 8px 10px;
+    box-sizing: border-box;
+    outline: none;
+    font-size: 14pt;
+    color: #1e293b;
+    word-break: break-word;
+    line-height: 1.5;
+    border-radius: 5px;
+}
+
+.summie-textbox-inner:empty::before {
+    content: attr(data-placeholder);
+    color: #94a3b8;
+    pointer-events: none;
+}
+
+/* Drag handle — top-left */
+.summie-textbox-drag {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #94a3b8;
+    cursor: grab;
+    border-radius: 3px;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    -webkit-app-region: no-drag;
+}
+
+.summie-textbox--inline .summie-textbox-drag {
+    cursor: default;
+    pointer-events: none;
+}
+
+.summie-textbox:hover .summie-textbox-drag,
+.summie-textbox--active .summie-textbox-drag {
+    opacity: 1;
+}
+
+.summie-textbox-drag:active {
+    cursor: grabbing;
+}
+
+/* Resize handle — bottom-right */
+.summie-textbox-resize {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    width: 14px;
+    height: 14px;
+    cursor: nwse-resize;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    -webkit-app-region: no-drag;
+}
+
+.summie-textbox-resize::before,
+.summie-textbox-resize::after {
+    content: '';
+    position: absolute;
+    background: #94a3b8;
+    border-radius: 1px;
+}
+
+.summie-textbox-resize::before {
+    width: 8px;
+    height: 1.5px;
+    bottom: 5px;
+    right: 1px;
+    transform: rotate(-45deg);
+    transform-origin: right center;
+}
+
+.summie-textbox-resize::after {
+    width: 4px;
+    height: 1.5px;
+    bottom: 2px;
+    right: 1px;
+    transform: rotate(-45deg);
+    transform-origin: right center;
+}
+
+.summie-textbox:hover .summie-textbox-resize,
+.summie-textbox--active .summie-textbox-resize {
+    opacity: 1;
+}
+
+/* ==================== INLINE CODE ==================== */
+.summie-inline-code {
+    font-family: 'Consolas', 'Fira Code', 'Courier New', monospace;
+    font-size: 0.875em;
+    background: #eff6ff;
+    color: var(--primary-color, #3b82f6);
+    border: 1px solid #bfdbfe;
+    border-radius: 4px;
+    padding: 1px 5px;
+    white-space: pre;
+    word-break: break-all;
+}
+
+/* ==================== CONTEXT PANEL EXTRAS ==================== */
+.color-picker-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.color-picker-label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.toolbar-color-input {
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 1px;
+    cursor: pointer;
+    background: none;
+}
+
+.toolbar-select {
+    height: 32px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 0 8px;
+    font-size: 13px;
+    background: var(--bg-white);
+    color: var(--text-primary);
+    cursor: pointer;
+}
+
+.toolbar-unit {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.btn-toolbar-danger {
+    color: #ef4444 !important;
+}
+
+.btn-toolbar-danger:hover {
+    background: #fef2f2 !important;
+    border-color: #ef4444 !important;
+}

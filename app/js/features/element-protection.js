@@ -137,6 +137,7 @@ window.ElementProtection = (function () {
     const CONTEXT_TABS = {
         code: ['codeblock-styling'],
         table: ['tabel-indeling', 'tabel-ontwerp', 'tabel-formules'],
+        textbox: ['textbox-opmaak'],
     };
 
     // ── Build Context Tab Container ───────────────────────────────────────

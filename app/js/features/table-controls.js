@@ -1238,12 +1238,45 @@ window.TableControls = (function () {
 
     // ── Formula Evaluator ─────────────────────────────────────────────────
 
+    // ── Number locale (EU = komma decimaal, US = punt decimaal) ──────────
+    let _numberLocale = 'eu';
+    (async () => {
+        try {
+            if (window.electron && window.electron.settingsGet) {
+                const s = await window.electron.settingsGet();
+                _numberLocale = s.numberLocale || 'eu';
+            }
+        } catch (e) { _numberLocale = 'eu'; }
+    })();
+
+    function isEU() { return _numberLocale !== 'us'; }
+
+    function parseLocaleNum(str) {
+        str = String(str).trim();
+        if (isEU()) return parseFloat(str.replace(/\./g, '').replace(',', '.'));
+        return parseFloat(str);
+    }
+
+    function formatLocaleNum(num, decimals) {
+        const d = parseInt(decimals) || 0;
+        const fixed = num.toFixed(d);
+        if (isEU()) {
+            const [int, dec] = fixed.split('.');
+            const intF = int.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            return dec !== undefined ? intF + ',' + dec : intF;
+        }
+        const [int, dec] = fixed.split('.');
+        const intF = int.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        return dec !== undefined ? intF + '.' + dec : intF;
+    }
+
     function splitArgs(str) {
+        const sep = isEU() ? ';' : ',';
         const args = []; let depth = 0, cur = '';
         for (const ch of str) {
             if (ch === '(') { depth++; cur += ch; }
             else if (ch === ')') { depth--; cur += ch; }
-            else if (ch === ',' && depth === 0) { args.push(cur.trim()); cur = ''; }
+            else if (ch === sep && depth === 0) { args.push(cur.trim()); cur = ''; }
             else cur += ch;
         }
         if (cur.trim()) args.push(cur.trim());
@@ -1255,7 +1288,7 @@ window.TableControls = (function () {
         arg = String(arg).trim();
         if (/^["'].*["']$/.test(arg)) return arg.slice(1, -1);
         if (/^[A-Za-z]+\d+$/.test(arg)) return cellNumVal(tbl, arg);
-        const n = parseFloat(arg);
+        const n = parseLocaleNum(arg);
         if (!isNaN(n)) return n;
         return evalFormula(tbl, arg);
     }
@@ -1372,9 +1405,9 @@ window.TableControls = (function () {
         const num = typeof value === 'number' ? value : parseFloat(value);
         if (isNaN(num)) return String(value);
         const d = parseInt(decimals) || 0;
-        if (fmt === 'pct') return num.toFixed(d) + '\u202f%';
-        if (fmt === 'eur') return '€\u202f' + num.toFixed(Math.max(d, 2)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-        return parseFloat(num.toFixed(d)).toString();
+        if (fmt === 'pct') return formatLocaleNum(num, d) + '\u202f%';
+        if (fmt === 'eur') return '€\u202f' + formatLocaleNum(num, Math.max(d, 2));
+        return formatLocaleNum(num, d);
     }
 
     // ── Apply / Recalc ────────────────────────────────────────────────────
