@@ -139,15 +139,21 @@
     min-width: 120px;
     max-height: 300px;
     overflow-y: auto;
-    scrollbar-width: none;
-    /* Firefox */
-    -ms-overflow-style: none;
-    /* IE and Edge */
+    scrollbar-width: thin;
+    scrollbar-color: #555 transparent;
 }
 
 .code-language-dropdown::-webkit-scrollbar {
-    display: none;
-    /* Chrome, Safari, Opera */
+    width: 4px;
+}
+
+.code-language-dropdown::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.code-language-dropdown::-webkit-scrollbar-thumb {
+    background: #555;
+    border-radius: 2px;
 }
 
 .code-language-dropdown.active {
