@@ -9,6 +9,8 @@
     <link rel="stylesheet" href="topbar.css?v=2">
     <link rel="stylesheet" href="code-blocks.css?v=2">
     <link rel="stylesheet" href="textbox.css">
+    <link rel="stylesheet" href="toc.css">
+    <link rel="stylesheet" href="find-replace.css">
     <link rel="stylesheet" href="syntax-highlighting.css?v=2">
     <link rel="stylesheet" href="references.css">
     <link rel="stylesheet" href="tables.css">
@@ -23,25 +25,32 @@
         <div class="topbar" style="-webkit-app-region: drag;">
             <div class="topbar-sections">
                 <div class="topbar-sections-left">
-                    <div class="topbar-logo">
-                        <img src="icon.png" alt="Summie" />
+                    <div class="topbar-sections-scrollable">
+                        <div class="topbar-logo">
+                            <img src="icon.png" alt="Summie" />
+                        </div>
+                        <div class="topbar-section" data-section="bestand">
+                            <span class="section-text">Bestand</span>
+                            <div class="section-underline"></div>
+                        </div>
+                        <div class="topbar-section active" data-section="bewerken">
+                            <span class="section-text">Bewerken</span>
+                            <div class="section-underline"></div>
+                        </div>
+                        <div class="topbar-section" data-section="invoegen">
+                            <span class="section-text">Invoegen</span>
+                            <div class="section-underline"></div>
+                        </div>
+                        <div class="topbar-section" data-section="weergave">
+                            <span class="section-text">Weergave</span>
+                            <div class="section-underline"></div>
+                        </div>
+                        <div class="topbar-section" data-section="wiskunde">
+                            <span class="section-text">Wiskunde</span>
+                            <div class="section-underline"></div>
+                        </div>
                     </div>
-                    <div class="topbar-section" data-section="bestand">
-                        <span class="section-text">Bestand</span>
-                        <div class="section-underline"></div>
-                    </div>
-                    <div class="topbar-section active" data-section="bewerken">
-                        <span class="section-text">Bewerken</span>
-                        <div class="section-underline"></div>
-                    </div>
-                    <div class="topbar-section" data-section="invoegen">
-                        <span class="section-text">Invoegen</span>
-                        <div class="section-underline"></div>
-                    </div>
-                    <div class="topbar-section" data-section="wiskunde">
-                        <span class="section-text">Wiskunde</span>
-                        <div class="section-underline"></div>
-                    </div>
+                    <!-- context tabs injected here by element-protection.js -->
                 </div>
                 <div class="topbar-sections-right">
                     <div class="save-status-area" id="saveStatusArea">
@@ -175,7 +184,25 @@
                     </div>
                 </div>
 
-                <div class="toolbar-separator animate-item" style="animation-delay: 0.1s"></div>
+                <div class="toolbar-separator animate-item page-break-edit-control" style="animation-delay: 0.1s"></div>
+
+                <div class="toolbar-group animate-item page-break-edit-control" style="animation-delay: 0.12s">
+                    <label class="toolbar-label">Pagina</label>
+                    <div class="toolbar-buttons">
+                        <button class="btn-icon" id="insertPageBreakBtn" title="Pagina-einde (Ctrl+Enter)">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v7" />
+                                <path d="M20 8v12a2 2 0 0 1-2 2h-7" />
+                                <polyline points="14 2 14 8 20 8" />
+                                <path d="M4 15h8" />
+                                <path d="M8 11l4 4-4 4" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="toolbar-separator animate-item" style="animation-delay: 0.14s"></div>
 
                 <div class="toolbar-group animate-item" style="animation-delay: 0.15s">
                     <label class="toolbar-label">Kleur</label>
@@ -653,6 +680,41 @@ z" />
 
                 <div class="toolbar-separator animate-item" style="animation-delay: 0.1s"></div>
 
+                <div class="toolbar-group animate-item" style="animation-delay: 0.125s">
+                    <label class="toolbar-label">Vormen</label>
+                    <div class="toolbar-buttons">
+                        <div class="toolbar-dropdown-wrapper">
+                            <button class="btn-toolbar dropdown-toggle" id="shapeDropdownBtn">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="4" y="4" width="8" height="8" rx="1" />
+                                    <circle cx="17" cy="8" r="4" />
+                                    <path d="M5 20h14l-7-7Z" />
+                                </svg>
+                                <span>Vormen</span>
+                                <svg class="dropdown-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                                    stroke="currentColor" stroke-width="2">
+                                    <polyline points="6 9 12 15 18 9" />
+                                </svg>
+                            </button>
+                            <div class="toolbar-dropdown-menu shape-gallery-menu" id="shapeDropdownMenu">
+                                <div class="shape-gallery-title">Lijnen</div>
+                                <button class="shape-gallery-item" data-shape-type="line" title="Lijn"></button>
+                                <button class="shape-gallery-item" data-shape-type="arrow" title="Pijl"></button>
+                                <div class="shape-gallery-title">Basisvormen</div>
+                                <button class="shape-gallery-item" data-shape-type="rect" title="Rechthoek"></button>
+                                <button class="shape-gallery-item" data-shape-type="roundRect" title="Afgeronde rechthoek"></button>
+                                <button class="shape-gallery-item" data-shape-type="circle" title="Cirkel"></button>
+                                <button class="shape-gallery-item" data-shape-type="ellipse" title="Ovaal"></button>
+                                <button class="shape-gallery-item" data-shape-type="triangle" title="Driehoek"></button>
+                                <button class="shape-gallery-item" data-shape-type="diamond" title="Ruit"></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="toolbar-separator animate-item" style="animation-delay: 0.135s"></div>
+
                 <div class="toolbar-group animate-item" style="animation-delay: 0.15s">
                     <label class="toolbar-label">Code</label>
                     <div class="toolbar-buttons">
@@ -744,7 +806,7 @@ z" />
 
                 <div class="toolbar-separator animate-item" style="animation-delay: 0.4s"></div>
 
-                <div class="toolbar-group animate-item" style="animation-delay: 0.45s">
+                <div class="toolbar-group animate-item" style="animation-delay: 0.48s">
                     <label class="toolbar-label">Verwijzingen</label>
                     <div class="toolbar-buttons">
                         <button class="btn-icon" id="insertReferenceBtn" title="Verwijzing toevoegen">
@@ -753,6 +815,43 @@ z" />
                                 <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
                                 <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
                             </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="toolbar-separator animate-item" style="animation-delay: 0.5s"></div>
+
+                <div class="toolbar-group animate-item" style="animation-delay: 0.55s">
+                    <label class="toolbar-label">Inhoudsopgave</label>
+                    <div class="toolbar-buttons">
+                        <button class="btn-toolbar" id="insertTocBtn" title="Inhoudsopgave invoegen">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="3" y1="5" x2="21" y2="5" />
+                                <line x1="3" y1="10" x2="21" y2="10" />
+                                <line x1="3" y1="15" x2="21" y2="15" />
+                                <line x1="3" y1="20" x2="21" y2="20" />
+                            </svg>
+                            <span>Invoegen</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Weergave Section -->
+            <div class="toolbar-content" data-content="weergave">
+                <div class="toolbar-group animate-item" style="animation-delay: 0.05s">
+                    <label class="toolbar-label">Alinea</label>
+                    <div class="toolbar-buttons">
+                        <button class="btn-toolbar" id="togglePilcrowBtn"
+                            title="Paragraaftekens tonen/verbergen (Ctrl+Shift+8)">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M13 4v16" />
+                                <path d="M17 4v16" />
+                                <path d="M9 4h6a4 4 0 0 1 0 8H9V4z" />
+                            </svg>
+                            <span>Alineatekens</span>
                         </button>
                     </div>
                 </div>
@@ -957,6 +1056,18 @@ z" />
                 </div>
 
                 <div class="file-section">
+                    <h4>Beveiliging</h4>
+                    <button class="btn-file" id="toggleProtectionBtn">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                        </svg>
+                        <span id="toggleProtectionLabel">Wachtwoord instellen</span>
+                    </button>
+                </div>
+
+                <div class="file-section">
                     <h4>Pagina's</h4>
                     <div class="pagination-status" id="paginationStatus">
                         <span id="paginationStatusText">Één doorlopende pagina</span>
@@ -1004,7 +1115,8 @@ z" />
             <!-- Left Section: Document -->
             <div class="document-section">
                 <div class="pages-container" id="pagesContainer">
-                    <div class="page a4-page" contenteditable="true" id="editor" data-page-index="0" spellcheck="false"></div>
+                    <div class="page a4-page" contenteditable="true" id="editor" data-page-index="0" spellcheck="false">
+                    </div>
                     <div class="editor-placeholder-overlay" id="editorPlaceholderOverlay">Begin hier met typen...</div>
                 </div>
                 <div class="autocomplete-popup" id="autocompletePopup"></div>
@@ -1026,7 +1138,9 @@ z" />
                                 spellcheck="false" title="Klik om de documentnaam te wijzigen" />
                         </div>
                     </div>
-                    <div class="bottom-bar-right"></div>
+                    <div class="bottom-bar-right">
+                        <span id="fileSizeDisplay" class="file-size-display"></span>
+                    </div>
                 </div>
             </div>
 
@@ -1260,9 +1374,11 @@ z" />
     <script src="js/ui/pagemanager.js"></script>
     <script src="js/ui/sidebar.js"></script>
     <script src="js/ui/search.js"></script>
+    <script src="js/ui/find-replace.js"></script>
 
     <!-- File -->
     <script src="js/file/storage.js"></script>
+    <script src="js/file/protection.js"></script>
     <script src="js/file/fileio.js"></script>
     <script src="js/file/docname.js"></script>
     <script src="js/file/autosave.js"></script>
@@ -1294,7 +1410,11 @@ z" />
     <script src="js/features/tables.js"></script>
     <script src="js/features/element-protection.js"></script>
     <script src="js/features/codeblock-controls.js"></script>
+    <script src="js/features/image-controls.js"></script>
+    <script src="js/features/shapes.js"></script>
     <script src="js/features/textbox.js"></script>
+    <script src="js/features/paragraph-marks.js"></script>
+    <script src="js/features/toc.js"></script>
     <script src="js/features/table-controls.js"></script>
 
     <!-- Tab Ruler, Header/Footer, Margin Click -->
@@ -1310,6 +1430,7 @@ z" />
     <!-- DOCX export library (local, no network required) -->
     <script src="js/lib/docx.umd.min.js"></script>
     <script src="js/file/docx-export.js"></script>
+    <script src="js/core/dialogs.js"></script>
     <script src="js/main.js"></script>
 
     <!-- Global editor focus preservation -->

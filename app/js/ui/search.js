@@ -17,7 +17,8 @@ function handleSearch(e) {
 
     const matchingBegrippen = state.begrippen.filter(b =>
         b.keyword.toLowerCase().includes(query) ||
-        b.description.toLowerCase().includes(query)
+        b.description.toLowerCase().includes(query) ||
+        (b.aliases && b.aliases.some(a => a.toLowerCase().includes(query)))
     );
 
     searchInDocument(query);

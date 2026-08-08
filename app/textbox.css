@@ -7,16 +7,23 @@
     background: #ffffff;
     border: 1.5px solid #cbd5e1;
     border-radius: 6px;
+    padding: 4px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.10);
     box-sizing: border-box;
     z-index: 10;
-    cursor: default;
+    cursor: move;
     transition: box-shadow 0.15s ease, border-color 0.15s ease;
 }
 
-.summie-textbox--active {
+/* Inline boxes can't be dragged — the border just focuses the text */
+.summie-textbox--inline {
+    cursor: default;
+}
+
+/* Selected (active) but not being edited: highlight the border. While
+   actively typing, no blue border is shown — the handles are enough. */
+.summie-textbox--active:not(.summie-textbox--editing) {
     border-color: var(--primary-color, #3b82f6);
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.18), 0 2px 8px rgba(0, 0, 0, 0.10);
 }
 
 /* Inline mode: in tekststroom */
@@ -26,6 +33,8 @@
     vertical-align: top;
     float: left;
     margin: 4px 12px 4px 0;
+    /* Never extend past the document's content area / margins */
+    max-width: calc(100% - 12px);
 }
 
 .summie-textbox-inner {
@@ -39,6 +48,7 @@
     word-break: break-word;
     line-height: 1.5;
     border-radius: 5px;
+    cursor: text;
 }
 
 .summie-textbox-inner:empty::before {
@@ -47,83 +57,198 @@
     pointer-events: none;
 }
 
-/* Drag handle — top-left */
-.summie-textbox-drag {
+/* ==================== WORD-STYLE RESIZE HANDLES ==================== */
+/* 8 small square handles around the border — 4 corners (both axes) and
+   4 edge midpoints (one axis). Visible when the box is selected/active
+   or hovered, like Word's selection handles. */
+.summie-textbox-handle {
     position: absolute;
-    top: 4px;
-    left: 4px;
-    width: 20px;
-    height: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #94a3b8;
-    cursor: grab;
-    border-radius: 3px;
+    width: 8px;
+    height: 8px;
+    background: #ffffff;
+    border: 1.5px solid var(--primary-color, #3b82f6);
+    border-radius: 2px;
     opacity: 0;
     transition: opacity 0.15s ease;
+    z-index: 11;
     -webkit-app-region: no-drag;
 }
 
-.summie-textbox--inline .summie-textbox-drag {
-    cursor: default;
+.summie-textbox:hover .summie-textbox-handle,
+.summie-textbox--active .summie-textbox-handle {
+    opacity: 1;
+}
+
+/* Corner handles */
+.summie-textbox-handle[data-handle="nw"] {
+    top: -5px;
+    left: -5px;
+    cursor: nwse-resize;
+}
+
+.summie-textbox-handle[data-handle="ne"] {
+    top: -5px;
+    right: -5px;
+    cursor: nesw-resize;
+}
+
+.summie-textbox-handle[data-handle="se"] {
+    bottom: -5px;
+    right: -5px;
+    cursor: nwse-resize;
+}
+
+.summie-textbox-handle[data-handle="sw"] {
+    bottom: -5px;
+    left: -5px;
+    cursor: nesw-resize;
+}
+
+/* Edge handles */
+.summie-textbox-handle[data-handle="n"] {
+    top: -5px;
+    left: 50%;
+    transform: translateX(-50%);
+    cursor: ns-resize;
+}
+
+.summie-textbox-handle[data-handle="s"] {
+    bottom: -5px;
+    left: 50%;
+    transform: translateX(-50%);
+    cursor: ns-resize;
+}
+
+.summie-textbox-handle[data-handle="e"] {
+    top: 50%;
+    right: -5px;
+    transform: translateY(-50%);
+    cursor: ew-resize;
+}
+
+.summie-textbox-handle[data-handle="w"] {
+    top: 50%;
+    left: -5px;
+    transform: translateY(-50%);
+    cursor: ew-resize;
+}
+
+/* Inline boxes can't change position, so left/top-adjusting handles only
+   resize — hide the ones that would visually imply repositioning the
+   anchor to avoid confusion. Keep e/se/s for straightforward resizing. */
+.summie-textbox--inline .summie-textbox-handle[data-handle="nw"],
+.summie-textbox--inline .summie-textbox-handle[data-handle="n"],
+.summie-textbox--inline .summie-textbox-handle[data-handle="w"],
+.summie-textbox--inline .summie-textbox-handle[data-handle="sw"] {
+    display: none;
+}
+
+/* ==================== ACHTERGROND KLEURKIEZER ==================== */
+.tbx-bg-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: nowrap;
+    flex-shrink: 0;
+}
+
+/* Hidden native color input — triggered by swatch click */
+.tbx-hidden-color-input {
+    position: absolute;
+    width: 0;
+    height: 0;
+    opacity: 0;
     pointer-events: none;
 }
 
-.summie-textbox:hover .summie-textbox-drag,
-.summie-textbox--active .summie-textbox-drag {
-    opacity: 1;
+/* Colour swatch */
+.tbx-color-swatch-wrap {
+    position: relative;
+    display: inline-flex;
+    flex-shrink: 0;
 }
 
-.summie-textbox-drag:active {
-    cursor: grabbing;
+.tbx-color-swatch {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    background: #ffffff;
+    cursor: pointer;
+    /* checkerboard for transparent */
+    background-image:
+        linear-gradient(45deg, #e2e8f0 25%, transparent 25%),
+        linear-gradient(-45deg, #e2e8f0 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #e2e8f0 75%),
+        linear-gradient(-45deg, transparent 75%, #e2e8f0 75%);
+    background-size: 8px 8px;
+    background-position: 0 0, 0 4px, 4px -4px, -4px 0px;
+    background-color: #ffffff;
+    transition: border-color 0.12s;
 }
 
-/* Resize handle — bottom-right */
-.summie-textbox-resize {
-    position: absolute;
-    bottom: 2px;
-    right: 2px;
+.tbx-color-swatch:hover {
+    border-color: var(--primary-color, #3b82f6);
+}
+
+/* HEX invoerveld */
+.tbx-hex-input {
+    width: 68px;
+    height: 28px;
+    flex-shrink: 0;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 0 6px;
+    font-size: 12px;
+    font-family: 'Consolas', monospace;
+    color: var(--text-primary);
+    background: var(--bg-white);
+    text-transform: uppercase;
+    outline: none;
+    transition: border-color 0.12s;
+}
+
+.tbx-hex-input:focus {
+    border-color: var(--primary-color, #3b82f6);
+}
+
+/* Opacity slider */
+.tbx-opacity-wrap {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+}
+
+.tbx-opacity-slider {
+    -webkit-appearance: none;
+    width: 64px;
+    height: 4px;
+    border-radius: 2px;
+    background: linear-gradient(to right, var(--primary-color, #3b82f6) 0%, var(--primary-color, #3b82f6) 100%);
+    outline: none;
+    cursor: pointer;
+}
+
+.tbx-opacity-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
     width: 14px;
     height: 14px;
-    cursor: nwse-resize;
-    opacity: 0;
-    transition: opacity 0.15s ease;
-    -webkit-app-region: no-drag;
+    border-radius: 50%;
+    background: #fff;
+    border: 2px solid var(--primary-color, #3b82f6);
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
-.summie-textbox-resize::before,
-.summie-textbox-resize::after {
-    content: '';
-    position: absolute;
-    background: #94a3b8;
-    border-radius: 1px;
+.tbx-opacity-val {
+    font-size: 11px;
+    color: var(--text-secondary);
+    min-width: 30px;
+    text-align: right;
 }
 
-.summie-textbox-resize::before {
-    width: 8px;
-    height: 1.5px;
-    bottom: 5px;
-    right: 1px;
-    transform: rotate(-45deg);
-    transform-origin: right center;
-}
 
-.summie-textbox-resize::after {
-    width: 4px;
-    height: 1.5px;
-    bottom: 2px;
-    right: 1px;
-    transform: rotate(-45deg);
-    transform-origin: right center;
-}
-
-.summie-textbox:hover .summie-textbox-resize,
-.summie-textbox--active .summie-textbox-resize {
-    opacity: 1;
-}
-
-/* ==================== INLINE CODE ==================== */
 .summie-inline-code {
     font-family: 'Consolas', 'Fira Code', 'Courier New', monospace;
     font-size: 0.875em;
@@ -141,6 +266,7 @@
     display: flex;
     align-items: center;
     gap: 6px;
+    flex-shrink: 0;
 }
 
 .color-picker-label {
@@ -186,4 +312,13 @@
 .btn-toolbar-danger:hover {
     background: #fef2f2 !important;
     border-color: #ef4444 !important;
+}
+
+/* Border style / width / shadow button active states */
+.tbx-border-style-btn.active,
+.tbx-border-width-btn.active,
+.tbx-shadow-btn.active {
+    background: var(--primary-light, #eff6ff) !important;
+    border-color: var(--primary-color, #3b82f6) !important;
+    color: var(--primary-color, #3b82f6);
 }

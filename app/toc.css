@@ -1,0 +1,328 @@
+/* ==================== INHOUDSOPGAVE ==================== */
+
+.summie-toc {
+    position: relative;
+    width: 100%;
+    margin: 16px 0;
+    box-sizing: border-box;
+    cursor: default;
+    user-select: none;
+    -webkit-user-select: none;
+    /* No border — looks like a native document element */
+}
+
+.summie-toc--active .summie-toc-header {
+    background: rgba(59, 130, 246, 0.04);
+}
+
+/* ── Header ── */
+.summie-toc-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 0 10px 0;
+    border-bottom: 1.5px solid var(--text-primary, #1e293b);
+    gap: 8px;
+    border-radius: 0;
+}
+
+.summie-toc-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -0.1px;
+}
+
+.summie-toc-mode-badge {
+    font-size: 10px;
+    font-weight: 500;
+    padding: 2px 7px;
+    border-radius: 20px;
+    background: var(--primary-color, #3b82f6);
+    color: #fff;
+    letter-spacing: 0.2px;
+    opacity: 0.75;
+    flex-shrink: 0;
+}
+
+/* ── Body ── */
+.summie-toc-body {
+    padding: 8px 0 0;
+}
+
+.toc-empty {
+    font-size: 13px;
+    color: var(--text-secondary);
+    padding: 12px 0;
+    font-style: italic;
+}
+
+/* ── Shared item base ── */
+.toc-item {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 2.5px 0;
+    font-size: 13px;
+    color: var(--text-primary);
+    line-height: 1.5;
+    overflow: hidden;
+}
+
+.toc-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex-shrink: 1;
+    min-width: 0;
+}
+
+.toc-page {
+    flex-shrink: 0;
+    color: var(--text-secondary);
+    font-size: 12px;
+    margin-left: auto;
+}
+
+/* ==================== STIJL: KLASSIEK ==================== */
+
+.toc-klassiek-item {
+    gap: 8px;
+}
+
+.toc-number {
+    flex-shrink: 0;
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+    font-size: 12px;
+    min-width: 28px;
+}
+
+.toc-dots {
+    flex: 1;
+    border-bottom: 1.5px dotted #cbd5e1;
+    margin-bottom: 3px;
+    min-width: 16px;
+}
+
+.toc-klassiek-item.level-title {
+    font-weight: 700;
+    font-size: 13.5px;
+    margin-top: 4px;
+}
+
+.toc-klassiek-item.level-subtitle {
+    font-size: 13px;
+}
+
+.toc-klassiek-item.level-kop1 {
+    padding-left: 16px;
+    font-size: 13px;
+}
+
+.toc-klassiek-item.level-kop2 {
+    padding-left: 30px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.toc-klassiek-item.level-kop3 {
+    padding-left: 44px;
+    font-size: 11.5px;
+    color: var(--text-secondary);
+}
+
+/* ==================== STIJL: SUMMIE ==================== */
+
+.toc-summie-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 3.5px 0;
+}
+
+.toc-summie-bar {
+    flex-shrink: 0;
+    width: 2px;
+    height: 14px;
+    border-radius: 1px;
+    background: var(--border-color, #e2e8f0);
+}
+
+.toc-summie-item.level-title .toc-summie-bar {
+    background: var(--primary-color, #3b82f6);
+    height: 16px;
+    width: 3px;
+}
+
+.toc-summie-item.level-subtitle .toc-summie-bar {
+    background: var(--primary-color, #3b82f6);
+    opacity: 0.6;
+}
+
+.toc-summie-item.level-kop1 .toc-summie-bar {
+    background: #cbd5e1;
+}
+
+.toc-summie-item.level-kop2 .toc-summie-bar {
+    background: #e2e8f0;
+}
+
+.toc-summie-item.level-kop3 .toc-summie-bar {
+    background: #f1f5f9;
+}
+
+.toc-summie-item.level-title {
+    font-weight: 700;
+    font-size: 13.5px;
+    margin-top: 4px;
+}
+
+.toc-summie-item.level-subtitle {
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.toc-summie-item.level-kop1 {
+    padding-left: 8px;
+    font-size: 13px;
+}
+
+.toc-summie-item.level-kop2 {
+    padding-left: 16px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.toc-summie-item.level-kop3 {
+    padding-left: 24px;
+    font-size: 11.5px;
+    color: var(--text-secondary);
+}
+
+/* ==================== STIJL: WORD ==================== */
+
+.toc-word-item {
+    gap: 6px;
+}
+
+.toc-word-num {
+    flex-shrink: 0;
+    font-size: 12px;
+    color: var(--text-primary);
+    min-width: 28px;
+}
+
+.toc-word-item.level-title {
+    font-weight: 700;
+    font-size: 13.5px;
+    margin-top: 6px;
+}
+
+.toc-word-item.level-subtitle {
+    font-size: 13px;
+}
+
+.toc-word-item.level-kop1 {
+    padding-left: 18px;
+    font-size: 13px;
+}
+
+.toc-word-item.level-kop2 {
+    padding-left: 34px;
+    font-size: 12px;
+}
+
+.toc-word-item.level-kop3 {
+    padding-left: 50px;
+    font-size: 11.5px;
+    color: var(--text-secondary);
+}
+
+/* ==================== CONTEXT PANEL ==================== */
+
+.toc-title-input {
+    height: 32px;
+    min-width: 160px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 0 8px;
+    font-size: 13px;
+    background: var(--bg-white);
+    color: var(--text-primary);
+    outline: none;
+    transition: border-color 0.12s;
+}
+
+.toc-title-input:focus {
+    border-color: var(--primary-color, #3b82f6);
+}
+
+.toc-style-btn.active,
+.toc-mode-btn.active {
+    background: var(--primary-light, #eff6ff) !important;
+    border-color: var(--primary-color, #3b82f6) !important;
+    color: var(--primary-color, #3b82f6);
+}
+
+/* ==================== HOVER ACTIONS ==================== */
+
+.summie-toc {
+    position: relative;
+}
+
+.summie-toc-actions {
+    position: absolute;
+    top: 0;
+    right: 0;
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.12s;
+    z-index: 10;
+}
+
+.summie-toc:hover .summie-toc-actions {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.summie-toc-action-btn {
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color, #e2e8f0);
+    background: var(--surface, #fff);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    padding: 0;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+    transition: background 0.1s, color 0.1s, border-color 0.1s;
+}
+
+.summie-toc-action-btn:hover {
+    background: var(--bg-light, #f8fafc);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+.summie-toc-action-delete:hover {
+    background: #fef2f2;
+    color: #ef4444;
+    border-color: #fca5a5;
+}
+
+/* TOC items get a pointer and subtle hover */
+.toc-item {
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background 0.1s, padding-left 0.1s;
+}
+
+.toc-item:hover {
+    background: rgba(59, 130, 246, 0.05);
+}

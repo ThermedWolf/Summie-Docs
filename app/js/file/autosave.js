@@ -3,6 +3,7 @@
     const DEBOUNCE_MS = 2500;
     let _timer = null;
     let _enabled = false;
+    let _autoSaving = false;
 
     function scheduleAutoSave() {
         if (!_enabled) return;
@@ -11,7 +12,10 @@
         clearTimeout(_timer);
         _timer = setTimeout(() => {
             if (!_enabled || !window.currentFilePath) return;
-            window.saveToFile(false);
+            // Only save if there are actual unsaved changes
+            if (window._hasUnsavedChanges && !window._hasUnsavedChanges()) return;
+            _autoSaving = true;
+            window.saveToFile(false).finally(() => { _autoSaving = false; });
         }, DEBOUNCE_MS);
     }
 
@@ -81,6 +85,7 @@
     });
 
     window.AutoSave = {
+        get _autoSaving() { return _autoSaving; },
         async onFileChanged() {
             clearTimeout(_timer);
             await _loadSettingForCurrentFile();

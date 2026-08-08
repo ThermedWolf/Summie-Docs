@@ -7,19 +7,24 @@ contextBridge.exposeInMainWorld(
         onLoadSumdFile: (callback) => {
             ipcRenderer.on('load-sumd-file', (event, data, filePath) => callback(data, filePath));
         },
+        getInitialSumdFile: () => ipcRenderer.invoke('get-initial-sumd-file'),
 
         // Save .sumd file (existingPath = null means Save As, defaultName pre-fills dialog)
-        saveSumdFile: (data, existingPath = null, defaultName = null) => ipcRenderer.invoke('save-sumd-file', data, existingPath, defaultName),
+        saveSumdFile: (data, existingPath = null, defaultName = null, defaultDir = null) => ipcRenderer.invoke('save-sumd-file', data, existingPath, defaultName, defaultDir),
 
         // Open .sumd file via dialog
         openSumdFile: () => ipcRenderer.invoke('open-sumd-file'),
+        openSumdFileAt: (defaultDir) => ipcRenderer.invoke('open-sumd-file-at', defaultDir),
 
         // Load specific file by path (for recent documents)
         loadSpecificFile: (filePath) => ipcRenderer.invoke('load-specific-file', filePath),
         fileExists: (filePath) => ipcRenderer.invoke('file-exists', filePath),
+        getFileSize: (filePath) => ipcRenderer.invoke('get-file-size', filePath),
         renameFile: (oldPath, newPath) => ipcRenderer.invoke('rename-file', oldPath, newPath),
         showInExplorer: (filePath) => ipcRenderer.invoke('show-in-explorer', filePath),
         deleteFile: (filePath) => ipcRenderer.invoke('delete-file', filePath),
+        printDocument: () => ipcRenderer.invoke('print-document'),
+        saveAsPDF: () => ipcRenderer.invoke('save-as-pdf'),
 
         // Load a source code file into a code block (dialog + path storage for refresh)
         openCodeFile: () => ipcRenderer.invoke('open-code-file'),
@@ -52,6 +57,7 @@ contextBridge.exposeInMainWorld(
         recentsGet: () => ipcRenderer.invoke('recents-get'),
         recentsAdd: (entry) => ipcRenderer.invoke('recents-add', entry),
         recentsRemove: (id) => ipcRenderer.invoke('recents-remove', id),
+        updateDocPath: (oldPath, newPath, newName) => ipcRenderer.invoke('update-doc-path', oldPath, newPath, newName),
         recentsSave: (docs) => ipcRenderer.invoke('recents-save', docs),
         knownDocsGet: () => ipcRenderer.invoke('known-docs-get'),
         knownDocsSave: (docs) => ipcRenderer.invoke('known-docs-save', docs),
@@ -73,14 +79,14 @@ contextBridge.exposeInMainWorld(
         platform: process.platform,
 
         // App version
-        version: '4.0.0'
+        version: '4.1.0'
     }
 );
 
 contextBridge.exposeInMainWorld(
     'appInfo',
     {
-        version: '4.0.0',
+        version: '4.1.0',
         name: 'Summie',
         isElectron: true
     }

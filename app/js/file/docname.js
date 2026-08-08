@@ -183,22 +183,21 @@ function _animateTimeDigit(slot, newCh) {
 }
 
 function _hasUnsavedChanges() {
-    const savedContent = localStorage.getItem('summie_saved_content');
-    const savedBegrippen = localStorage.getItem('summie_saved_begrippen');
-    const { editor, begrippen, lastSavedBegrippen } = window.AppState;
-    const currentContent = editor ? editor.innerHTML : null;
-    const currentBegrippen = JSON.stringify(begrippen || []);
+    const { editor, begrippen, lastSavedContent, lastSavedBegrippen } = window.AppState;
+    if (!editor) return false;
 
-    // Content changed vs last file-save
-    const contentChanged = savedContent !== null && currentContent !== null && currentContent !== savedContent;
-
-    // Begrippen changed: compare against localStorage baseline if available, else in-memory baseline
-    let begrippenChanged = false;
-    if (savedBegrippen !== null) {
-        begrippenChanged = currentBegrippen !== savedBegrippen;
-    } else if (lastSavedBegrippen !== null) {
-        begrippenChanged = currentBegrippen !== lastSavedBegrippen;
+    // Use in-memory baseline (set at load + save time) as ground truth.
+    // localStorage can drift; lastSavedContent is the canonical last-saved state.
+    if (lastSavedContent === null && lastSavedBegrippen === null) {
+        // Brand new document, never saved — only dirty if there's actual content
+        const text = editor.innerText.trim();
+        return text.length > 0;
     }
+
+    const currentContent = window.getCleanEditorContent ? window.getCleanEditorContent(editor) : editor.innerHTML;
+    const currentBegrippen = JSON.stringify(begrippen || []);
+    const contentChanged = lastSavedContent !== null && currentContent !== lastSavedContent;
+    const begrippenChanged = lastSavedBegrippen !== null && currentBegrippen !== lastSavedBegrippen;
 
     return contentChanged || begrippenChanged;
 }
@@ -214,6 +213,14 @@ function showSaveStatusSuccess() {
     if (_saveStatusIntervalId) clearInterval(_saveStatusIntervalId);
 
     _setStatusText(area, 'save-status-text save-success', 'Opgeslagen!');
+
+    // Update file size display after save
+    window.updateFileSize && window.updateFileSize();
+
+    // Close file sidebar after manual save (not during autosave)
+    if (!window.AutoSave?._autoSaving) {
+        window.topbarManager && window.topbarManager.closeFileSidebar();
+    }
 
     _saveStatusTimer = setTimeout(() => {
         _saveStatusLocked = false;
@@ -298,7 +305,7 @@ function setupDocNameInput() {
 
         if (!currentPath) {
             const data = {
-                content: editor.innerHTML,
+                content: window.getCleanEditorContent ? window.getCleanEditorContent(editor) : editor.innerHTML,
                 begrippen,
                 images: window.imageManager ? window.imageManager.getImagesData() : {},
                 codeBlocks: window.codeBlockManager ? window.codeBlockManager.getCodeBlocksData() : [],
@@ -310,7 +317,7 @@ function setupDocNameInput() {
                 localStorage.setItem('summie_current_file_path', result.path);
                 localStorage.setItem('summie_saved_content', editor.innerHTML);
                 localStorage.setItem('summie_saved_begrippen', JSON.stringify(begrippen));
-                window.AppState.lastSavedContent = editor.innerHTML;
+                window.AppState.lastSavedContent = window.getCleanEditorContent ? window.getCleanEditorContent(editor) : editor.innerHTML;
                 window.AppState.lastSavedBegrippen = JSON.stringify(begrippen);
                 const savedName = result.path.split('\\').pop().split('/').pop().replace('.sumd', '');
                 input.dataset.cleanName = savedName;
@@ -331,26 +338,43 @@ function setupDocNameInput() {
         const newPath = parts.join(sep);
 
         const data = {
-            content: editor.innerHTML,
+            content: window.getCleanEditorContent ? window.getCleanEditorContent(editor) : editor.innerHTML,
             begrippen,
             images: window.imageManager ? window.imageManager.getImagesData() : {},
             codeBlocks: window.codeBlockManager ? window.codeBlockManager.getCodeBlocksData() : [],
             timestamp: new Date().toISOString()
         };
 
+        // Rename: save to new path, then delete old file
         const result = await window.electron.saveSumdFile(data, newPath);
         if (result.success) {
+            // Remove the old file only if the path actually changed
+            if (currentPath && currentPath !== newPath) {
+                try {
+                    await window.electron.deleteFile(currentPath);
+                } catch (e) {
+                    // Non-fatal: old file may already be gone
+                    console.warn('Kon oud bestand niet verwijderen:', e);
+                }
+            }
             window.currentFilePath = newPath;
             localStorage.setItem('summie_current_file_path', newPath);
             localStorage.setItem('summie_saved_content', editor.innerHTML);
             localStorage.setItem('summie_saved_begrippen', JSON.stringify(begrippen));
-            window.AppState.lastSavedContent = editor.innerHTML;
+            window.AppState.lastSavedContent = window.getCleanEditorContent ? window.getCleanEditorContent(editor) : editor.innerHTML;
             window.AppState.lastSavedBegrippen = JSON.stringify(begrippen);
             input.dataset.cleanName = newName;
             input.value = newName;
             showSaveStatusSuccess();
             updateUnsavedIndicator();
-            window.trackRecentDocument && window.trackRecentDocument(newPath, newName);
+            if (window.electron && window.electron.updateDocPath) {
+                const updateResult = await window.electron.updateDocPath(currentPath, newPath, newName);
+                if (!updateResult || !updateResult.updated) {
+                    window.trackRecentDocument && window.trackRecentDocument(newPath, newName);
+                }
+            } else {
+                window.trackRecentDocument && window.trackRecentDocument(newPath, newName);
+            }
             window.updateWindowTitle && window.updateWindowTitle(newPath);
             window.AutoSave && window.AutoSave.onFileChanged();
         } else {
@@ -382,3 +406,4 @@ window.showSaveStatusSuccess = showSaveStatusSuccess;
 window.updateLastSavedText = updateLastSavedText;
 window.updateUnsavedIndicator = updateUnsavedIndicator;
 window.setupDocNameInput = setupDocNameInput;
+window._hasUnsavedChanges = _hasUnsavedChanges;

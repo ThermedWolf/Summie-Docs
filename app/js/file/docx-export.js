@@ -124,6 +124,8 @@
 
         if (node.classList.contains('placeholder-text')) return runs;
         if (node.classList.contains('begrip-tooltip')) return runs;
+        if (node.classList.contains('summie-shape-wrapper')) return runs;
+        if (node.classList.contains('editable-image-wrapper')) return runs;
         if (node.classList.contains('code-block-wrapper')) {
             runs.push(new TextRun({ text: node.innerText || '', font: 'Courier New', size: 18 }));
             return runs;
@@ -209,6 +211,14 @@
 
             if (node.classList.contains('placeholder-text')) return;
             if (node.classList.contains('begrip-tooltip')) return;
+            if (node.classList.contains('summie-shape-wrapper')) {
+                blocks.push({ type: 'shape', el: node });
+                return;
+            }
+            if (node.classList.contains('editable-image-wrapper')) {
+                blocks.push({ type: 'image', el: node });
+                return;
+            }
             if (node.classList.contains('code-block-wrapper')) {
                 blocks.push({ type: 'code', el: node });
                 return;
@@ -661,14 +671,217 @@
         return paras;
     }
 
-    function blocksToDocx(blocks, docxLib) {
+    const PAGE_MARGIN_TWIPS = 1440;
+    const PX_TO_TWIPS = 15;
+
+    function pxToTwips(px) {
+        return Math.round((parseFloat(px) || 0) * PX_TO_TWIPS);
+    }
+
+    function getElementPxSize(el, fallbackW, fallbackH) {
+        return {
+            width: Math.max(1, Math.round(parseFloat(el.style.width) || el.offsetWidth || fallbackW)),
+            height: Math.max(1, Math.round(parseFloat(el.style.height) || el.offsetHeight || fallbackH))
+        };
+    }
+
+    function getFloatingOptions(el, layer, docxLib) {
+        const {
+            HorizontalPositionRelativeFrom,
+            VerticalPositionRelativeFrom,
+            TextWrappingType
+        } = docxLib;
+        const left = pxToTwips(el.style.left) + PAGE_MARGIN_TWIPS;
+        const top = pxToTwips(el.style.top) + PAGE_MARGIN_TWIPS;
+
+        return {
+            horizontalPosition: {
+                relative: HorizontalPositionRelativeFrom?.PAGE || 'page',
+                offset: left
+            },
+            verticalPosition: {
+                relative: VerticalPositionRelativeFrom?.PAGE || 'page',
+                offset: top
+            },
+            wrap: {
+                type: TextWrappingType?.NONE || 'none'
+            },
+            behindDocument: layer === 'background',
+            allowOverlap: true
+        };
+    }
+
+    function xmlEscape(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    function colorToHex(value, fallback) {
+        if (!value) return fallback;
+        if (value.startsWith('#')) return value.replace('#', '').toUpperCase();
+        return rgbToHex(value) || fallback;
+    }
+
+    function shapePreset(type) {
+        const map = {
+            rect: 'rect',
+            roundRect: 'roundRect',
+            circle: 'ellipse',
+            ellipse: 'ellipse',
+            triangle: 'triangle',
+            diamond: 'diamond',
+            line: 'line',
+            arrow: 'line'
+        };
+        return map[type] || 'rect';
+    }
+
+    function shapeToNativeRun(shapeEl, docxLib) {
+        const { ImportedXmlComponent } = docxLib;
+        if (!ImportedXmlComponent?.fromXmlString) return null;
+
+        const { width, height } = getElementPxSize(shapeEl, 120, 100);
+        const cx = Math.round(width * 9525);
+        const cy = Math.round(height * 9525);
+        const x = Math.round((parseFloat(shapeEl.style.left) || 0) * 9525);
+        const y = Math.round((parseFloat(shapeEl.style.top) || 0) * 9525);
+        const type = shapeEl.dataset.shapeType || 'rect';
+        const layer = shapeEl.dataset.layer || 'normal';
+        const fill = colorToHex(shapeEl.dataset.fill, '5B9BD5');
+        const stroke = colorToHex(shapeEl.dataset.stroke, '2F5597');
+        const strokeWidth = Math.max(0, parseInt(shapeEl.dataset.strokeWidth, 10) || 2) * 12700;
+        const isLine = type === 'line' || type === 'arrow';
+        const shapeId = Math.abs(Array.from(shapeEl.dataset.shapeId || 'shape').reduce((acc, ch) => ((acc << 5) - acc + ch.charCodeAt(0)) | 0, 0)) || Date.now();
+        const behindDoc = layer === 'background' ? '1' : '0';
+        const relativeHeight = layer === 'foreground' ? '251659264' : layer === 'background' ? '0' : '125829120';
+        const lineEnd = type === 'arrow' ? '<a:tailEnd type="triangle"/>' : '';
+        const fillXml = isLine ? '<a:noFill/>' : `<a:solidFill><a:srgbClr val="${fill}"/></a:solidFill>`;
+        const strokeXml = strokeWidth > 0
+            ? `<a:ln w="${strokeWidth}"><a:solidFill><a:srgbClr val="${stroke}"/></a:solidFill>${lineEnd}</a:ln>`
+            : '<a:ln w="0"><a:noFill/></a:ln>';
+        const name = xmlEscape(type === 'arrow' ? 'Pijl' : type === 'line' ? 'Lijn' : 'Vorm');
+
+        const xml = `
+            <w:r xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+                 xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
+                 xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
+                 xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape">
+                <w:drawing>
+                    <wp:anchor distT="0" distB="0" distL="0" distR="0" simplePos="0" relativeHeight="${relativeHeight}" behindDoc="${behindDoc}" locked="0" layoutInCell="1" allowOverlap="1">
+                        <wp:simplePos x="0" y="0"/>
+                        <wp:positionH relativeFrom="page"><wp:posOffset>${x}</wp:posOffset></wp:positionH>
+                        <wp:positionV relativeFrom="page"><wp:posOffset>${y}</wp:posOffset></wp:positionV>
+                        <wp:extent cx="${cx}" cy="${cy}"/>
+                        <wp:wrapNone/>
+                        <wp:docPr id="${shapeId}" name="${name}"/>
+                        <wp:cNvGraphicFramePr/>
+                        <a:graphic>
+                            <a:graphicData uri="http://schemas.microsoft.com/office/word/2010/wordprocessingShape">
+                                <wps:wsp>
+                                    <wps:cNvSpPr txBox="0"/>
+                                    <wps:spPr>
+                                        <a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm>
+                                        <a:prstGeom prst="${shapePreset(type)}"><a:avLst/></a:prstGeom>
+                                        ${fillXml}
+                                        ${strokeXml}
+                                    </wps:spPr>
+                                    <wps:bodyPr/>
+                                </wps:wsp>
+                            </a:graphicData>
+                        </a:graphic>
+                    </wp:anchor>
+                </w:drawing>
+            </w:r>
+        `;
+
+        return ImportedXmlComponent.fromXmlString(xml);
+    }
+
+    function shapeSvgToDataUri(shapeEl) {
+        const svg = shapeEl.querySelector('.summie-shape-svg');
+        if (!svg) return null;
+        const { width, height } = getElementPxSize(shapeEl, 120, 100);
+        const clone = svg.cloneNode(true);
+        clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+        clone.setAttribute('width', String(width));
+        clone.setAttribute('height', String(height));
+        clone.setAttribute('viewBox', clone.getAttribute('viewBox') || '0 0 100 100');
+        clone.setAttribute('preserveAspectRatio', clone.getAttribute('preserveAspectRatio') || 'none');
+        const svgText = new XMLSerializer().serializeToString(clone);
+        return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgText);
+    }
+
+    function rasterizeDataUri(dataUri, width, height) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = Math.max(1, Math.round(width));
+                canvas.height = Math.max(1, Math.round(height));
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                resolve(canvas.toDataURL('image/png'));
+            };
+            img.onerror = reject;
+            img.src = dataUri;
+        });
+    }
+
+    async function shapeToRun(shapeEl, docxLib) {
+        const nativeRun = shapeToNativeRun(shapeEl, docxLib);
+        if (nativeRun) return nativeRun;
+
+        const { ImageRun } = docxLib;
+        if (!ImageRun) return null;
+        const { width, height } = getElementPxSize(shapeEl, 120, 100);
+        const dataUri = shapeSvgToDataUri(shapeEl);
+        if (!dataUri) return null;
+        const png = await rasterizeDataUri(dataUri, width, height);
+        const layer = shapeEl.dataset.layer || 'normal';
+        return new ImageRun({
+            data: png,
+            transformation: { width, height },
+            floating: getFloatingOptions(shapeEl, layer, docxLib),
+            altText: {
+                title: 'Vorm',
+                description: shapeEl.dataset.shapeType || 'vorm'
+            }
+        });
+    }
+
+    function imageToRun(imageEl, docxLib) {
+        const { ImageRun } = docxLib;
+        const img = imageEl.querySelector('img');
+        if (!ImageRun || !img || !img.src || !img.src.startsWith('data:image/')) return null;
+        const { width, height } = getElementPxSize(img, img.naturalWidth || 180, img.naturalHeight || 120);
+        const layout = imageEl.dataset.layout || 'inline';
+        const options = {
+            data: img.src,
+            transformation: { width, height },
+            altText: {
+                title: 'Afbeelding',
+                description: img.alt || ''
+            }
+        };
+        if (layout === 'floating' || layout === 'front' || layout === 'behind') {
+            const layer = layout === 'behind' ? 'background' : layout === 'front' ? 'foreground' : 'normal';
+            options.floating = getFloatingOptions(imageEl, layer, docxLib);
+        }
+        return new ImageRun(options);
+    }
+
+    async function blocksToDocx(blocks, docxLib) {
         const { Paragraph, TextRun, HeadingLevel } = docxLib;
         const paras = [];
 
-        blocks.forEach(block => {
+        for (const block of blocks) {
             if (block.type === 'spacer') {
                 paras.push(new Paragraph({ children: [new TextRun('')], spacing: { before: 0, after: 80 } }));
-                return;
+                continue;
             }
             if (block.type === 'hr') {
                 paras.push(new Paragraph({
@@ -676,21 +889,31 @@
                     border: { bottom: { style: 'single', size: 6, color: '94A3B8', space: 1 } },
                     spacing: { before: 120, after: 120 },
                 }));
-                return;
+                continue;
             }
             if (block.type === 'list') {
                 paras.push(...listToDocx(block.el, docxLib, 0));
-                return;
+                continue;
             }
             if (block.type === 'code') {
                 codeBlockToDocx(block.el, docxLib).forEach(p => paras.push(p));
-                return;
+                continue;
             }
             if (block.type === 'table') {
                 tableToDocx(block.el, docxLib).forEach(t => paras.push(t));
                 // Add a spacer after the table
                 paras.push(new Paragraph({ children: [new TextRun('')], spacing: { before: 0, after: 80 } }));
-                return;
+                continue;
+            }
+            if (block.type === 'shape') {
+                const run = await shapeToRun(block.el, docxLib);
+                if (run) paras.push(new Paragraph({ children: [run], spacing: { before: 0, after: 0 } }));
+                continue;
+            }
+            if (block.type === 'image') {
+                const run = imageToRun(block.el, docxLib);
+                if (run) paras.push(new Paragraph({ children: [run], spacing: { before: 0, after: 80 } }));
+                continue;
             }
             if (block.type === 'para') {
                 const hl = getHeadingLevel(block.el, HeadingLevel);
@@ -709,7 +932,7 @@
                 if (hl) opts.heading = hl;
                 paras.push(new Paragraph(opts));
             }
-        });
+        }
 
         return paras;
     }
@@ -789,7 +1012,7 @@
         try {
 
             const blocks = flattenBlocks(editor);
-            const contentParas = blocksToDocx(blocks, docxLib);
+            const contentParas = await blocksToDocx(blocks, docxLib);
             const begrippenParas = begrippen.length > 0 ? begrippenToDocx(begrippen, docxLib) : [];
 
             // Build Word paragraph style definitions from current StyleManager values so
@@ -867,6 +1090,7 @@
 
             hideDocxLoadingModal();
             window.showNotification && window.showNotification('Geëxporteerd', `${docName}.docx is opgeslagen.`, 'success');
+            window.topbarManager && window.topbarManager.closeFileSidebar();
 
         } catch (err) {
             hideDocxLoadingModal();

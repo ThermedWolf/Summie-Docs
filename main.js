@@ -10,16 +10,35 @@ let mainWindow;
 let fileToOpen = null;
 let windowCounter = 0; // Used to give each window a unique localStorage partition
 
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+
+if (!gotSingleInstanceLock) {
+    app.quit();
+}
+
+function findSumdPath(args) {
+    return args.find(arg => typeof arg === 'string' && arg.toLowerCase().endsWith('.sumd')) || null;
+}
+
 // Handle file opening on Windows (double-click .sumd file)
 if (process.platform === 'win32' && process.argv.length >= 2) {
-    fileToOpen = process.argv.find(arg => arg.endsWith('.sumd')) || null;
+    fileToOpen = findSumdPath(process.argv);
 }
 
 // Allow multiple instances (needed for "New Window" from taskbar)
 // When a second instance is launched with --new-window, open a new window
 app.on('second-instance', (event, argv) => {
+    const secondInstanceFile = findSumdPath(argv);
     if (argv.includes('--new-window')) {
         createWindow();
+    } else if (secondInstanceFile) {
+        if (mainWindow) {
+            if (mainWindow.isMinimized()) mainWindow.restore();
+            mainWindow.focus();
+            loadFileIntoApp(secondInstanceFile);
+        } else {
+            createWindow(secondInstanceFile);
+        }
     } else {
         // Bring existing window to front
         if (mainWindow) {
@@ -143,7 +162,7 @@ function createWindow(filePathToOpen = null) {
         y: isNewWindow ? undefined : (savedState ? savedState.y : undefined),
         minWidth: 1200,
         minHeight: 700,
-        title: 'Summie v4.0.0',
+        title: 'Summie v4.1.0',
         icon: path.join(__dirname, 'app', 'icon.png'),
         frame: false,
         webPreferences: {
@@ -160,6 +179,12 @@ function createWindow(filePathToOpen = null) {
     if (!mainWindow) mainWindow = win;
 
     if (filePathToOpen) {
+        try {
+            const fileContent = fs.readFileSync(filePathToOpen, 'utf8');
+            win.initialSumdFile = { data: JSON.parse(fileContent), path: filePathToOpen };
+        } catch (error) {
+            console.error('Error preparing initial .sumd file:', error);
+        }
         win.loadFile(path.join(__dirname, 'app', 'index.html'));
     } else {
         win.loadFile(path.join(__dirname, 'app', 'landing.html'));
@@ -170,12 +195,22 @@ function createWindow(filePathToOpen = null) {
             win.maximize();
         }
         win.show();
-        if (filePathToOpen) {
-            loadFileIntoWindow(win, filePathToOpen);
-        }
     });
 
     win.setMenu(null);
+
+    // Hidden devtools shortcut: Ctrl+Shift+I
+    win.webContents.on('before-input-event', (event, input) => {
+        if (input.type === 'keyDown' &&
+            input.control && input.shift && !input.alt &&
+            input.key === 'I') {
+            if (win.webContents.isDevToolsOpened()) {
+                win.webContents.closeDevTools();
+            } else {
+                win.webContents.openDevTools({ mode: 'detach' });
+            }
+        }
+    });
 
     win.on('maximize', () => win.webContents.send('window-state-changed', { maximized: true }));
     win.on('unmaximize', () => win.webContents.send('window-state-changed', { maximized: false }));
@@ -226,17 +261,25 @@ function createWindow(filePathToOpen = null) {
             return;
         }
 
-        const choice = await dialog.showMessageBox(win, {
-            type: 'question',
-            buttons: ['Opslaan', 'Niet Opslaan', 'Annuleren'],
-            defaultId: 0,
-            cancelId: 2,
-            title: 'Niet-opgeslagen wijzigingen',
-            message: 'Wil je het huidige document opslaan?',
-            detail: 'Het huidige document gaat verloren als je een nieuw bestand laad'
-        });
+        let choice;
+        try {
+            choice = await win.webContents.executeJavaScript(`
+                window.SummieDialogs.choice('Wil je het huidige document opslaan?', {
+                    title: 'Niet-opgeslagen wijzigingen',
+                    detail: 'Het huidige document gaat verloren als je een nieuw bestand laadt.',
+                    buttons: [
+                        { label: 'Opslaan', value: 'save', primary: true },
+                        { label: 'Niet opslaan', value: 'dontsave', danger: true },
+                        { label: 'Annuleren', value: 'cancel' }
+                    ],
+                    escValue: 'cancel'
+                })
+            `);
+        } catch (err) {
+            choice = 'cancel';
+        }
 
-        if (choice.response === 0) {
+        if (choice === 'save') {
             try {
                 const result = await win.webContents.executeJavaScript('window.saveToFile(false)');
                 if (result && result.canceled) return;
@@ -247,7 +290,7 @@ function createWindow(filePathToOpen = null) {
             } else {
                 win.destroy();
             }
-        } else if (choice.response === 1) {
+        } else if (choice === 'dontsave') {
             const settings = readAppSettings();
             if (settings.closeToHome) {
                 win.loadFile(path.join(__dirname, 'app', 'landing.html'));
@@ -255,6 +298,7 @@ function createWindow(filePathToOpen = null) {
                 win.destroy();
             }
         }
+        // 'cancel' (or escape/click-outside): do nothing, window stays open
     });
 
     win.on('closed', () => {
@@ -269,7 +313,18 @@ function loadFileIntoWindow(win, filePath) {
     try {
         const fileContent = fs.readFileSync(filePath, 'utf8');
         const data = JSON.parse(fileContent);
-        win.webContents.send('load-sumd-file', data, filePath);
+        const sendFile = () => win.webContents.send('load-sumd-file', data, filePath);
+        const currentURL = win.webContents.getURL();
+        if (!currentURL.includes('index.html')) {
+            win.initialSumdFile = { data, path: filePath };
+            win.loadFile(path.join(__dirname, 'app', 'index.html'));
+            return;
+        }
+        if (win.webContents.isLoading()) {
+            win.webContents.once('did-finish-load', sendFile);
+        } else {
+            sendFile();
+        }
     } catch (error) {
         console.error('Error loading .sumd file:', error);
     }
@@ -293,13 +348,17 @@ app.on('open-file', (event, filePath) => {
 
 // ==================== IPC HANDLERS ====================
 
-ipcMain.handle('save-sumd-file', async (event, data, existingPath = null, defaultName = null) => {
+ipcMain.handle('save-sumd-file', async (event, data, existingPath = null, defaultName = null, defaultDir = null) => {
     let filePath = existingPath;
 
     if (!filePath) {
+        let defaultPath = defaultName ? `${defaultName}.sumd` : 'samenvatting.sumd';
+        if (defaultDir) {
+            defaultPath = path.join(defaultDir, defaultPath);
+        }
         const result = await dialog.showSaveDialog(mainWindow, {
             title: 'Samenvatting Opslaan',
-            defaultPath: defaultName ? `${defaultName}.sumd` : 'samenvatting.sumd',
+            defaultPath,
             filters: [
                 { name: 'Summie Document', extensions: ['sumd'] },
                 { name: 'All Files', extensions: ['*'] }
@@ -341,6 +400,39 @@ ipcMain.handle('open-sumd-file', async () => {
     return { success: false, canceled: true };
 });
 
+ipcMain.handle('open-sumd-file-at', async (event, defaultDir) => {
+    const opts = {
+        title: 'Document Openen',
+        filters: [
+            { name: 'Summie Document', extensions: ['sumd'] },
+            { name: 'JSON Files', extensions: ['json'] },
+            { name: 'All Files', extensions: ['*'] }
+        ],
+        properties: ['openFile']
+    };
+    if (defaultDir) {
+        try {
+            // defaultDir may be a file path — use its directory
+            const stat = fs.statSync(defaultDir);
+            opts.defaultPath = stat.isDirectory() ? defaultDir : path.dirname(defaultDir);
+        } catch {
+            opts.defaultPath = defaultDir;
+        }
+    }
+    const result = await dialog.showOpenDialog(mainWindow, opts);
+    if (!result.canceled && result.filePaths.length > 0) {
+        try {
+            const filePath = result.filePaths[0];
+            const fileContent = fs.readFileSync(filePath, 'utf8');
+            const data = JSON.parse(fileContent);
+            return { success: true, data: data, path: filePath };
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    }
+    return { success: false, canceled: true };
+});
+
 ipcMain.handle('file-exists', async (event, filePath) => {
     try {
         fs.accessSync(filePath, fs.constants.F_OK);
@@ -360,11 +452,68 @@ ipcMain.handle('load-specific-file', async (event, filePath) => {
     }
 });
 
+ipcMain.handle('get-initial-sumd-file', async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win || !win.initialSumdFile) return null;
+
+    const file = win.initialSumdFile;
+    win.initialSumdFile = null;
+    return file;
+});
+
 ipcMain.handle('rename-file', async (event, oldPath, newPath) => {
     try {
         fs.renameSync(oldPath, newPath);
         return { success: true, path: newPath };
     } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('print-document', async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    // Hide UI, print, then restore
+    await win.webContents.executeJavaScript(`
+        document.documentElement.classList.add('printing-mode');
+    `);
+    return new Promise((resolve) => {
+        win.webContents.print({ silent: false, printBackground: true }, async (success, errorType) => {
+            await win.webContents.executeJavaScript(`
+                document.documentElement.classList.remove('printing-mode');
+            `);
+            resolve({ success, errorType });
+        });
+    });
+});
+
+ipcMain.handle('save-as-pdf', async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    const result = await dialog.showSaveDialog(win, {
+        title: 'Opslaan als PDF',
+        defaultPath: 'document.pdf',
+        filters: [{ name: 'PDF bestanden', extensions: ['pdf'] }]
+    });
+    if (result.canceled || !result.filePath) return { success: false, canceled: true };
+    try {
+        // Hide UI elements before PDF generation
+        await win.webContents.executeJavaScript(`
+            document.documentElement.classList.add('printing-mode');
+        `);
+        const pdfData = await win.webContents.printToPDF({
+            printBackground: true,
+            pageSize: 'A4',
+            margins: { marginType: 'none' }
+        });
+        // Restore UI
+        await win.webContents.executeJavaScript(`
+            document.documentElement.classList.remove('printing-mode');
+        `);
+        fs.writeFileSync(result.filePath, pdfData);
+        return { success: true, filePath: result.filePath };
+    } catch (error) {
+        await win.webContents.executeJavaScript(`
+            document.documentElement.classList.remove('printing-mode');
+        `).catch(() => { });
         return { success: false, error: error.message };
     }
 });
@@ -407,6 +556,30 @@ ipcMain.handle('recents-save', (event, docs) => {
     docs.forEach(rememberKnownDoc);
     writeRecentDocs(docs);
     return docs;
+});
+
+// Update an existing entry's path/name in recents, known-docs and favourites.
+// Used when a document is renamed so the same entry stays in place instead
+// of leaving a stale "old" entry alongside a brand new one.
+ipcMain.handle('update-doc-path', (event, oldPath, newPath, newName) => {
+    if (!oldPath || !newPath) return { success: false, updated: false };
+
+    let updated = false;
+    const update = (entry) => {
+        if (entry.path === oldPath) {
+            entry.path = newPath;
+            entry.name = newName || entry.name;
+            entry.lastOpened = new Date().toISOString();
+            updated = true;
+        }
+        return entry;
+    };
+
+    writeRecentDocs(readRecentDocs().map(update));
+    writeKnownDocs(readKnownDocs().map(update));
+    writeFavourites(readFavourites().map(update));
+
+    return { success: true, updated };
 });
 
 ipcMain.handle('known-docs-get', () => {
@@ -558,6 +731,16 @@ ipcMain.handle('open-sumd-file-by-path', (event, filePath) => {
 ipcMain.handle('scan-sumd-elements', (event, filePath) => {
     try {
         const raw = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+        if (raw && raw.summieFormat === 'summie-encrypted-v1') {
+            const stat = fs.statSync(filePath);
+            return {
+                hasCodeblock: false,
+                hasTable: false,
+                hasImage: false,
+                protected: true,
+                fileSize: stat.size,
+            };
+        }
         const content = raw.content || '';
         const stat = fs.statSync(filePath);
         return {
@@ -569,15 +752,26 @@ ipcMain.handle('scan-sumd-elements', (event, filePath) => {
     } catch { return null; }
 });
 
+ipcMain.handle('get-file-size', (event, filePath) => {
+    try {
+        const stat = fs.statSync(filePath);
+        return stat.size;
+    } catch { return null; }
+});
+
 ipcMain.handle('read-sumd-meta', (event, filePath) => {
     try {
         const raw = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+        if (raw && raw.summieFormat === 'summie-encrypted-v1') {
+            return { description: '', tags: [], protected: true };
+        }
         return { description: raw.description || '', tags: raw.tags || [] };
     } catch { return null; }
 });
 ipcMain.handle('write-sumd-meta', (event, filePath, meta) => {
     try {
         const raw = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+        if (raw && raw.summieFormat === 'summie-encrypted-v1') return false;
         raw.description = meta.description || '';
         raw.tags = meta.tags || [];
         fs.writeFileSync(filePath, JSON.stringify(raw), 'utf8');
@@ -609,17 +803,25 @@ ipcMain.on('navigate-to-landing', async (event) => {
     } catch (err) { }
 
     if (hasChanges) {
-        const choice = await dialog.showMessageBox(win, {
-            type: 'question',
-            buttons: ['Opslaan', 'Niet Opslaan', 'Annuleren'],
-            defaultId: 0,
-            cancelId: 2,
-            title: 'Niet-opgeslagen wijzigingen',
-            message: 'Wil je het huidige document opslaan?',
-            detail: 'Het huidige document gaat verloren als je teruggaat naar het startmenu'
-        });
-        if (choice.response === 2) return;
-        if (choice.response === 0) {
+        let choice;
+        try {
+            choice = await win.webContents.executeJavaScript(`
+                window.SummieDialogs.choice('Wil je het huidige document opslaan?', {
+                    title: 'Niet-opgeslagen wijzigingen',
+                    detail: 'Het huidige document gaat verloren als je teruggaat naar het startmenu.',
+                    buttons: [
+                        { label: 'Opslaan', value: 'save', primary: true },
+                        { label: 'Niet opslaan', value: 'dontsave', danger: true },
+                        { label: 'Annuleren', value: 'cancel' }
+                    ],
+                    escValue: 'cancel'
+                })
+            `);
+        } catch (err) {
+            choice = 'cancel';
+        }
+        if (choice === 'cancel') return;
+        if (choice === 'save') {
             try {
                 const saved = await win.webContents.executeJavaScript('window.saveToFile(false)');
                 if (saved && saved.canceled) return;

@@ -44,6 +44,36 @@ function handleEditorKeydown(e) {
     // Rekendetectie — detecteer '12,7 x 23 =' en toon berekening-kaart chip
     if (window.CalcDetect && window.CalcDetect.checkCalcTrigger(e)) return;
 
+    // Shift+Enter: insert a tight line break (<br>) with no paragraph spacing
+    if (e.key === 'Enter' && e.shiftKey) {
+        e.preventDefault();
+        const sel = window.getSelection();
+        if (!sel.rangeCount) return;
+        const range = sel.getRangeAt(0);
+        range.deleteContents();
+
+        const br = document.createElement('br');
+        range.insertNode(br);
+
+        // If the br is the last child, add a zero-width space after it
+        // so the cursor has somewhere to go
+        const next = br.nextSibling;
+        if (!next || (next.nodeType === 3 && next.textContent === '')) {
+            const zws = document.createTextNode('\u200B');
+            br.parentNode.insertBefore(zws, br.nextSibling);
+        }
+
+        // Move cursor after the br
+        const newRange = document.createRange();
+        newRange.setStartAfter(br);
+        newRange.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(newRange);
+
+        window.updateUnsavedIndicator && window.updateUnsavedIndicator();
+        return;
+    }
+
     // Enter key: reset style and remove begrip-word on new line
     if (e.key === 'Enter') {
         const selection = window.getSelection();
@@ -115,6 +145,10 @@ function handleEditorKeydown(e) {
         if (e.key === 'ArrowUp') { e.preventDefault(); window.navigateAutocomplete && window.navigateAutocomplete(-1); return; }
         if (e.key === 'Tab' || e.key === 'Enter') { e.preventDefault(); window.selectAutocomplete && window.selectAutocomplete(); return; }
         if (e.key === 'Escape') { window.hideAutocomplete && window.hideAutocomplete(); return; }
+        // Cursor bewegt weg van het woord — sluit autocomplete
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'Home' || e.key === 'End') {
+            window.hideAutocomplete && window.hideAutocomplete();
+        }
     }
 
     // Tab: indent / outdent in lists, otherwise insert spaces
@@ -147,6 +181,8 @@ function handleEditorKeydown(e) {
 
 function handleEditorClick(e) {
     if (e.target.closest('.code-block-wrapper')) return;
+    // Sluit autocomplete als cursor ergens anders naartoe gaat
+    window.hideAutocomplete && window.hideAutocomplete();
     if (e.target.classList.contains('begrip-word')) {
         e.preventDefault();
         e.stopPropagation();
@@ -204,7 +240,10 @@ function setupEventListeners() {
     if (window.appInfo && window.appInfo.isElectron) {
         if (quickSaveBtn) quickSaveBtn.addEventListener('click', () => window.saveToFile(false));
         if (saveAsSumdBtn) saveAsSumdBtn.addEventListener('click', () => window.saveToFile(true));
-        if (loadFileBtn) loadFileBtn.addEventListener('click', window.loadFromFile);
+        if (loadFileBtn) loadFileBtn.addEventListener('click', async () => {
+            await window.loadFromFile();
+            window.topbarManager && window.topbarManager.closeFileSidebar();
+        });
     } else {
         if (saveAsSumdBtn) saveAsSumdBtn.addEventListener('click', () => window.saveToFile(false));
         if (quickSaveBtn) quickSaveBtn.addEventListener('click', () => window.saveToFile(false));
@@ -232,13 +271,65 @@ function setupEventListeners() {
 
     // Editor events
     editor.addEventListener('input', handleEditorInput);
-    editor.addEventListener('input', () => window.updateUnsavedIndicator && window.updateUnsavedIndicator());
+    // Unsaved indicator — check on input, keyup, mouseup (covers formatting, paste, drag-drop)
+    let _unsavedDebounce = null;
+    const _checkUnsaved = () => {
+        clearTimeout(_unsavedDebounce);
+        _unsavedDebounce = setTimeout(() => {
+            window.updateUnsavedIndicator && window.updateUnsavedIndicator();
+        }, 150);
+    };
+    editor.addEventListener('input', _checkUnsaved);
+    editor.addEventListener('keyup', _checkUnsaved);
+    editor.addEventListener('mouseup', _checkUnsaved);
+    document.addEventListener('paste', _checkUnsaved);
     editor.addEventListener('keydown', handleEditorKeydown);
     editor.addEventListener('click', handleEditorClick);
     editor.addEventListener('dblclick', handleEditorDoubleClick);
 
+    // Close begrip tooltip when mouse leaves a begrip-word span
+    document.addEventListener('mouseover', (e) => {
+        const tooltip = window.AppState && window.AppState.begripTooltip;
+        if (!tooltip || !tooltip.classList.contains('active')) return;
+        // If mouse is now over the tooltip or a begrip-word, keep it open
+        if (e.target.closest && (e.target.closest('.begrip-tooltip') || e.target.classList.contains('begrip-word'))) return;
+        // Otherwise hide
+        window.hideBegripTooltip && window.hideBegripTooltip();
+    });
     // Word counter
-    document.addEventListener('selectionchange', () => window.updateWordCounter && window.updateWordCounter());
+    document.addEventListener('selectionchange', () => {
+        window.updateWordCounter && window.updateWordCounter();
+
+        // Reset empty styled paragraphs to 'normal' when cursor moves away
+        const sel = window.getSelection();
+        if (!sel || !sel.rangeCount) return;
+        const cursorNode = sel.getRangeAt(0).commonAncestorContainer;
+        const cursorPara = cursorNode.nodeType === 3 ? cursorNode.parentElement : cursorNode;
+
+        // Find all styled non-normal paragraphs in the editor
+        editor.querySelectorAll('[data-style]:not([data-style="normal"])').forEach(el => {
+            if (el.closest('.summie-toc')) return;
+            if (el === cursorPara || el.contains(cursorPara)) return; // cursor is here
+            if (el.textContent.trim() === '') {
+                // Empty and cursor moved away — reset to normal style.
+                // Use clearStyleFromBlock so inline managed properties
+                // (font-size, font-weight, color, etc.) are reset too,
+                // not just the data-style attribute and style-* class.
+                if (window.StyleManager && window.StyleManager.clearStyleFromBlock) {
+                    window.StyleManager.clearStyleFromBlock(el);
+                } else {
+                    el.removeAttribute('data-style');
+                    el.className = el.className
+                        .split(' ')
+                        .filter(c => !c.startsWith('style-'))
+                        .join(' ')
+                        .trim() || undefined;
+                    if (!el.className) el.removeAttribute('class');
+                }
+                window.updateInhoudList && window.updateInhoudList();
+            }
+        });
+    });
     editor.addEventListener('mouseup', () => window.updateWordCounter && window.updateWordCounter());
     editor.addEventListener('keyup', () => window.updateWordCounter && window.updateWordCounter());
 

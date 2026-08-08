@@ -169,6 +169,7 @@ window.TableControls = (function () {
         `;
 
         toolbar.appendChild(panel);
+        window.wrapToolbarContentForScroll && window.wrapToolbarContentForScroll(panel);
         bindIndelingEvents(panel);
     }
 
@@ -338,6 +339,7 @@ window.TableControls = (function () {
         `;
 
         toolbar.appendChild(panel);
+        window.wrapToolbarContentForScroll && window.wrapToolbarContentForScroll(panel);
         bindOntwerpEvents(panel);
     }
 
@@ -1656,6 +1658,7 @@ window.TableControls = (function () {
         `;
 
         toolbar.appendChild(panel);
+        window.wrapToolbarContentForScroll && window.wrapToolbarContentForScroll(panel);
         bindPanelEvents(panel);
     }
 

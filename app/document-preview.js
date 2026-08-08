@@ -33,9 +33,9 @@ class DocumentPreview {
 
     // ── Build iframe ──────────────────────────────────────────────────────
     _build() {
-        if (getComputedStyle(this._container).position === 'static') {
-            this._container.style.position = 'relative';
-        }
+        // Always ensure the container is a positioning context
+        this._container.style.position = 'relative';
+        this._container.style.overflow = 'hidden';
 
         if (!document.getElementById('docPreviewLoaderStyles')) {
             const style = document.createElement('style');
@@ -169,6 +169,10 @@ ${cssLinks}
                 this._pendingData = null;
             }
             this._setupResizeObserver();
+            // Force a scale pass after a short delay in case the container
+            // has no dimensions yet (e.g. cards off-screen on initial paint)
+            setTimeout(() => this._applyScale(), 50);
+            setTimeout(() => this._applyScale(), 200);
         });
 
         this._container.appendChild(this._iframe);
@@ -317,6 +321,27 @@ ${cssLinks}
         this._applyScale();
 
         if (renderToken !== this._renderToken) return;
+
+        // If the container still has no width (card not yet laid out), wait for
+        // the ResizeObserver to fire with real dimensions before revealing.
+        if (!this._container.offsetWidth) {
+            const waitForSize = new Promise(resolve => {
+                const obs = new ResizeObserver(entries => {
+                    if (entries[0].contentRect.width > 0) {
+                        obs.disconnect();
+                        resolve();
+                    }
+                });
+                obs.observe(this._container);
+                // Fallback: reveal after 500ms regardless
+                setTimeout(() => { obs.disconnect(); resolve(); }, 500);
+            });
+            await waitForSize;
+            if (renderToken !== this._renderToken) return;
+            this._applyScale();
+            await this._nextFrame();
+        }
+
         this._revealPreview();
     }
 
@@ -339,14 +364,38 @@ ${cssLinks}
         this._startLoadingState();
         if (!window.electron || !window.electron.openSumdFileByPath) {
             console.warn('DocumentPreview: openSumdFileByPath not available');
+            this._showErrorState();
             return;
         }
         try {
             const data = await window.electron.openSumdFileByPath(filePath);
-            if (data) return this.loadFromData(data);
+            if (data) {
+                return this.loadFromData(data);
+            } else {
+                this._showErrorState();
+            }
         } catch (e) {
             console.warn('DocumentPreview: failed to load file', filePath, e);
+            this._showErrorState();
         }
+    }
+
+    /** Show a subtle "not found" state instead of an endless loader */
+    _showErrorState() {
+        if (this._loaderDelayTimer) {
+            clearTimeout(this._loaderDelayTimer);
+            this._loaderDelayTimer = null;
+        }
+        this._loadingActive = false;
+        if (!this._loader) return;
+        this._loader.style.display = 'flex';
+        this._loader.style.opacity = '1';
+        this._loader.innerHTML = `
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5" style="flex-shrink:0">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <span style="color:#94a3b8;font-size:10px;text-align:center;padding:0 8px;">Bestand niet gevonden</span>
+        `;
     }
 
     /** Load preview from a parsed .sumd data object */

@@ -2,8 +2,76 @@
 // openBegripModal, closeBegripModal, saveBegrip, deleteBegrip,
 // updateBegrippenList, highlightBegripInList.
 
+// Strip HTML tags and decode HTML entities to prevent code injection
+// when user-supplied text is rendered via innerHTML elsewhere.
+function _sanitizeBegripText(str) {
+    const div = document.createElement('div');
+    div.textContent = str;          // sets text, encodes special chars
+    return div.textContent;         // read back: plain text, no tags
+}
+
+function _escapeHtml(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+let _savedScrollTop = null;
+let _savedScrollEl = null;
+let _savedCursorOffset = null;
+
+function _saveEditorCursor() {
+    const { editor } = window.AppState;
+
+    // Save scroll position of the document container so we can restore it after modal closes
+    const scroller = document.querySelector('.document-section') || document.querySelector('.pages-container') || document.documentElement;
+    _savedScrollEl = scroller;
+    _savedScrollTop = scroller.scrollTop;
+
+    // Save the text cursor (caret) position within the editor — before focus
+    // moves to the modal input — so it can be restored afterwards. Without
+    // this, the selection ends up outside the editor while highlightBegrippen()
+    // rebuilds the DOM, which can reset the caret (and thus the scroll view)
+    // back to the top of the document.
+    _savedCursorOffset = null;
+    if (editor) {
+        const selection = window.getSelection();
+        if (selection.rangeCount > 0 && editor.contains(selection.anchorNode) && window.getTextOffset) {
+            _savedCursorOffset = window.getTextOffset(editor, selection.anchorNode, selection.anchorOffset);
+        }
+    }
+}
+
+function _restoreEditorCursor() {
+    const { editor } = window.AppState;
+
+    // Restore the caret position first. Doing this before highlightBegrippen()
+    // runs ensures that function's own cursor-preserving DOM rebuild operates
+    // on a valid, in-editor selection instead of resetting to the top.
+    if (_savedCursorOffset !== null && editor && window.restoreCursorPosition) {
+        try {
+            editor.focus({ preventScroll: true });
+            window.restoreCursorPosition(editor, _savedCursorOffset);
+        } catch (e) { /* ignore */ }
+    }
+    _savedCursorOffset = null;
+
+    if (_savedScrollEl !== null && _savedScrollTop !== null) {
+        // Restore immediately and again after any browser-triggered scroll
+        _savedScrollEl.scrollTop = _savedScrollTop;
+        requestAnimationFrame(() => {
+            _savedScrollEl.scrollTop = _savedScrollTop;
+            _savedScrollEl = null;
+            _savedScrollTop = null;
+        });
+    }
+}
+
 function openBegripModal(begrip) {
     const state = window.AppState;
+    _saveEditorCursor();
     state.currentEditingBegrip = begrip || null;
 
     if (begrip) {
@@ -26,6 +94,7 @@ function closeBegripModal() {
     const state = window.AppState;
     state.begripModal.classList.remove('active');
     state.currentEditingBegrip = null;
+    _restoreEditorCursor();
 }
 
 function saveBegrip() {
@@ -38,20 +107,23 @@ function saveBegrip() {
         return;
     }
 
+    // Sanitize all user input to prevent HTML/script injection
+    const safeKeyword = _sanitizeBegripText(keyword);
+    const safeDescription = _sanitizeBegripText(description);
     const aliases = aliasesInput
-        ? aliasesInput.split(',').map(a => a.trim()).filter(a => a.length > 0)
+        ? aliasesInput.split(',').map(a => _sanitizeBegripText(a.trim())).filter(a => a.length > 0)
         : [];
 
     const state = window.AppState;
 
     if (state.currentEditingBegrip) {
-        state.currentEditingBegrip.keyword = keyword;
-        state.currentEditingBegrip.description = description;
+        state.currentEditingBegrip.keyword = safeKeyword;
+        state.currentEditingBegrip.description = safeDescription;
         state.currentEditingBegrip.aliases = aliases;
-        window.showNotification && window.showNotification('Begrip bijgewerkt', `"${keyword}" is succesvol bijgewerkt.`, 'success');
+        window.showNotification && window.showNotification('Begrip bijgewerkt', `"${safeKeyword}" is succesvol bijgewerkt.`, 'success');
     } else {
-        state.begrippen.push({ keyword, description, aliases, id: Date.now() });
-        window.showNotification && window.showNotification('Begrip toegevoegd', `"${keyword}" is toegevoegd aan je begrippen.`, 'success');
+        state.begrippen.push({ keyword: safeKeyword, description: safeDescription, aliases, id: Date.now() });
+        window.showNotification && window.showNotification('Begrip toegevoegd', `"${safeKeyword}" is toegevoegd aan je begrippen.`, 'success');
     }
 
     updateBegrippenList();
@@ -62,12 +134,18 @@ function saveBegrip() {
     window.updateBegrippenCounter && window.updateBegrippenCounter();
 }
 
-function deleteBegrip(id) {
+async function deleteBegrip(id) {
     const state = window.AppState;
     const begrip = state.begrippen.find(b => b.id === id);
     if (!begrip) return;
 
-    if (confirm(`Weet je zeker dat je "${begrip.keyword}" wilt verwijderen?`)) {
+    const ok = await window.SummieDialogs.confirm(`Weet je zeker dat je "${begrip.keyword}" wilt verwijderen?`, {
+        title: 'Begrip verwijderen',
+        confirmText: 'Verwijderen',
+        cancelText: 'Annuleren',
+        danger: true
+    });
+    if (ok) {
         state.begrippen = state.begrippen.filter(b => b.id !== id);
         updateBegrippenList();
         window.highlightBegrippen && window.highlightBegrippen();
@@ -93,7 +171,7 @@ function updateBegrippenList() {
         item.dataset.id = begrip.id;
 
         const aliasesHTML = begrip.aliases && begrip.aliases.length > 0
-            ? `<div class="begrip-aliases"><strong>Ook:</strong> ${begrip.aliases.join(', ')}</div>`
+            ? `<div class="begrip-aliases"><strong>Ook:</strong> ${begrip.aliases.map(_escapeHtml).join(', ')}</div>`
             : '';
 
         item.innerHTML = `
@@ -104,7 +182,7 @@ function updateBegrippenList() {
                             <polyline points="6 9 12 15 18 9"/>
                         </svg>
                     </div>
-                    <div class="begrip-keyword">${begrip.keyword}</div>
+                    <div class="begrip-keyword">${_escapeHtml(begrip.keyword)}</div>
                 </div>
                 <div class="begrip-actions">
                     <button class="edit" title="Bewerken">
@@ -121,7 +199,7 @@ function updateBegrippenList() {
                     </button>
                 </div>
             </div>
-            <div class="begrip-description">${begrip.description}</div>
+            <div class="begrip-description">${_escapeHtml(begrip.description)}</div>
             ${aliasesHTML}
         `;
 

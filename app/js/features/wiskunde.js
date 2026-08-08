@@ -552,9 +552,9 @@
         overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
 
         // ── Insert / update ──
-        overlay.querySelector('#wmGrafiekInsert').addEventListener('click', () => {
+        overlay.querySelector('#wmGrafiekInsert').addEventListener('click', async () => {
             const config = buildChartConfig();
-            if (!config) { alert('Ongeldige invoer — controleer de formule of gegevens.'); return; }
+            if (!config) { await window.SummieDialogs.alert('Ongeldige invoer — controleer de formule of gegevens.', { title: 'Ongeldige invoer' }); return; }
 
             const title = overlay.querySelector('#wmGrafiekTitle').value.trim() || 'Grafiek';
             const grafiekData = {

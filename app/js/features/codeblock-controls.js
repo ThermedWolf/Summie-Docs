@@ -240,6 +240,7 @@ window.CodeblockControls = (function () {
         `;
 
         toolbar.appendChild(panel);
+        window.wrapToolbarContentForScroll && window.wrapToolbarContentForScroll(panel);
         bindPanelEvents(panel);
     }
 
@@ -321,7 +322,6 @@ window.CodeblockControls = (function () {
 
         panel.querySelector('#cbDeleteBtn').addEventListener('click', () => {
             if (!_activeBlock) return;
-            if (!confirm('Codeblok verwijderen?')) return;
             _activeBlock.remove();
             _activeBlock = null;
             window.ElementProtection?.hideContext(true);

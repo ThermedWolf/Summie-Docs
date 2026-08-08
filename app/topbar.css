@@ -23,15 +23,37 @@
     gap: 0;
     padding: 0 24px;
     align-items: center;
+    overflow: visible;
+    min-width: 0;
 }
 
 .topbar-sections-left {
     display: flex;
-    gap: 0;
     flex: 1 1 0;
     min-width: 0;
-    overflow: hidden;
+    align-items: center;
+    overflow: visible;
+}
+
+.topbar-sections-scrollable {
+    display: flex;
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: visible;
     flex-wrap: nowrap;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    scroll-behavior: smooth;
+}
+
+.topbar-sections-scrollable.is-overflowing {
+    -webkit-mask-image: linear-gradient(to right, black 70%, transparent 100%);
+    mask-image: linear-gradient(to right, black 70%, transparent 100%);
+}
+
+.topbar-sections-scrollable::-webkit-scrollbar {
+    display: none;
 }
 
 .topbar-sections-right {
@@ -198,6 +220,9 @@
     transition:
         opacity 0.22s ease,
         transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    /* Never clip or scroll — always visible when active */
+    overflow: visible;
+    min-width: 0;
 }
 
 .context-tabs-container.ctx-active {
@@ -281,13 +306,14 @@
 
 .toolbar-content {
     display: flex;
-    gap: 16px;
-    align-items: center;
-    flex-wrap: wrap;
+    gap: 0;
+    align-items: stretch;
+    flex-wrap: nowrap;
     opacity: 0;
     overflow: visible;
     max-height: 0;
     visibility: hidden;
+    position: relative;
     transition: opacity 0.2s ease, max-height 0.2s ease, visibility 0s linear 0.2s;
 }
 
@@ -296,6 +322,50 @@
     max-height: 80px;
     visibility: visible;
     transition: opacity 0.2s ease, max-height 0.2s ease, visibility 0s linear 0s;
+}
+
+/* Inner scrollable track — contains all groups, allows horizontal scroll
+   without clipping dropdowns (overflow: visible on the content itself) */
+.toolbar-scroll-track {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: visible;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    padding-right: 24px;
+}
+
+.toolbar-scroll-track::-webkit-scrollbar {
+    display: none;
+}
+
+/* Fade edges */
+.toolbar-scroll-wrap {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    overflow: visible;
+}
+
+.toolbar-scroll-wrap::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 48px;
+    height: 100%;
+    background: linear-gradient(to right, transparent, var(--bg-white));
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+    z-index: 2;
+}
+
+.toolbar-scroll-wrap.has-overflow::after {
+    opacity: 1;
 }
 
 .toolbar-content.transitioning-out {
@@ -337,6 +407,7 @@
     flex-direction: column;
     gap: 6px;
     overflow: visible;
+    flex-shrink: 0;
 }
 
 .animate-item {
@@ -377,6 +448,10 @@
     height: 40px;
     background: var(--border-color);
     margin: 0 8px;
+}
+
+.page-break-edit-control {
+    display: none;
 }
 
 /* ==================== FONT SIZE CONTROL ==================== */
@@ -491,6 +566,8 @@
     font-size: 14px;
     font-weight: 500;
     text-decoration: none;
+    white-space: nowrap;
+    flex-shrink: 0;
     transition: var(--transition);
 }
 
@@ -771,7 +848,6 @@
     box-shadow: 0 8px 32px rgba(0, 0, 0, .13);
     display: none;
     z-index: 9999;
-    overflow: hidden;
     animation: slideDown 0.18s ease;
 }
 
@@ -1057,11 +1133,9 @@
 .file-sidebar {
     position: fixed;
     left: -320px;
-    top: var(--topbar-height, 133px);
-    /* start right below the full topbar */
+    top: var(--topbar-tabs-height, 52px);
     width: 300px;
-    height: calc(100vh - var(--topbar-height, 133px) - 32px);
-    /* fill to bottom bar */
+    height: calc(100vh - var(--topbar-tabs-height, 52px) - 32px);
     background: var(--bg-white);
     border-right: 1px solid var(--border-color);
     box-shadow: var(--shadow-lg);
@@ -1201,6 +1275,7 @@
     top: calc(100% + 4px);
     left: 0;
     right: 0;
+    min-width: 200px;
     background: white;
     border: 1px solid var(--border-color);
     border-radius: 8px;
@@ -1230,6 +1305,7 @@
     transition: var(--transition);
     text-align: left;
     border-bottom: 1px solid var(--border-color);
+    white-space: nowrap;
 }
 
 .dropdown-item:last-child {
@@ -1255,7 +1331,6 @@
     border: 1px solid var(--border-color);
     border-radius: 8px;
     box-shadow: var(--shadow-lg);
-    overflow: hidden;
     display: none;
     z-index: 1000;
     animation: slideDown 0.2s ease;

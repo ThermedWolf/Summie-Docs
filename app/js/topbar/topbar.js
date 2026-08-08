@@ -142,7 +142,12 @@ class TopbarManager {
         document.querySelectorAll('.topbar-section:not(.context-tab)').forEach(section => {
             section.classList.remove('active');
         });
-        document.querySelector(`[data-section="${sectionName}"]`).classList.add('active');
+        const activeTab = document.querySelector(`[data-section="${sectionName}"]`);
+        if (activeTab) {
+            activeTab.classList.add('active');
+            // Scroll the tab into view if the tab bar is overflowing
+            activeTab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+        }
 
         // When switching to a normal section, context tabs become inactive
         document.querySelectorAll('.context-tab').forEach(t => t.classList.remove('active'));
@@ -152,26 +157,33 @@ class TopbarManager {
         const mainContent = document.querySelector('.main-content');
         const toolbar = document.querySelector('.section-toolbar');
 
-        // Calculate and set topbar height for sidebar positioning
+        // Calculate and set topbar height for sidebar/ruler positioning
+        const topbarEl = document.querySelector('.topbar');
+
+        // For the file sidebar: only the tab-row height (toolbar is hidden)
+        const updateFileSidebarTop = () => {
+            const tabsHeight = topbarEl ? topbarEl.offsetHeight : 52;
+            document.documentElement.style.setProperty('--topbar-tabs-height', tabsHeight + 'px');
+        };
+
+        // For the ruler: full topbar + toolbar height (after transition)
         const updateTopbarHeight = () => {
-            const topbar = document.querySelector('.topbar');
-            const totalHeight = topbar.offsetHeight + toolbar.offsetHeight;
+            const totalHeight = (topbarEl ? topbarEl.offsetHeight : 52) + toolbar.offsetHeight;
             document.documentElement.style.setProperty('--topbar-height', totalHeight + 'px');
         };
 
         if (sectionName === 'bestand') {
-            // Hide toolbar content FIRST, then measure height without it
+            // Hide toolbar content FIRST, then collapse toolbar
             document.querySelectorAll('.toolbar-content').forEach(content => {
                 content.classList.remove('active');
             });
-            // Collapse the toolbar bar itself so sidebar starts right below the section tabs
             toolbar.classList.add('toolbar-hidden');
             fileSidebar.classList.add('active');
             mainContent.classList.add('sidebar-open');
-            // Measure after toolbar is collapsed
-            requestAnimationFrame(() => {
-                requestAnimationFrame(() => updateTopbarHeight());
-            });
+            // Sidebar uses tabs-only height — measure immediately
+            updateFileSidebarTop();
+            // Ruler uses full height — wait for toolbar collapse transition (0.3s)
+            setTimeout(() => updateTopbarHeight(), 350);
         } else {
             fileSidebar.classList.remove('active');
             mainContent.classList.remove('sidebar-open');
@@ -184,46 +196,34 @@ class TopbarManager {
             if (targetContent) {
                 // If switching between different toolbars
                 if (currentContent && currentContent !== targetContent) {
-                    // Lock the toolbar height to current height
-                    const currentHeight = toolbar.offsetHeight;
-                    toolbar.style.height = currentHeight + 'px';
-                    toolbar.style.overflow = 'hidden';
-
-                    // Mark old content as transitioning out
+                    // Simple fade: all toolbar tabs are the same height,
+                    // so no height animation needed — just swap with a fade
                     currentContent.classList.add('transitioning-out');
 
-                    // Wait for old content to fade out
                     setTimeout(() => {
-                        // Completely remove old content from DOM flow
                         currentContent.classList.remove('active');
                         currentContent.classList.remove('transitioning-out');
                         currentContent.style.display = 'none';
 
-                        // Add new content
                         targetContent.style.display = '';
                         targetContent.classList.add('active');
 
-                        // Measure new height after content is added
-                        requestAnimationFrame(() => {
-                            const newHeight = toolbar.scrollHeight;
-                            toolbar.style.height = newHeight + 'px';
+                        // Trigger fade-edge check after layout settles
+                        setTimeout(() => {
+                            const track = targetContent.querySelector('.toolbar-scroll-track');
+                            if (track) track.dispatchEvent(new Event('scroll'));
+                        }, 50);
 
-                            // Remove fixed height and overflow after transition
-                            setTimeout(() => {
-                                toolbar.style.height = '';
-                                toolbar.style.overflow = '';
-                                updateTopbarHeight();
-                            }, 400);
-                        });
-                    }, 300);
+                        updateTopbarHeight();
+                    }, 200);
+
                 } else {
                     // No current active toolbar (e.g. returning from bestand section)
                     // Make sure display is reset in case it was hidden by a prior transition
                     targetContent.style.display = '';
                     targetContent.classList.add('active');
-                    // Also reset any stuck toolbar height/overflow from prior transitions
+                    // Also reset any stuck toolbar height from prior transitions
                     toolbar.style.height = '';
-                    toolbar.style.overflow = '';
                     // Wait for the toolbar expand transition (0.4s) before updating sidebar top
                     const onToolbarExpanded = () => {
                         updateTopbarHeight();
@@ -242,7 +242,11 @@ class TopbarManager {
         this.currentSection = sectionName;
 
         // Reposition tab ruler after the toolbar animation completes (~400ms)
-        setTimeout(() => window.TabRuler?.reposition?.(), 420);
+        setTimeout(() => {
+            updateTopbarHeight();
+            // Ruler repositions after height is updated
+            setTimeout(() => window.TabRuler?.reposition?.(), 50);
+        }, 350);
 
         // Restore editor focus after switching sections (except file sidebar)
         if (sectionName !== 'bestand') {
@@ -627,15 +631,29 @@ class TopbarManager {
         const saveDropdownMenu = document.getElementById('saveDropdownMenu');
 
         if (saveDropdownBtn && saveDropdownMenu) {
+            // Move to body to escape overflow clipping
+            document.body.appendChild(saveDropdownMenu);
+            saveDropdownMenu.style.position = 'fixed';
+            saveDropdownMenu.style.zIndex = '9999';
+            saveDropdownMenu.style.width = '200px';
+
+            const _positionSaveMenu = () => {
+                const rect = saveDropdownBtn.getBoundingClientRect();
+                const menuWidth = 200;
+                saveDropdownMenu.style.top = (rect.bottom + 4) + 'px';
+                saveDropdownMenu.style.left = (rect.right - menuWidth) + 'px';
+            };
+
             saveDropdownBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                saveDropdownBtn.classList.toggle('active');
-                saveDropdownMenu.classList.toggle('active');
+                const isOpen = saveDropdownMenu.classList.contains('active');
+                if (!isOpen) _positionSaveMenu();
+                saveDropdownBtn.classList.toggle('active', !isOpen);
+                saveDropdownMenu.classList.toggle('active', !isOpen);
             });
 
-            // Close dropdown when clicking outside
             document.addEventListener('click', (e) => {
-                if (!e.target.closest('.file-dropdown-wrapper')) {
+                if (!e.target.closest('#saveDropdownBtn') && !e.target.closest('#saveDropdownMenu')) {
                     saveDropdownBtn.classList.remove('active');
                     saveDropdownMenu.classList.remove('active');
                 }
@@ -647,21 +665,33 @@ class TopbarManager {
         const imageDropdownMenu = document.getElementById('imageDropdownMenu');
 
         if (imageDropdownBtn && imageDropdownMenu) {
+            // Move to body to escape overflow clipping
+            document.body.appendChild(imageDropdownMenu);
+            imageDropdownMenu.style.position = 'fixed';
+            imageDropdownMenu.style.zIndex = '9999';
+
+            const _positionImageMenu = () => {
+                const rect = imageDropdownBtn.getBoundingClientRect();
+                const menuWidth = imageDropdownMenu.offsetWidth || 220;
+                imageDropdownMenu.style.top = (rect.bottom + 4) + 'px';
+                imageDropdownMenu.style.left = (rect.right - menuWidth) + 'px';
+            };
+
             imageDropdownBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                imageDropdownBtn.classList.toggle('active');
-                imageDropdownMenu.classList.toggle('active');
+                const isOpen = imageDropdownMenu.classList.contains('active');
+                if (!isOpen) _positionImageMenu();
+                imageDropdownBtn.classList.toggle('active', !isOpen);
+                imageDropdownMenu.classList.toggle('active', !isOpen);
             });
 
-            // Close dropdown when clicking outside
             document.addEventListener('click', (e) => {
-                if (!e.target.closest('.toolbar-dropdown-wrapper')) {
+                if (!e.target.closest('#imageDropdownBtn') && !e.target.closest('#imageDropdownMenu')) {
                     imageDropdownBtn.classList.remove('active');
                     imageDropdownMenu.classList.remove('active');
                 }
             });
 
-            // Close dropdown after selecting an option
             const dropdownItems = imageDropdownMenu.querySelectorAll('.dropdown-item');
             dropdownItems.forEach(item => {
                 item.addEventListener('click', () => {
@@ -676,9 +706,21 @@ class TopbarManager {
 
     initStyleSelector() {
         const styleDropdownToggle = document.getElementById('styleDropdownToggle');
-        const styleDropdownMenu = document.getElementById('styleDropdownMenu');
+        let styleDropdownMenu = document.getElementById('styleDropdownMenu');
 
         if (styleDropdownToggle && styleDropdownMenu) {
+            // Move menu to body so it's never clipped by toolbar overflow
+            document.body.appendChild(styleDropdownMenu);
+            styleDropdownMenu.style.position = 'fixed';
+            styleDropdownMenu.style.zIndex = '9999';
+
+            const _positionMenu = () => {
+                const rect = styleDropdownToggle.getBoundingClientRect();
+                const menuWidth = styleDropdownMenu.offsetWidth || 260;
+                styleDropdownMenu.style.top = (rect.bottom + 6) + 'px';
+                styleDropdownMenu.style.left = (rect.right - menuWidth) + 'px';
+            };
+
             styleDropdownToggle.addEventListener('mousedown', e => { e.preventDefault(); this.saveCurrentRange(); });
             styleDropdownToggle.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -686,13 +728,16 @@ class TopbarManager {
                 if (!isOpen) {
                     this.saveCurrentRange();
                     window.StyleManager?.renderStyleDropdown();
+                    _positionMenu();
                 }
                 styleDropdownToggle.classList.toggle('active', !isOpen);
                 styleDropdownMenu.classList.toggle('active', !isOpen);
             });
 
             document.addEventListener('click', (e) => {
-                if (!e.target.closest('.style-selector-wrapper') && !e.target.closest('#styleEditorModal')) {
+                if (!e.target.closest('.style-selector-wrapper') &&
+                    !e.target.closest('#styleDropdownMenu') &&
+                    !e.target.closest('#styleEditorModal')) {
                     styleDropdownToggle.classList.remove('active');
                     styleDropdownMenu.classList.remove('active');
                 }
@@ -784,14 +829,28 @@ class TopbarManager {
         }
     }
 
-    saveAsPDF() {
-        // Trigger browser print dialog with PDF option
-        window.print();
-        this.showNotification('Print dialoog geopend - selecteer "Opslaan als PDF"', 'info');
+    async saveAsPDF() {
+        this.closeFileSidebar();
+        if (window.electron && window.electron.saveAsPDF) {
+            const result = await window.electron.saveAsPDF();
+            if (result && result.success) {
+                this.showNotification('PDF opgeslagen!', 'success');
+            } else if (result && !result.canceled) {
+                this.showNotification('PDF opslaan mislukt.', 'error');
+            }
+        } else {
+            // Fallback voor niet-Electron omgevingen
+            setTimeout(() => window.print(), 150);
+        }
     }
 
-    printSummary() {
-        window.print();
+    async printSummary() {
+        this.closeFileSidebar();
+        if (window.electron && window.electron.printDocument) {
+            await window.electron.printDocument();
+        } else {
+            setTimeout(() => window.print(), 150);
+        }
     }
 
     // ==================== NOTIFICATIONS ====================
@@ -823,6 +882,69 @@ class TopbarManager {
 
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
+    // Scroll tab bar with mouse wheel + fade edge only when overflowing
+    const tabsLeft = document.querySelector('.topbar-sections-scrollable');
+    if (tabsLeft) {
+        const updateTabFade = () => {
+            const overflowing = tabsLeft.scrollWidth > tabsLeft.clientWidth + 10;
+            const atEnd = tabsLeft.scrollLeft + tabsLeft.clientWidth >= tabsLeft.scrollWidth - 4;
+            tabsLeft.classList.toggle('is-overflowing', overflowing && !atEnd);
+        };
+        tabsLeft.addEventListener('wheel', e => {
+            if (e.deltaY !== 0) {
+                e.preventDefault();
+                tabsLeft.scrollLeft += e.deltaY;
+            }
+        }, { passive: false });
+        tabsLeft.addEventListener('scroll', updateTabFade);
+        new ResizeObserver(() => setTimeout(updateTabFade, 50)).observe(tabsLeft);
+    }
+
+
+
+    // Wrap a single .toolbar-content's children in a scrollable track with
+    // wheel-to-scroll + overflow fade. Exposed on window so context tabs
+    // (textbox, codeblock, table, ...) that build their panel lazily — after
+    // this initial pass — can apply the same behaviour to their own panel.
+    window.wrapToolbarContentForScroll = function (content) {
+        if (!content || content.querySelector(':scope > .toolbar-scroll-wrap')) return;
+
+        const wrap = document.createElement('div');
+        wrap.className = 'toolbar-scroll-wrap';
+        const track = document.createElement('div');
+        track.className = 'toolbar-scroll-track';
+
+        // Move all children into the track
+        while (content.firstChild) track.appendChild(content.firstChild);
+        wrap.appendChild(track);
+        content.appendChild(wrap);
+
+        // Fade edge: show when scrollable content exists
+        const updateFade = () => {
+            // Only show fade if there's meaningful overflow (>10px) and
+            // the track hasn't been scrolled to the end already
+            const canScroll = track.scrollWidth > track.clientWidth + 10;
+            const atEnd = track.scrollLeft + track.clientWidth >= track.scrollWidth - 4;
+            wrap.classList.toggle('has-overflow', canScroll && !atEnd);
+        };
+        track.addEventListener('scroll', updateFade);
+        // Delay initial check until layout is settled
+        const ro = new ResizeObserver(() => setTimeout(updateFade, 50));
+        ro.observe(track);
+
+        // Wheel to scroll
+        track.addEventListener('wheel', e => {
+            if (e.deltaY !== 0) {
+                e.preventDefault();
+                track.scrollLeft += e.deltaY;
+            }
+        }, { passive: false });
+    };
+
+    // Wrap each toolbar-content's children in a scrollable track
+    document.querySelectorAll('.toolbar-content').forEach(window.wrapToolbarContentForScroll);
+
+
     // Pre-register a no-op stub so initFormatButtons() calling window.fontSizeManager.init()
     // doesn't throw — the real instance replaces it immediately after TopbarManager is ready.
     window.fontSizeManager = { init() { }, updateFromSelection() { } };

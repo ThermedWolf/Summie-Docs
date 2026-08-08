@@ -11,6 +11,14 @@
 !macro customHeader
 !macroend
 
+; ── Refresh Windows' icon cache so updated .sumd file-type icons show up
+; immediately for both new and existing files, without requiring a manual
+; Explorer restart. SHCNE_ASSOCCHANGED notifies the shell that file
+; associations have changed.
+!macro RefreshIconCache
+  System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, i 0, i 0)' ; SHCNE_ASSOCCHANGED, SHCNF_IDLIST
+!macroend
+
 ; ── Globals ──────────────────────────────────────────────────────────────────
 ; $R0 = existing install path (empty = fresh install)
 ; $R1 = primary language code (low byte of GetUserDefaultUILanguage)
@@ -121,28 +129,27 @@
       WriteRegStr HKCU "Software\Classes\SummieDocument"                    "" "Summie Document"
       WriteRegStr HKCU "Software\Classes\SummieDocument\DefaultIcon"        "" "$R0\Summie.exe,0"
       WriteRegStr HKCU "Software\Classes\SummieDocument\shell\open\command" "" '"$R0\Summie.exe" "%1"'
+      !insertmacro RefreshIconCache
       MessageBox MB_OK|MB_ICONINFORMATION "$7"
       Quit
 
     install_done:
   ${EndIf}
 
+  ; Refresh the shell so the (possibly updated) .sumd icon shows immediately
+  !insertmacro RefreshIconCache
+
   ; === Desktop shortcut offer (fresh install or after update) ===
   StrCpy $3 "Would you like to create a desktop shortcut?"
-  StrCpy $4 "Would you like to pin Summie to the taskbar?"
 
   ${If} $R1 = 0x13
     StrCpy $3 "Wil je een snelkoppeling op het bureaublad aanmaken?"
-    StrCpy $4 "Wil je Summie vastmaken aan de taakbalk?"
   ${ElseIf} $R1 = 0x07
     StrCpy $3 "Moechten Sie eine Desktop-Verknuepfung erstellen?"
-    StrCpy $4 "Moechten Sie Summie an die Taskleiste anheften?"
   ${ElseIf} $R1 = 0x0C
     StrCpy $3 "Voulez-vous creer un raccourci sur le bureau?"
-    StrCpy $4 "Voulez-vous epingler Summie a la barre des taches?"
   ${ElseIf} $R1 = 0x0A
     StrCpy $3 "Deseas crear un acceso directo en el escritorio?"
-    StrCpy $4 "Deseas anclar Summie a la barra de tareas?"
   ${EndIf}
 
   MessageBox MB_YESNO|MB_ICONQUESTION "$3" /SD IDNO IDYES create_desktop IDNO skip_desktop
@@ -150,21 +157,6 @@
     CreateShortcut "$DESKTOP\Summie.lnk" "$INSTDIR\Summie.exe"
   skip_desktop:
 
-  MessageBox MB_YESNO|MB_ICONQUESTION "$4" /SD IDNO IDYES pin_taskbar IDNO skip_taskbar
-  pin_taskbar:
-    FileOpen $0 "$TEMP\pin_summie.vbs" w
-    FileWrite $0 'Set oShell = CreateObject("Shell.Application")$\r$\n'
-    FileWrite $0 'Set oFolder = oShell.Namespace("$INSTDIR")$\r$\n'
-    FileWrite $0 'Set oFolderItem = oFolder.ParseName("Summie.exe")$\r$\n'
-    FileWrite $0 'For Each oVerb in oFolderItem.Verbs$\r$\n'
-    FileWrite $0 '  If InStr(oVerb.Name, "taskbar") > 0 Or InStr(oVerb.Name, "Taskbar") > 0 Or InStr(oVerb.Name, "taakbalk") > 0 Then$\r$\n'
-    FileWrite $0 '    oVerb.DoIt$\r$\n'
-    FileWrite $0 '  End If$\r$\n'
-    FileWrite $0 'Next$\r$\n'
-    FileClose $0
-    ExecWait '"wscript.exe" "$TEMP\pin_summie.vbs"'
-    Delete "$TEMP\pin_summie.vbs"
-  skip_taskbar:
 !macroend
 
 ; ── Uninstall cleanup ─────────────────────────────────────────────────────────

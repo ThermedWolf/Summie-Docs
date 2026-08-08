@@ -213,6 +213,38 @@ body {
 .bottom-bar-right {
     flex-shrink: 0;
     min-width: 0;
+    display: flex;
+    align-items: center;
+}
+
+.file-size-display {
+    font-size: 11px;
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.01em;
+    display: inline-flex;
+    align-items: baseline;
+    overflow: hidden;
+}
+
+.fsz-char {
+    display: inline-block;
+}
+
+@keyframes fszRollIn {
+    0% {
+        transform: translateY(60%);
+        opacity: 0;
+    }
+
+    100% {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.fsz-char-anim {
+    animation: fszRollIn 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .bottom-bar-sep {
@@ -334,7 +366,7 @@ body {
     box-shadow: var(--shadow-lg);
     outline: none;
     font-size: 12pt;
-    line-height: 1.6;
+    line-height: 1.4;
     animation: fadeIn 0.5s ease;
     --spellcheck: false;
     position: relative;
@@ -361,7 +393,22 @@ body {
 }
 
 .a4-page p {
-    margin-bottom: 12px;
+    margin-bottom: 0;
+    margin-top: 10px;
+    line-height: 1.4;
+}
+
+/* First paragraph in editor has no top margin */
+.a4-page p:first-child,
+.a4-page>p:first-of-type {
+    margin-top: 0;
+}
+
+/* br-only lines stay tight — no extra spacing */
+.a4-page p>br:only-child,
+.a4-page p:empty {
+    margin-top: 0;
+    line-height: 1.4;
 }
 
 .pages-container {
@@ -380,7 +427,7 @@ body {
     pointer-events: none;
     cursor: text;
     font-size: 12pt;
-    line-height: 1.6;
+    line-height: 1.4;
     opacity: 0;
     transition: opacity 0.22s ease;
     z-index: 2;
@@ -390,7 +437,37 @@ body {
     opacity: 1;
 }
 
-/* Text Styles */
+/* ==================== PARAGRAAFTEKENS ====================
+   Shown when #editor has .show-pilcrow */
+
+#editor.show-pilcrow p::after,
+#editor.show-pilcrow li::after,
+#editor.show-pilcrow h1::after,
+#editor.show-pilcrow h2::after,
+#editor.show-pilcrow h3::after,
+#editor.show-pilcrow [data-style]::after {
+    content: ' ¶';
+    color: #94a3b8;
+    font-size: 0.8em;
+    font-weight: 400;
+    font-style: normal;
+    font-family: inherit;
+    pointer-events: none;
+    user-select: none;
+    letter-spacing: 0;
+    opacity: 0.7;
+}
+
+/* Slightly more visible on empty paragraphs */
+#editor.show-pilcrow p:empty::after,
+#editor.show-pilcrow p br:only-child::after {
+    content: '¶';
+    color: #64748b;
+    opacity: 0.9;
+}
+
+
+/* ==================== TEXT STYLES ====================*/
 .style-title {
     font-size: 24pt;
     font-weight: bold;
@@ -916,6 +993,43 @@ body {
     color: var(--text-secondary);
     font-size: 14px;
     line-height: 1.4;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.inhoud-label {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.inhoud-chevron {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 3px;
+    color: var(--text-secondary);
+    transition: transform 0.18s ease, background 0.1s;
+    cursor: pointer;
+    position: absolute;
+    /* positioned just before the left edge of the text */
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.inhoud-chevron:hover {
+    background: var(--border-light, #f1f5f9);
+    color: var(--text-primary);
+}
+
+.inhoud-item.is-collapsed .inhoud-chevron {
+    transform: translateY(-50%) rotate(-90deg);
 }
 
 /* Indent line for hierarchy */
@@ -1680,9 +1794,86 @@ ol li {
     vertical-align: top;
 }
 
+.editable-image-wrapper.image-layout-inline {
+    display: inline-block;
+    float: none;
+}
+
+.editable-image-wrapper.image-layout-square {
+    display: block;
+    max-width: min(100%, 420px);
+    margin: 6px 18px 12px 0;
+}
+
+.editable-image-wrapper.image-layout-square.image-align-left {
+    float: left;
+    clear: left;
+}
+
+.editable-image-wrapper.image-layout-square.image-align-right {
+    float: right;
+    clear: right;
+    margin: 6px 0 12px 18px;
+}
+
+.editable-image-wrapper.image-layout-top-bottom {
+    display: block;
+    float: none;
+    clear: both;
+    width: fit-content;
+    max-width: 100%;
+    margin: 14px auto;
+}
+
+.editable-image-wrapper.image-layout-front,
+.editable-image-wrapper.image-layout-floating,
+.editable-image-wrapper.image-layout-behind {
+    position: absolute;
+    display: inline-block;
+    float: none;
+    margin: 0;
+}
+
+.editable-image-wrapper.image-layout-front {
+    z-index: 30;
+}
+
+.editable-image-wrapper.image-layout-floating {
+    z-index: 12;
+}
+
+.editable-image-wrapper.image-layout-behind {
+    z-index: 1;
+}
+
+.editable-image-wrapper.image-layout-floating.selected,
+.editable-image-wrapper.image-layout-behind.selected {
+    z-index: 40;
+}
+
 .editable-image-wrapper.selected {
     outline: 2px solid var(--primary-color);
     outline-offset: 2px;
+}
+
+.editable-image-wrapper.dragging {
+    opacity: 0.72;
+    z-index: 20;
+    cursor: grabbing;
+    pointer-events: none;
+}
+
+.image-drag-active {
+    cursor: grabbing;
+}
+
+.image-drop-placeholder {
+    display: block;
+    height: 4px;
+    margin: 12px 0;
+    border-radius: 999px;
+    background: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.14);
 }
 
 .editable-image-wrapper img {
@@ -1924,6 +2115,128 @@ ol li {
     background: var(--border-color);
 }
 
+/* ============================================
+   SHAPES
+   ============================================ */
+
+.summie-shape-wrapper {
+    position: absolute;
+    width: 120px;
+    height: 100px;
+    margin: 0;
+    user-select: none;
+    z-index: 12;
+}
+
+.summie-shape-svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    pointer-events: none;
+}
+
+.summie-shape-wrapper.selected {
+    outline: 1.5px solid #4472c4;
+    outline-offset: 2px;
+    z-index: 40 !important;
+}
+
+.summie-shape-wrapper.dragging {
+    opacity: 0.78;
+    z-index: 45 !important;
+}
+
+.shape-resize-handle {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    border: 1.5px solid #4472c4;
+    background: white;
+    display: none;
+    z-index: 2;
+}
+
+.shape-resize-handle.nw { left: -6px; top: -6px; cursor: nw-resize; }
+.shape-resize-handle.n { left: 50%; top: -6px; transform: translateX(-50%); cursor: n-resize; }
+.shape-resize-handle.ne { right: -6px; top: -6px; cursor: ne-resize; }
+.shape-resize-handle.e { right: -6px; top: 50%; transform: translateY(-50%); cursor: e-resize; }
+.shape-resize-handle.se { right: -6px; bottom: -6px; cursor: se-resize; }
+.shape-resize-handle.s { left: 50%; bottom: -6px; transform: translateX(-50%); cursor: s-resize; }
+.shape-resize-handle.sw { left: -6px; bottom: -6px; cursor: sw-resize; }
+.shape-resize-handle.w { left: -6px; top: 50%; transform: translateY(-50%); cursor: w-resize; }
+
+.summie-shape-wrapper.selected .shape-resize-handle {
+    display: block;
+}
+
+.shape-gallery-menu {
+    width: 236px;
+    padding: 8px;
+    display: none;
+    grid-template-columns: repeat(4, 44px);
+    gap: 6px;
+}
+
+.shape-gallery-menu.active {
+    display: grid;
+}
+
+.shape-gallery-title {
+    grid-column: 1 / -1;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    padding: 4px 2px 2px;
+}
+
+.shape-gallery-item {
+    width: 44px;
+    height: 38px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background: transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.shape-gallery-item:hover {
+    background: var(--bg-light);
+    border-color: var(--border-color);
+}
+
+.shape-gallery-item svg {
+    width: 30px;
+    height: 26px;
+    fill: none;
+    stroke: #404040;
+    stroke-width: 5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.shape-gallery-item svg rect,
+.shape-gallery-item svg circle,
+.shape-gallery-item svg ellipse,
+.shape-gallery-item svg polygon {
+    fill: #f8fafc;
+}
+
+.shape-style-presets {
+    gap: 6px;
+}
+
+.shape-style {
+    width: 26px;
+    height: 22px;
+    border: 2px solid var(--stroke);
+    background: var(--fill);
+    border-radius: 3px;
+    cursor: pointer;
+}
+
 /* ==================== DOCX LOADING MODAL ==================== */
 .docx-loader {
     width: 70px;
@@ -2034,6 +2347,21 @@ ol li {
     position: relative;
 }
 
+.pages-container.pages-multi .a4-page {
+    height: 297mm;
+    min-height: 297mm;
+    overflow: visible;
+    animation: none;
+}
+
+.pages-container.pages-multi .summie-page-break {
+    display: none !important;
+}
+
+.page-break-edit-control {
+    display: none;
+}
+
 .page-number-badge {
     position: absolute;
     top: -22px;
@@ -2043,6 +2371,8 @@ ol li {
     font-family: var(--font-ui, sans-serif);
     user-select: none;
     pointer-events: none;
+    animation: none !important;
+    transition: none !important;
 }
 
 /* Met page-wrapper: badge relatief aan wrapper zodat hij boven de ruler uitsteekt */
@@ -2226,4 +2556,91 @@ ol li {
     font-weight: 700;
     font-size: 16px;
     color: var(--primary-color);
+}
+
+
+/* ==================== PRINT / PDF EXPORT ==================== */
+
+/* @media print - fallback for non-Electron */
+@media print {
+
+    .topbar,
+    .section-toolbar,
+    .file-sidebar,
+    .sidebar,
+    .bottom-bar,
+    .begrip-tooltip,
+    .autocomplete-popup,
+    #notificationContainer,
+    [id$="Tooltip"],
+    [id$="Dropdown"] {
+        display: none !important;
+    }
+
+    body,
+    html {
+        background: white !important;
+    }
+
+    .main-content {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+    }
+
+    .page,
+    .a4-page {
+        box-shadow: none !important;
+        border: none !important;
+        margin: 0 auto !important;
+    }
+}
+
+/* printing-mode class - used by Electron printToPDF / print */
+html.printing-mode .topbar,
+html.printing-mode .section-toolbar,
+html.printing-mode .file-sidebar,
+html.printing-mode .sidebar,
+html.printing-mode .bottom-bar,
+html.printing-mode .ruler-bar,
+html.printing-mode .tab-ruler,
+html.printing-mode .begrip-tooltip,
+html.printing-mode .autocomplete-popup,
+html.printing-mode #notificationContainer {
+    display: none !important;
+    visibility: hidden !important;
+}
+
+html.printing-mode body,
+html.printing-mode html {
+    background: white !important;
+    overflow: visible !important;
+}
+
+html.printing-mode .main-content {
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+}
+
+html.printing-mode .page,
+html.printing-mode .a4-page {
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 auto !important;
+    page-break-after: auto;
+    break-after: auto;
+}
+
+/* Hide text cursor and caret in print mode */
+html.printing-mode [contenteditable] {
+    caret-color: transparent !important;
+    outline: none !important;
+}
+
+html.printing-mode ::selection {
+    background: transparent !important;
 }

@@ -2,7 +2,7 @@
 // Initialises all modules in dependency order.
 // No logic lives here — only orchestration.
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     const state = window.AppState;
 
     // 1. Resolve DOM references
@@ -19,37 +19,55 @@ document.addEventListener('DOMContentLoaded', () => {
         localStorage.removeItem('summie_current_file_path');
     }
 
-    const pendingLoadRaw = localStorage.getItem('summie_pending_load');
+    const initialOpen = window.electron?.getInitialSumdFile
+        ? await window.electron.getInitialSumdFile()
+        : null;
+    const pendingLoadRaw = initialOpen
+        ? JSON.stringify({ data: initialOpen.data, path: initialOpen.path })
+        : localStorage.getItem('summie_pending_load');
+
     if (pendingLoadRaw) {
         localStorage.removeItem('summie_pending_load');
         try {
             const pending = JSON.parse(pendingLoadRaw);
             if (pending.data) {
-                setTimeout(() => {
-                    applyLoadedData(pending.data);
+                setTimeout(async () => {
+                    let pendingData = pending.data;
+                    if (window.DocumentProtection) {
+                        pendingData = await window.DocumentProtection.openData(pendingData);
+                        if (!pendingData) return;
+                    }
+                    applyLoadedData(pendingData);
                     if (pending.path) {
                         window.currentFilePath = pending.path;
                         localStorage.setItem('summie_current_file_path', pending.path);
                         window.updateWindowTitle && window.updateWindowTitle(pending.path);
                         window.AutoSave && window.AutoSave.onFileChanged();
+                        window.updateFileSize && window.updateFileSize();
                     }
-                    state.lastSavedContent = state.editor.innerHTML;
+                    const _clean = window.getCleanEditorContent ? window.getCleanEditorContent(state.editor) : state.editor.innerHTML;
+                    state.lastSavedContent = _clean;
                     state.lastSavedBegrippen = JSON.stringify(state.begrippen);
-                    localStorage.setItem('summie_saved_content', state.editor.innerHTML);
+                    state.lastSavedProtection = window.DocumentProtection?.isProtected?.() || false;
+                    localStorage.setItem('summie_saved_content', _clean);
+                    window.updateDocNameInput && window.updateDocNameInput();
                 }, 100);
             }
         } catch (e) {
             console.error('Error loading pending file:', e);
-            loadFromLocalStorage();
+            await loadFromLocalStorage();
         }
     } else {
-        loadFromLocalStorage();
+        await loadFromLocalStorage();
     }
 
     // 3. Restore current file path
     if (!window.currentFilePath) {
         const storedPath = localStorage.getItem('summie_current_file_path');
-        if (storedPath) window.currentFilePath = storedPath;
+        if (storedPath) {
+            window.currentFilePath = storedPath;
+            setTimeout(() => window.updateFileSize && window.updateFileSize(), 150);
+        }
     }
     window.updateWindowTitle && window.updateWindowTitle(window.currentFilePath || null);
 
@@ -78,6 +96,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
         state.lastSavedContent = state.editor.innerHTML;
         state.lastSavedBegrippen = JSON.stringify(state.begrippen);
+        state.lastSavedProtection = window.DocumentProtection?.isProtected?.() || false;
     }, 500);
 
     // 8. Init References & Tables
@@ -187,17 +206,24 @@ function _switchToTab(tabName) {
 // .sumd file in Explorer. We listen here and load it directly into the editor,
 // bypassing localStorage so the correct file is always shown.
 if (window.electron && window.electron.onLoadSumdFile) {
-    window.electron.onLoadSumdFile((data, filePath) => {
+    window.electron.onLoadSumdFile(async (data, filePath) => {
         if (!data) return;
+        if (window.DocumentProtection) {
+            data = await window.DocumentProtection.openData(data);
+            if (!data) return;
+        }
         applyLoadedData(data);
         if (filePath) {
             window.currentFilePath = filePath;
             localStorage.setItem('summie_current_file_path', filePath);
             window.updateWindowTitle && window.updateWindowTitle(filePath);
+            window.AutoSave && window.AutoSave.onFileChanged();
+            window.updateFileSize && window.updateFileSize();
         }
         const state = window.AppState;
         state.lastSavedContent = state.editor.innerHTML;
         state.lastSavedBegrippen = JSON.stringify(state.begrippen);
+        state.lastSavedProtection = window.DocumentProtection?.isProtected?.() || false;
         localStorage.setItem('summie_saved_content', state.editor.innerHTML);
     });
 }

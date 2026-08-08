@@ -627,3 +627,42 @@ th[data-formula]::after {
         opacity: 0;
     }
 }
+
+/* ── Image context tab ───────────────────────────────────────── */
+.img-dim-input {
+    width: 58px;
+    text-align: right;
+    padding-right: 4px;
+}
+
+/* Hide number input spinners */
+.img-dim-input::-webkit-outer-spin-button,
+.img-dim-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.img-dim-input[type=number] {
+    -moz-appearance: textfield;
+}
+
+.img-aspect-btn {
+    padding: 0 7px;
+    flex-shrink: 0;
+}
+
+.img-layout-buttons {
+    gap: 5px;
+    flex-wrap: nowrap;
+}
+
+.img-layout-btn {
+    min-width: 74px;
+    justify-content: center;
+}
+
+#imgResetWidthBtn,
+#imgResetHeightBtn {
+    min-width: 68px;
+    justify-content: center;
+}

@@ -10,6 +10,168 @@ let _favouritePreviews = [];
 let _allDocsCache = null;
 let _searchFuse = null;
 let _searchTimer = null;
+
+// Pop-up shown when a document in the list can no longer be found on disk.
+function _showMissingDocDialog(doc) {
+    const existing = document.getElementById('missingDocOverlay');
+    if (existing) existing.remove();
+
+    const displayName = doc.name || (doc.path ? doc.path.split(/[\\/]/).pop().replace(/\.sumd$/i, '') : 'Naamloos');
+    const displayPath = doc.path || '';
+
+    const overlay = document.createElement('div');
+    overlay.id = 'missingDocOverlay';
+    overlay.style.cssText = [
+        'position:fixed;inset:0;z-index:9999;',
+        'background:rgba(15,23,42,0.4);',
+        'backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);',
+        'display:flex;align-items:center;justify-content:center;',
+        'animation:mdFadeIn 0.15s ease;'
+    ].join('');
+
+    if (!document.getElementById('mdDialogStyles')) {
+        const s = document.createElement('style');
+        s.id = 'mdDialogStyles';
+        s.textContent = [
+            '@keyframes mdFadeIn{from{opacity:0}to{opacity:1}}',
+            '@keyframes mdSlideUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}',
+            '#mdDialog{animation:mdSlideUp 0.18s ease}',
+            '.md-btn{transition:background 0.12s,box-shadow 0.12s,transform 0.08s}',
+            '.md-btn:hover{transform:translateY(-1px)}',
+            '.md-btn:active{transform:translateY(0)}',
+            '.md-btn-primary:hover{background:var(--primary-hover)!important;box-shadow:0 4px 12px rgba(59,130,246,0.35)!important}',
+            '.md-btn-ghost:hover{background:var(--border-light)!important}',
+            '.md-btn-danger:hover{background:var(--danger-light)!important;color:var(--danger)!important}',
+            '.md-btn-danger:hover svg{stroke:var(--danger)!important}'
+        ].join('');
+        document.head.appendChild(s);
+    }
+
+    const nameSafe = _landingEscapeHtml(displayName);
+    const pathSafe = _landingEscapeHtml(displayPath);
+
+    const dialog = document.createElement('div');
+    dialog.id = 'mdDialog';
+    dialog.style.cssText = [
+        'background:var(--surface);',
+        'border:1px solid var(--border);',
+        'border-radius:16px;',
+        'width:420px;max-width:calc(100vw - 32px);',
+        'box-shadow:var(--shadow-lg),0 0 0 1px rgba(0,0,0,0.04);',
+        'font-family:inherit;overflow:hidden;'
+    ].join('');
+
+    dialog.innerHTML = `
+        <div style="display:flex;align-items:flex-start;gap:14px;padding:24px 24px 0;">
+            <div style="width:40px;height:40px;border-radius:10px;flex-shrink:0;background:#fff7ed;border:1px solid #fed7aa;display:flex;align-items:center;justify-content:center;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                    <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+            </div>
+            <div style="flex:1;min-width:0;">
+                <div style="font-size:15px;font-weight:650;color:var(--text);margin-bottom:4px;letter-spacing:-0.2px;">Bestand niet gevonden</div>
+                <div style="font-size:13px;color:var(--text-secondary);line-height:1.5;">
+                    <span style="font-weight:600;color:var(--text);" title="${pathSafe}">${nameSafe}</span>
+                    is verplaatst, hernoemd of verwijderd.
+                </div>
+            </div>
+            <button id="mdCancel" class="md-btn md-btn-ghost" style="width:28px;height:28px;border-radius:7px;border:none;background:transparent;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--text-tertiary);padding:0;margin-top:-2px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+            </button>
+        </div>
+
+        <div style="height:1px;background:var(--border-light);margin:20px 0 0;"></div>
+
+        <div style="padding:12px 12px 12px;display:flex;flex-direction:column;gap:6px;">
+            <button id="mdNewPath" class="md-btn md-btn-primary" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:10px;border:none;cursor:pointer;background:var(--primary);color:#fff;text-align:left;width:100%;">
+                <div style="width:32px;height:32px;border-radius:8px;flex-shrink:0;background:rgba(255,255,255,0.18);display:flex;align-items:center;justify-content:center;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
+                        <line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/>
+                    </svg>
+                </div>
+                <div>
+                    <div style="font-size:13px;font-weight:600;line-height:1.3;">Nieuw pad opgeven</div>
+                    <div style="font-size:11px;opacity:0.8;margin-top:1px;">Zoek het bestand op en update de verwijzing</div>
+                </div>
+            </button>
+
+            <button id="mdRemove" class="md-btn md-btn-danger" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:10px;cursor:pointer;background:transparent;color:var(--text-secondary);border:1px solid var(--border);text-align:left;width:100%;">
+                <div style="width:32px;height:32px;border-radius:8px;flex-shrink:0;background:var(--border-light);display:flex;align-items:center;justify-content:center;">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+                    </svg>
+                </div>
+                <div>
+                    <div style="font-size:13px;font-weight:600;line-height:1.3;">Verwijderen uit lijst</div>
+                    <div style="font-size:11px;opacity:0.75;margin-top:1px;">Verwijdert ook uit favorieten</div>
+                </div>
+            </button>
+        </div>
+    `;
+
+    overlay.appendChild(dialog);
+    document.body.appendChild(overlay);
+    const close = () => overlay.remove();
+
+    overlay.querySelector('#mdNewPath').addEventListener('click', async () => {
+        close();
+        if (!window.electron) return;
+        // Open dialog starting in the directory where the file was last seen
+        const lastDir = doc.path ? doc.path.replace(/[\\/][^\\/]+$/, '') : null;
+        const result = await (window.electron.openSumdFileAt
+            ? window.electron.openSumdFileAt(lastDir)
+            : window.electron.openSumdFile());
+        if (!result.success) return;
+        // Update the entry with the new path
+        const newPath = result.path;
+        const newName = newPath.split(/[\\/]/).pop().replace(/\.sumd$/i, '');
+        const updatedDoc = { ...doc, path: newPath, name: newName, lastOpened: new Date().toISOString() };
+        // Remove old entry, add updated one
+        if (window.electron.recentsRemove) await window.electron.recentsRemove(doc.id);
+        if (window.electron.recentsAdd) await window.electron.recentsAdd(updatedDoc);
+        // Also fix in favourites if present
+        const favs = await getFavourites();
+        const favIdx = favs.findIndex(f => f.path === doc.path);
+        if (favIdx !== -1) {
+            favs[favIdx] = { ...favs[favIdx], path: newPath, name: newName };
+            if (window.electron.favouritesSave) await window.electron.favouritesSave(favs);
+        }
+        // Now open the document
+        localStorage.setItem('summie_pending_load', JSON.stringify({ data: result.data, path: newPath, name: newName }));
+        localStorage.setItem('summie_current_file_path', newPath);
+        navigateToEditor(result.data);
+    });
+
+    overlay.querySelector('#mdRemove').addEventListener('click', async () => {
+        close();
+        // Remove from recents
+        if (window.electron && window.electron.recentsRemove) {
+            await window.electron.recentsRemove(doc.id);
+        } else {
+            // Fallback: localStorage
+            const RECENT_KEY = 'summie_recent_docs';
+            let docs = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
+            docs = docs.filter(d => d.id !== doc.id);
+            localStorage.setItem(RECENT_KEY, JSON.stringify(docs));
+        }
+        // Also remove from favourites
+        await removeFavourite(doc.path);
+        // Refresh the landing page lists
+        await renderRecentDocs();
+        await renderFavourites();
+    });
+
+    overlay.querySelector('#mdCancel').addEventListener('click', close);
+    overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+}
+
+function _landingEscapeHtml(str) {
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
 let _searchState = {
     query: '',
     active: false,
@@ -474,8 +636,16 @@ async function renderFavourites() {
         }
 
         // Click to open
-        chip.addEventListener('click', e => {
+        chip.addEventListener('click', async e => {
             if (e.target.closest('.fav-chip-remove')) return;
+            // Check if file still exists before trying to open it
+            if (window.electron && window.electron.fileExists) {
+                const exists = await window.electron.fileExists(fav.path);
+                if (!exists) {
+                    _showMissingDocDialog({ path: fav.path, name: fav.name, id: fav.id });
+                    return;
+                }
+            }
             const docs = _cachedRecents || [];
             const doc = docs.find(d => d.path === fav.path);
             if (doc) openRecentDoc(doc);
@@ -658,8 +828,32 @@ async function renderRecentDocs() {
         }
     }
 
+    // Favourite documents should also show up in the recent documents list,
+    // not only in the favourites strip. Merge in any favourites that aren't
+    // already part of the recents list (display only — doesn't touch the
+    // stored recents list itself).
+    const favsForMerge = await getFavourites();
+    const recentPaths = new Set(docs.map(d => d.path).filter(Boolean));
+    const favOnlyDocs = favsForMerge
+        .filter(f => f.path && !recentPaths.has(f.path))
+        .map(f => ({
+            id: f.id || ('fav-' + f.path),
+            name: f.name,
+            path: f.path,
+            lastOpened: f.lastOpened || undefined
+        }));
+
+    // In Electron: filter out favourite-only docs whose file no longer exists
+    let visibleFavOnlyDocs = favOnlyDocs;
+    if (window.electron && favOnlyDocs.length > 0) {
+        const favExistenceChecks = await Promise.all(
+            favOnlyDocs.map(doc => window.electron.fileExists(doc.path))
+        );
+        visibleFavOnlyDocs = favOnlyDocs.filter((_, i) => favExistenceChecks[i]);
+    }
+
+    const visibleDocs = [...docs, ...visibleFavOnlyDocs];
     const favouritePaths = await getFavouritePathSet();
-    const visibleDocs = docs.filter(doc => !doc.path || !favouritePaths.has(doc.path));
 
     if (visibleDocs.length === 0) {
         emptyMsg.style.display = 'flex';
@@ -737,6 +931,8 @@ async function renderRecentDocs() {
             `<span class="rdi-tag">${escapeHtml(t)}</span>`
         ).join('');
 
+        const isFav = doc.path && favouritePaths.has(doc.path);
+
         item.innerHTML = `
             <div class="rdi-thumb">
                 ${iconHtml}
@@ -752,6 +948,11 @@ async function renderRecentDocs() {
                     ${tagsHtml ? `<div class="rdi-tags">${tagsHtml}</div>` : ''}
                 </div>
             </div>
+            ${isFav ? `<span class="rdi-fav-badge" title="Favoriet">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                </svg>
+            </span>` : ''}
             <button class="recent-doc-menu" title="Opties" data-id="${doc.id}">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>
@@ -791,7 +992,7 @@ async function openRecentDoc(doc) {
             localStorage.setItem('summie_current_file_path', doc.path);
             navigateToEditor(result.data);
         } else {
-            alert(`Kon bestand niet openen:\n${result.error || 'Onbekende fout'}`);
+            _showMissingDocDialog(doc);
         }
     } else {
         // localStorage-only doc (no file path) - just open editor with current data
@@ -891,7 +1092,7 @@ async function showRenameModal(docId) {
             const newPath = dir + newName + ext;
             const result = await window.electron.renameFile(doc.path, newPath);
             if (!result.success) {
-                alert('Kon bestand niet hernoemen:\n' + (result.error || 'Onbekende fout'));
+                await window.SummieDialogs.alert('Kon bestand niet hernoemen:\n' + (result.error || 'Onbekende fout'), { title: 'Hernoemen mislukt' });
                 closeRenameModal();
                 return;
             }
@@ -1035,7 +1236,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('ctxRemoveFromList').addEventListener('click', async () => {
         const id = contextTargetId;
         hideContextMenu();
-        if (confirm('Wil je dit document uit de lijst verwijderen?')) {
+        const ok = await window.SummieDialogs.confirm('Wil je dit document uit de lijst verwijderen?', {
+            title: 'Document verwijderen uit lijst',
+            confirmText: 'Verwijderen',
+            cancelText: 'Annuleren',
+            danger: true
+        });
+        if (ok) {
             await removeRecentDoc(id);
             renderRecentDocs();
             loadCurrentDocPreview();
@@ -1048,11 +1255,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         const docs = await getRecentDocs();
         const doc = docs.find(d => d.id === id);
         if (!doc) return;
-        if (confirm(`Wil je "${doc.name || 'dit document'}" permanent verwijderen van de schijf? Dit kan niet ongedaan worden gemaakt.`)) {
+        const ok = await window.SummieDialogs.confirm(
+            'Dit verwijdert het bestand van de schijf en kan niet ongedaan worden gemaakt.',
+            {
+                title: `"${doc.name || 'dit document'}" permanent verwijderen?`,
+                confirmText: 'Verwijderen',
+                cancelText: 'Annuleren',
+                danger: true
+            }
+        );
+        if (ok) {
             if (doc.path && window.electron) {
-                try {
-                    await window.electron.deleteFile(doc.path);
-                } catch (e) { }
+                const result = await window.electron.deleteFile(doc.path);
+                if (!result || !result.success) {
+                    await window.SummieDialogs.alert(`Verwijderen mislukt: ${result?.error || 'Onbekende fout'}`, { title: 'Fout' });
+                    return;
+                }
             }
             await removeRecentDoc(id);
             renderRecentDocs();

@@ -5,6 +5,13 @@ class ImageManager {
         this.images = new Map(); // Store image data by ID
         this.selectedImage = null;
         this.isDragging = false;
+        this.dragCandidate = null;
+        this.draggedWrapper = null;
+        this.dropPlaceholder = null;
+        this.dropTarget = null;
+        this.dropPosition = 'after';
+        this.floatDragData = null;
+        this.suppressNextEditorClick = false;
         this.isResizing = false;
         this.isCropping = false;
         this.dragStartX = 0;
@@ -87,9 +94,16 @@ class ImageManager {
             });
         }
 
-        // Click outside to deselect images
+        // Keep image selection while using topbar/context controls. Only a click
+        // in the document area itself should clear the selected image.
         document.addEventListener('click', (e) => {
-            if (!e.target.closest('.editable-image-wrapper') && !e.target.closest('.image-toolbar')) {
+            const editor = document.getElementById('editor');
+            if (!editor || !editor.contains(e.target)) return;
+            if (this.suppressNextEditorClick) {
+                this.suppressNextEditorClick = false;
+                return;
+            }
+            if (!e.target.closest('.editable-image-wrapper')) {
                 this.deselectImage();
             }
         });
@@ -230,12 +244,13 @@ class ImageManager {
 
     insertImage(src, fileName, isExternalUrl = false) {
         const editor = document.getElementById('editor');
-        const imageId = 'img_' + Date.now();
+        const imageId = this.createImageId();
 
         // Create image wrapper
         const wrapper = document.createElement('div');
-        wrapper.className = 'editable-image-wrapper';
+        wrapper.className = 'editable-image-wrapper image-layout-inline';
         wrapper.dataset.imageId = imageId;
+        wrapper.dataset.layout = 'inline';
         wrapper.contentEditable = 'false'; // Make the wrapper non-editable but moveable
 
         // Create image
@@ -247,31 +262,13 @@ class ImageManager {
         const toolbar = this.createImageToolbar();
 
         // Create resize handles
-        const handles = this.createResizeHandles();
+        const handles = this.createResizeHandles(imageId);
 
         wrapper.appendChild(toolbar);
         wrapper.appendChild(img);
         handles.forEach(handle => wrapper.appendChild(handle));
 
-        // Insert at cursor or end
-        const selection = window.getSelection();
-        if (selection.rangeCount > 0) {
-            const range = selection.getRangeAt(0);
-
-            // Create a new paragraph after the image for easier editing
-            const br = document.createElement('br');
-
-            range.insertNode(wrapper);
-            range.collapse(false);
-            range.insertNode(br);
-            range.setStartAfter(br);
-            range.collapse(true);
-            selection.removeAllRanges();
-            selection.addRange(range);
-        } else {
-            editor.appendChild(wrapper);
-            editor.appendChild(document.createElement('br'));
-        }
+        this.insertWrapperSafely(editor, wrapper);
 
         // Store image data
         this.images.set(imageId, {
@@ -281,10 +278,13 @@ class ImageManager {
             isExternalUrl: isExternalUrl,
             width: null, // Will be set after load
             height: null,
+            originalWidth: null,
+            originalHeight: null,
             naturalWidth: null,
             naturalHeight: null,
             x: 0,
             y: 0,
+            layout: 'inline',
             cropX: 0,
             cropY: 0,
             cropWidth: null,
@@ -294,12 +294,16 @@ class ImageManager {
         // Wait for image to load to get dimensions
         img.onload = () => {
             const imageData = this.images.get(imageId);
+            if (!imageData) return;
             imageData.naturalWidth = img.naturalWidth;
             imageData.naturalHeight = img.naturalHeight;
             imageData.width = img.offsetWidth;
             imageData.height = img.offsetHeight;
+            imageData.originalWidth = imageData.originalWidth || img.offsetWidth;
+            imageData.originalHeight = imageData.originalHeight || img.offsetHeight;
             imageData.cropWidth = img.naturalWidth;
             imageData.cropHeight = img.naturalHeight;
+            this.saveToLocalStorage();
         };
 
         // Setup click handler
@@ -308,9 +312,97 @@ class ImageManager {
             this.selectImage(imageId);
         });
 
+        this.setupImageDrag(wrapper, imageId);
+
         this.selectImage(imageId);
         this.saveToLocalStorage();
         this.showNotification('Afbeelding toegevoegd', 'Tip: Versleep de afbeelding om te verplaatsen, of gebruik Ctrl+X en Ctrl+V', 'success');
+    }
+
+    createImageId() {
+        let id;
+        do {
+            id = 'img_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+        } while (this.images.has(id) || document.querySelector(`[data-image-id="${id}"]`));
+        return id;
+    }
+
+    insertWrapperSafely(editor, wrapper) {
+        if (!editor) return;
+
+        const selectedWrapper = this.selectedImage
+            ? document.querySelector(`[data-image-id="${this.selectedImage}"]`)
+            : null;
+
+        const selection = window.getSelection();
+        const range = selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+        const selectionNode = range ? (range.startContainer.nodeType === Node.TEXT_NODE ? range.startContainer.parentElement : range.startContainer) : null;
+        const selectionInEditor = !!(selectionNode && editor.contains(selectionNode));
+        const selectionInImage = !!(selectionNode && selectionNode.closest && selectionNode.closest('.editable-image-wrapper'));
+
+        const br = document.createElement('br');
+
+        if (selectionInEditor && !selectionInImage && range) {
+            range.insertNode(wrapper);
+            range.setStartAfter(wrapper);
+            range.collapse(true);
+            range.insertNode(br);
+            range.setStartAfter(br);
+            range.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(range);
+            return;
+        }
+
+        if (selectedWrapper && editor.contains(selectedWrapper)) {
+            selectedWrapper.after(wrapper, br);
+            this.setCursorAfterNode(br);
+            return;
+        }
+
+        editor.appendChild(wrapper);
+        editor.appendChild(br);
+        this.setCursorAfterNode(br);
+    }
+
+    setCursorAfterNode(node) {
+        const selection = window.getSelection();
+        if (!selection || !node?.parentNode) return;
+        const range = document.createRange();
+        range.setStartAfter(node);
+        range.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(range);
+    }
+
+    setupImageDrag(wrapper, imageId) {
+        wrapper.addEventListener('mousedown', (e) => {
+            if (this.isCropping || this.isResizing) return;
+            if (e.button !== 0) return;
+            if (e.target.closest('.image-toolbar, .resize-handle, .crop-overlay, .crop-buttons')) return;
+
+            const wasSelected = this.selectedImage === imageId && wrapper.classList.contains('selected');
+            this.selectImage(imageId);
+            if (!wasSelected) {
+                this.suppressNextEditorClick = true;
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+            }
+
+            if (this.isFreePositioned(wrapper)) {
+                this.startFreeImageDrag(e, wrapper, imageId);
+                return;
+            }
+            this.dragCandidate = {
+                imageId: imageId,
+                wrapper: wrapper,
+                startX: e.clientX,
+                startY: e.clientY
+            };
+            e.preventDefault();
+            e.stopPropagation();
+        });
     }
 
     createImageToolbar() {
@@ -336,15 +428,20 @@ class ImageManager {
         return toolbar;
     }
 
-    createResizeHandles() {
+    createResizeHandles(imageId) {
         const positions = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
         return positions.map(pos => {
             const handle = document.createElement('div');
             handle.className = `resize-handle ${pos}`;
             handle.addEventListener('mousedown', (e) => {
+                const wrapper = handle.closest('.editable-image-wrapper');
+                const id = imageId || wrapper?.dataset.imageId;
+                if (!id) return;
+                this.selectImage(id);
                 e.stopPropagation();
                 this.startResize(e, pos);
             });
+            handle.addEventListener('click', (e) => e.stopPropagation());
             return handle;
         });
     }
@@ -372,12 +469,16 @@ class ImageManager {
     startResize(e, handle) {
         if (this.isCropping) return;
 
+        const wrapper = e.target.closest('.editable-image-wrapper') || document.querySelector(`[data-image-id="${this.selectedImage}"]`);
+        const imageId = wrapper?.dataset.imageId;
+        if (!wrapper || !imageId) return;
+        this.selectImage(imageId);
+
         this.isResizing = true;
         this.resizeHandle = handle;
         this.dragStartX = e.clientX;
         this.dragStartY = e.clientY;
 
-        const wrapper = document.querySelector(`[data-image-id="${this.selectedImage}"]`);
         const img = wrapper.querySelector('img');
         this.resizeStartWidth = img.offsetWidth;
         this.resizeStartHeight = img.offsetHeight;
@@ -389,7 +490,26 @@ class ImageManager {
     }
 
     handleMouseMove(e) {
-        if (this.isResizing && this.selectedImage) {
+        if (this.floatDragData) {
+            this.handleFreeImageDragMove(e);
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+        }
+
+        if (this.dragCandidate && !this.isDragging) {
+            const deltaX = Math.abs(e.clientX - this.dragCandidate.startX);
+            const deltaY = Math.abs(e.clientY - this.dragCandidate.startY);
+            if (deltaX > 4 || deltaY > 4) {
+                this.startImageDrag();
+            }
+        }
+
+        if (this.isDragging) {
+            this.handleImageDragMove(e);
+            e.preventDefault();
+            e.stopPropagation();
+        } else if (this.isResizing && this.selectedImage) {
             const wrapper = document.querySelector(`[data-image-id="${this.selectedImage}"]`);
             const img = wrapper.querySelector('img');
 
@@ -444,7 +564,67 @@ class ImageManager {
         }
     }
 
+    startImageDrag() {
+        if (!this.dragCandidate) return;
+
+        this.isDragging = true;
+        this.draggedWrapper = this.dragCandidate.wrapper;
+        this.dropPlaceholder = document.createElement('div');
+        this.dropPlaceholder.className = 'image-drop-placeholder';
+        this.draggedWrapper.classList.add('dragging');
+        this.draggedWrapper.after(this.dropPlaceholder);
+        document.body.classList.add('image-drag-active');
+    }
+
+    handleImageDragMove(e) {
+        if (!this.draggedWrapper || !this.dropPlaceholder) return;
+
+        this.draggedWrapper.style.transform = `translate(${e.clientX - this.dragCandidate.startX}px, ${e.clientY - this.dragCandidate.startY}px)`;
+
+        const target = this.getImageDropTarget(e.clientX, e.clientY);
+        if (!target || target === this.draggedWrapper || target === this.dropPlaceholder) return;
+
+        const rect = target.getBoundingClientRect();
+        this.dropPosition = e.clientY < rect.top + (rect.height / 2) ? 'before' : 'after';
+        this.dropTarget = target;
+
+        if (this.dropPosition === 'before') {
+            target.before(this.dropPlaceholder);
+        } else {
+            target.after(this.dropPlaceholder);
+        }
+    }
+
+    getImageDropTarget(x, y) {
+        const editor = document.getElementById('editor');
+        if (!editor) return null;
+
+        const hiddenDisplay = this.draggedWrapper.style.display;
+        this.draggedWrapper.style.display = 'none';
+        const element = document.elementFromPoint(x, y);
+        this.draggedWrapper.style.display = hiddenDisplay;
+
+        if (!element || !editor.contains(element)) return null;
+
+        const directChild = element.closest('#editor > *');
+        if (directChild && directChild !== this.draggedWrapper && directChild !== this.dropPlaceholder) {
+            return directChild;
+        }
+
+        return editor.lastElementChild || null;
+    }
+
     handleMouseUp(e) {
+        if (this.floatDragData) {
+            this.finishFreeImageDrag();
+            this.suppressNextEditorClick = true;
+        }
+
+        if (this.isDragging && this.draggedWrapper) {
+            this.finishImageDrag();
+            this.suppressNextEditorClick = true;
+        }
+
         // Save if we were resizing
         if (this.isResizing && this.selectedImage) {
             const wrapper = document.querySelector(`[data-image-id="${this.selectedImage}"]`);
@@ -458,11 +638,15 @@ class ImageManager {
                         this.saveToLocalStorage();
                     }
                 }
+                this.selectImage(this.selectedImage);
+                this.suppressNextEditorClick = true;
             }
         }
 
         // Always clear all states
         this.isDragging = false;
+        this.dragCandidate = null;
+        this.floatDragData = null;
         this.isResizing = false;
         this.resizeHandle = null;
 
@@ -471,6 +655,168 @@ class ImageManager {
             this.cropData.isDragging = false;
             this.cropData.isResizing = false;
         }
+    }
+
+    finishImageDrag() {
+        if (this.dropPlaceholder && this.dropPlaceholder.parentNode) {
+            this.dropPlaceholder.replaceWith(this.draggedWrapper);
+        }
+
+        this.draggedWrapper.classList.remove('dragging');
+        this.draggedWrapper.style.transform = '';
+        document.body.classList.remove('image-drag-active');
+
+        this.selectImage(this.draggedWrapper.dataset.imageId);
+        this.dropPlaceholder = null;
+        this.dropTarget = null;
+        this.draggedWrapper = null;
+        this.saveToLocalStorage();
+
+        const editor = document.getElementById('editor');
+        if (editor) editor.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    getImageLayout(imageId) {
+        const wrapper = document.querySelector(`[data-image-id="${imageId || this.selectedImage}"]`);
+        return wrapper?.dataset.layout || 'inline';
+    }
+
+    setImageLayout(layout, options = {}) {
+        const imageId = options.imageId || this.selectedImage;
+        if (!imageId) return;
+        this.selectedImage = imageId;
+        const wrapper = document.querySelector(`[data-image-id="${imageId}"]`);
+        if (!wrapper) return;
+
+        const nextLayout = layout || 'inline';
+        const wasFree = this.isFreePositioned(wrapper);
+        const imageData = this.images.get(imageId);
+        const editor = document.getElementById('editor');
+
+        wrapper.classList.remove(
+            'image-layout-inline',
+            'image-layout-square',
+            'image-layout-top-bottom',
+            'image-layout-floating',
+            'image-layout-front',
+            'image-layout-behind',
+            'image-align-left',
+            'image-align-right'
+        );
+
+        wrapper.dataset.layout = nextLayout;
+        if (imageData) imageData.layout = nextLayout;
+
+        if (nextLayout === 'square') {
+            const align = options.align || wrapper.dataset.align || imageData?.align || 'left';
+            wrapper.dataset.align = align;
+            wrapper.classList.add('image-layout-square', align === 'right' ? 'image-align-right' : 'image-align-left');
+            wrapper.style.left = '';
+            wrapper.style.top = '';
+            wrapper.style.zIndex = '';
+            if (imageData) imageData.align = align;
+        } else if (nextLayout === 'top-bottom') {
+            wrapper.classList.add('image-layout-top-bottom');
+            wrapper.style.left = '';
+            wrapper.style.top = '';
+            wrapper.style.zIndex = '';
+        } else if (nextLayout === 'floating' || nextLayout === 'front' || nextLayout === 'behind') {
+            const className = nextLayout === 'front'
+                ? 'image-layout-front'
+                : nextLayout === 'behind'
+                    ? 'image-layout-behind'
+                    : 'image-layout-floating';
+            wrapper.classList.add(className);
+            this.placeFreeImage(wrapper, imageData, wasFree);
+        } else {
+            wrapper.classList.add('image-layout-inline');
+            wrapper.style.left = '';
+            wrapper.style.top = '';
+            wrapper.style.zIndex = '';
+        }
+
+        if (editor) editor.dispatchEvent(new Event('input', { bubbles: true }));
+        this.saveToLocalStorage();
+    }
+
+    isFreePositioned(wrapper) {
+        const layout = wrapper?.dataset.layout;
+        return layout === 'floating' || layout === 'front' || layout === 'behind';
+    }
+
+    placeFreeImage(wrapper, imageData, keepPosition) {
+        const editor = document.getElementById('editor');
+        if (!editor) return;
+
+        const editorRect = editor.getBoundingClientRect();
+        const wrapperRect = wrapper.getBoundingClientRect();
+        let x = keepPosition && imageData ? imageData.x : null;
+        let y = keepPosition && imageData ? imageData.y : null;
+
+        if (x === null || y === null || x === undefined || y === undefined) {
+            x = Math.max(0, wrapperRect.left - editorRect.left + editor.scrollLeft);
+            y = Math.max(0, wrapperRect.top - editorRect.top + editor.scrollTop);
+        }
+
+        wrapper.style.left = Math.round(x) + 'px';
+        wrapper.style.top = Math.round(y) + 'px';
+        wrapper.style.zIndex = wrapper.dataset.layout === 'behind' ? '1' : wrapper.dataset.layout === 'front' ? '30' : '12';
+        if (imageData) {
+            imageData.x = Math.round(x);
+            imageData.y = Math.round(y);
+        }
+    }
+
+    startFreeImageDrag(e, wrapper, imageId) {
+        const editor = document.getElementById('editor');
+        if (!editor) return;
+        const imageData = this.images.get(imageId);
+        this.placeFreeImage(wrapper, imageData, true);
+
+        this.floatDragData = {
+            wrapper,
+            imageId,
+            startX: e.clientX,
+            startY: e.clientY,
+            startLeft: parseFloat(wrapper.style.left) || 0,
+            startTop: parseFloat(wrapper.style.top) || 0
+        };
+        wrapper.classList.add('dragging');
+        document.body.classList.add('image-drag-active');
+        e.preventDefault();
+        e.stopPropagation();
+    }
+
+    handleFreeImageDragMove(e) {
+        const data = this.floatDragData;
+        if (!data) return;
+        const editor = document.getElementById('editor');
+        const img = data.wrapper.querySelector('img');
+        if (!editor || !img) return;
+
+        const maxLeft = Math.max(0, editor.clientWidth - img.offsetWidth);
+        const maxTop = Math.max(0, editor.scrollHeight - img.offsetHeight);
+        const nextLeft = Math.max(0, Math.min(maxLeft, data.startLeft + e.clientX - data.startX));
+        const nextTop = Math.max(0, Math.min(maxTop, data.startTop + e.clientY - data.startY));
+
+        data.wrapper.style.left = Math.round(nextLeft) + 'px';
+        data.wrapper.style.top = Math.round(nextTop) + 'px';
+    }
+
+    finishFreeImageDrag() {
+        const data = this.floatDragData;
+        if (!data) return;
+        const imageData = this.images.get(data.imageId);
+        if (imageData) {
+            imageData.x = parseFloat(data.wrapper.style.left) || 0;
+            imageData.y = parseFloat(data.wrapper.style.top) || 0;
+        }
+        data.wrapper.classList.remove('dragging');
+        document.body.classList.remove('image-drag-active');
+        this.saveToLocalStorage();
+
+        const editor = document.getElementById('editor');
+        if (editor) editor.dispatchEvent(new Event('input', { bubbles: true }));
     }
 
     startCrop() {
@@ -700,10 +1046,16 @@ class ImageManager {
         this.cropData = null;
     }
 
-    deleteImage() {
+    async deleteImage() {
         if (!this.selectedImage) return;
 
-        if (confirm('Weet je zeker dat je deze afbeelding wilt verwijderen?')) {
+        const ok = await window.SummieDialogs.confirm('Weet je zeker dat je deze afbeelding wilt verwijderen?', {
+            title: 'Afbeelding verwijderen',
+            confirmText: 'Verwijderen',
+            cancelText: 'Annuleren',
+            danger: true
+        });
+        if (ok) {
             const wrapper = document.querySelector(`[data-image-id="${this.selectedImage}"]`);
             this.images.delete(this.selectedImage);
             this.selectedImage = null;
@@ -765,12 +1117,18 @@ class ImageManager {
                 }
 
                 // Restore dimensions
+                imageData.originalWidth = imageData.originalWidth || imageData.width || imageData.naturalWidth || img.naturalWidth || img.offsetWidth;
+                imageData.originalHeight = imageData.originalHeight || imageData.height || imageData.naturalHeight || img.naturalHeight || img.offsetHeight;
                 if (imageData.width) {
                     img.style.width = imageData.width + 'px';
                 }
                 if (imageData.height) {
                     img.style.height = imageData.height + 'px';
                 }
+
+                wrapper.dataset.layout = imageData.layout || wrapper.dataset.layout || 'inline';
+                if (imageData.align) wrapper.dataset.align = imageData.align;
+                this.setImageLayoutForWrapper(wrapper, imageData);
 
                 // Remove existing click handler if any to avoid duplicates
                 if (wrapper._clickHandler) {
@@ -784,6 +1142,11 @@ class ImageManager {
                 };
                 wrapper.addEventListener('click', handler);
                 wrapper._clickHandler = handler;
+
+                if (wrapper._dragHandlerReady !== true) {
+                    this.setupImageDrag(wrapper, imageId);
+                    wrapper._dragHandlerReady = true;
+                }
 
                 // Remove existing toolbar if any
                 const existingToolbar = wrapper.querySelector('.image-toolbar');
@@ -800,10 +1163,45 @@ class ImageManager {
                 existingHandles.forEach(h => h.remove());
 
                 // Add all 8 fresh handles with proper event listeners
-                const handles = this.createResizeHandles();
+                const handles = this.createResizeHandles(imageId);
                 handles.forEach(handle => wrapper.appendChild(handle));
             }
         });
+    }
+
+    setImageLayoutForWrapper(wrapper, imageData) {
+        const layout = imageData.layout || wrapper.dataset.layout || 'inline';
+        wrapper.classList.remove(
+            'image-layout-inline',
+            'image-layout-square',
+            'image-layout-top-bottom',
+            'image-layout-floating',
+            'image-layout-front',
+            'image-layout-behind',
+            'image-align-left',
+            'image-align-right'
+        );
+        wrapper.dataset.layout = layout;
+
+        if (layout === 'square') {
+            const align = imageData.align || wrapper.dataset.align || 'left';
+            wrapper.dataset.align = align;
+            wrapper.classList.add('image-layout-square', align === 'right' ? 'image-align-right' : 'image-align-left');
+        } else if (layout === 'top-bottom') {
+            wrapper.classList.add('image-layout-top-bottom');
+        } else if (layout === 'floating' || layout === 'front' || layout === 'behind') {
+            const className = layout === 'front'
+                ? 'image-layout-front'
+                : layout === 'behind'
+                    ? 'image-layout-behind'
+                    : 'image-layout-floating';
+            wrapper.classList.add(className);
+            wrapper.style.left = (imageData.x || 0) + 'px';
+            wrapper.style.top = (imageData.y || 0) + 'px';
+            wrapper.style.zIndex = layout === 'behind' ? '1' : layout === 'front' ? '30' : '12';
+        } else {
+            wrapper.classList.add('image-layout-inline');
+        }
     }
 
     showNotification(title, message, type) {

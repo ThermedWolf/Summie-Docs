@@ -156,6 +156,54 @@ function _applyOdometerSplit(el, number, label) {
     labelEl.textContent = label;
 }
 
+// ---- File size display (odometer animation) ----
+let _lastFileSizeBytes = null;
+
+function _formatBytes(bytes) {
+    if (bytes === null || bytes === undefined) return '';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+function _odometerUpdate(el, newText) {
+    if (!newText) { el.innerHTML = ''; return; }
+
+    const oldChars = Array.from(el.querySelectorAll('.fsz-char')).map(c => c.dataset.char);
+    const newChars = newText.split('');
+
+    // Rebuild spans — animate only digits that changed
+    el.innerHTML = newChars.map((ch, i) => {
+        const changed = ch !== oldChars[i];
+        const isDigit = /[0-9]/.test(ch);
+        if (changed && isDigit) {
+            return `<span class="fsz-char fsz-char-anim" data-char="${ch}">${ch}</span>`;
+        }
+        return `<span class="fsz-char" data-char="${ch}">${ch}</span>`;
+    }).join('');
+}
+
+async function updateFileSize() {
+    const el = document.getElementById('fileSizeDisplay');
+    if (!el) return;
+
+    const path = window.currentFilePath;
+    if (!path || !window.electron?.getFileSize) {
+        el.innerHTML = '';
+        _lastFileSizeBytes = null;
+        return;
+    }
+
+    const bytes = await window.electron.getFileSize(path);
+    if (bytes === _lastFileSizeBytes) return;
+    _lastFileSizeBytes = bytes;
+
+    const formatted = _formatBytes(bytes);
+    _odometerUpdate(el, formatted);
+}
+
+window.updateFileSize = updateFileSize;
+
 function updateWordCounter() {
     const state = window.AppState;
     const { editor } = state;

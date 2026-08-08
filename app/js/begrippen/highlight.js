@@ -6,6 +6,22 @@ function escapeRegex(str) {
     return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+// Build a regex for a begrip keyword that handles keywords containing dots or
+// other non-word characters.  For plain word characters we can use \b;
+// for anything else we fall back to a lookahead/lookbehind on non-word chars
+// (or start/end of string) so the keyword still matches as a whole "word".
+function buildBegripRegex(keyword, flags) {
+    const escaped = escapeRegex(keyword);
+    // If every character is a word char (\w), \b works perfectly.
+    if (/^\w+$/.test(keyword)) {
+        return new RegExp(`\\b${escaped}\\b`, flags);
+    }
+    // Otherwise use lookahead / lookbehind so we don't match partial words.
+    // (?<!\w) ensures we're not preceded by a word char.
+    // (?!\w)  ensures we're not followed by a word char.
+    return new RegExp(`(?<!\\w)${escaped}(?!\\w)`, flags);
+}
+
 function getTextOffset(container, node, offset) {
     const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null, false);
     let totalOffset = 0;
@@ -81,10 +97,10 @@ function highlightBegrippen() {
         let hasMatch = false;
 
         begrippen.forEach(begrip => {
-            if (new RegExp(`\\b${escapeRegex(begrip.keyword)}\\b`, 'gi').test(text)) hasMatch = true;
+            if (buildBegripRegex(begrip.keyword, 'i').test(text)) hasMatch = true;
             if (!hasMatch && begrip.aliases) {
                 begrip.aliases.forEach(alias => {
-                    if (new RegExp(`\\b${escapeRegex(alias)}\\b`, 'gi').test(text)) hasMatch = true;
+                    if (buildBegripRegex(alias, 'i').test(text)) hasMatch = true;
                 });
             }
         });
@@ -100,14 +116,14 @@ function highlightBegrippen() {
         // Collect all matches (keyword + aliases)
         const matches = [];
         begrippen.forEach(begrip => {
-            const keywordRegex = new RegExp(`\\b${escapeRegex(begrip.keyword)}\\b`, 'gi');
+            const keywordRegex = buildBegripRegex(begrip.keyword, 'gi');
             let match;
             while ((match = keywordRegex.exec(text)) !== null) {
                 matches.push({ start: match.index, end: match.index + match[0].length, text: match[0], keyword: begrip.keyword, length: match[0].length });
             }
             if (begrip.aliases) {
                 begrip.aliases.forEach(alias => {
-                    const aliasRegex = new RegExp(`\\b${escapeRegex(alias)}\\b`, 'gi');
+                    const aliasRegex = buildBegripRegex(alias, 'gi');
                     while ((match = aliasRegex.exec(text)) !== null) {
                         matches.push({ start: match.index, end: match.index + match[0].length, text: match[0], keyword: begrip.keyword, length: match[0].length });
                     }
@@ -216,6 +232,7 @@ function hideBegripTooltip() {
 
 // Expose
 window.escapeRegex = escapeRegex;
+window.buildBegripRegex = buildBegripRegex;
 window.getTextOffset = getTextOffset;
 window.restoreCursorPosition = restoreCursorPosition;
 window.highlightBegrippen = highlightBegrippen;

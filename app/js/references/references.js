@@ -28,10 +28,16 @@ window.ReferencesManager = {
         window.showNotification && window.showNotification('Verwijzing toegevoegd', `"${name}" is toegevoegd.`, 'success');
     },
 
-    deleteReference(id) {
+    async deleteReference(id) {
         const ref = this.references.find(r => r.id === id);
         if (!ref) return;
-        if (!confirm(`Verwijzing "${ref.name}" verwijderen?`)) return;
+        const ok = await window.SummieDialogs.confirm(`Verwijzing "${ref.name}" verwijderen?`, {
+            title: 'Verwijzing verwijderen',
+            confirmText: 'Verwijderen',
+            cancelText: 'Annuleren',
+            danger: true
+        });
+        if (!ok) return;
         // Remove marker from document
         if (ref.targetEl && ref.targetEl.isConnected) {
             ref.targetEl.classList.remove('ref-target');

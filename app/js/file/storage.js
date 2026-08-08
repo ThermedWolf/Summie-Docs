@@ -1,7 +1,7 @@
 // ==================== LOCAL STORAGE ====================
 // saveToLocalStorage, loadFromLocalStorage, clearLocalStorage, setupAutoSave.
 
-function saveToLocalStorage() {
+async function saveToLocalStorage() {
     const { editor, begrippen } = window.AppState;
     const imagesData = window.imageManager ? window.imageManager.getImagesData() : {};
     const codeBlocksData = window.codeBlockManager ? window.codeBlockManager.getCodeBlocksData() : [];
@@ -27,7 +27,11 @@ function saveToLocalStorage() {
     const imageCount = Object.keys(imagesData).length;
 
     try {
-        localStorage.setItem('summaryData', JSON.stringify(data));
+        const dataToStore = await (window.DocumentProtection
+            ? window.DocumentProtection.prepareForSave(data)
+            : data);
+        if (!dataToStore) return;
+        localStorage.setItem('summaryData', JSON.stringify(dataToStore));
     } catch (e) {
         if (e.name === 'QuotaExceededError') {
             console.error('LocalStorage quota exceeded!', (dataSize / 1024 / 1024).toFixed(2) + ' MB');
@@ -43,17 +47,25 @@ function saveToLocalStorage() {
     }
 }
 
-function loadFromLocalStorage() {
+async function loadFromLocalStorage() {
     const state = window.AppState;
     const saved = localStorage.getItem('summaryData');
     if (!saved) return;
 
     try {
-        const data = JSON.parse(saved);
+        let data = JSON.parse(saved);
+        if (window.DocumentProtection) {
+            data = await window.DocumentProtection.openData(data);
+            if (!data) return;
+        }
 
-        if (!data.content || data.content === '<p>Begin hier met typen...</p>') {
-            state.editor.innerHTML = '';
-        } else {
+        if (window.applyLoadedData) {
+            window.applyLoadedData(data);
+            return;
+        }
+
+        if (!data.content || data.content === '<p>Begin hier met typen...</p>') state.editor.innerHTML = '';
+        else {
             state.editor.innerHTML = data.content;
             state.editor.querySelectorAll('.placeholder-text').forEach(el => el.remove());
         }

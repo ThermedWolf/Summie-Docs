@@ -77,6 +77,7 @@ window.ElementProtection = (function () {
             if (!n || n.nodeType !== Node.ELEMENT_NODE) return false;
             if (n.nodeName === 'TABLE' && editor.contains(n)) return true;
             if (n.classList.contains('code-block-wrapper') && editor.contains(n)) return true;
+            if (n.classList.contains('summie-shape-wrapper') && editor.contains(n)) return true;
             return false;
         }
 
@@ -138,6 +139,8 @@ window.ElementProtection = (function () {
         code: ['codeblock-styling'],
         table: ['tabel-indeling', 'tabel-ontwerp', 'tabel-formules'],
         textbox: ['textbox-opmaak'],
+        image: ['afbeelding-opmaak'],
+        shape: ['vorm-opmaak'],
     };
 
     // ── Build Context Tab Container ───────────────────────────────────────
@@ -374,6 +377,10 @@ window.ElementProtection = (function () {
                 } else {
                     cancelHide();
                 }
+            } else if (_currentContext === 'image') {
+                // Image context is managed entirely by image-controls click handlers
+                // — don't hide on selectionchange since images are non-editable
+                cancelHide();
             }
         });
     }

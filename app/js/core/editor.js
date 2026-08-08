@@ -19,8 +19,9 @@ function isEditorEmpty() {
 
     const clone = editor.cloneNode(true);
     clone.querySelectorAll('.placeholder-text').forEach(el => el.remove());
+    clone.querySelectorAll('.page-number-badge, .summie-page-break, #summie-pagination-cursor').forEach(el => el.remove());
 
-    if (clone.querySelector('img, table, .code-block-wrapper, .summie-textbox')) return false;
+    if (clone.querySelector('img, table, .code-block-wrapper, .summie-textbox, .summie-shape-wrapper')) return false;
 
     const text = (clone.innerText || clone.textContent || '')
         .replace(/\u00a0/g, ' ')
@@ -145,6 +146,7 @@ function applyLoadedData(data) {
 
     // Derive pagination mode from the file itself — never rely on localStorage for this.
     // Old docs (v3.2.3 and earlier) have no 'pages' field → always single page mode.
+    const hasPageData = data.pages && data.pages.length > 0;
     if (window.PageManager) {
         const hasMultiplePages = data.pages && data.pages.length > 1;
         if (hasMultiplePages) {
@@ -160,10 +162,12 @@ function applyLoadedData(data) {
         }
     }
 
-    state.editor.innerHTML = data.content || '';
+    if (!hasPageData) {
+        state.editor.innerHTML = data.content || '';
+    }
     setPendingEmptyEditorStyle('normal');
     state.editor.querySelectorAll('.placeholder-text').forEach(el => el.remove());
-    if (!data.content || data.content.trim() === '' || data.content === '<p>Begin hier met typen...</p>') {
+    if (!hasPageData && (!data.content || data.content.trim() === '' || data.content === '<p>Begin hier met typen...</p>')) {
         setEditorPlaceholder();
     } else {
         updateEditorPlaceholder();
@@ -199,6 +203,7 @@ function applyLoadedData(data) {
     window.updateInhoudList && window.updateInhoudList();
     window.updateActiveInhoudItem && window.updateActiveInhoudItem();
     window.highlightBegrippen && window.highlightBegrippen();
+    window.TextboxManager && window.TextboxManager.repairInlineTextboxes && window.TextboxManager.repairInlineTextboxes(state.editor);
     window.saveToLocalStorage && window.saveToLocalStorage();
     window.updateWordCounter && window.updateWordCounter();
     window.updateBegrippenCounter && window.updateBegrippenCounter();
@@ -227,7 +232,8 @@ window.checkUnsavedChanges = function () {
     const { editor, begrippen, lastSavedContent, lastSavedBegrippen } = window.AppState;
     const hasChanges = (
         editor.innerHTML !== (lastSavedContent || '') ||
-        JSON.stringify(begrippen) !== (lastSavedBegrippen || '[]')
+        JSON.stringify(begrippen) !== (lastSavedBegrippen || '[]') ||
+        (window.DocumentProtection?.isProtected?.() || false) !== (window.AppState.lastSavedProtection || false)
     );
     return { hasChanges };
 };

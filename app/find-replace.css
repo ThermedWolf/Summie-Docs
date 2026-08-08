@@ -1,0 +1,309 @@
+/* ==================== FIND & REPLACE PANEL ==================== */
+
+#findReplacePanel {
+    display: none;
+    position: fixed;
+    top: var(--topbar-height, 110px);
+    right: 32px;
+    width: 420px;
+    background: var(--bg-white);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    box-shadow: var(--shadow-lg), 0 20px 40px rgba(0, 0, 0, 0.12);
+    z-index: 900;
+    font-size: 13px;
+    color: var(--text-primary);
+    animation: frSlideIn 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+    overflow: hidden;
+}
+
+#findReplacePanel.active {
+    display: block;
+}
+
+@keyframes frSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-8px) scale(0.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* ── Header ── */
+.fr-header {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    padding: 0 4px 0 12px;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-light);
+    min-height: 36px;
+}
+
+.fr-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    flex: 1;
+}
+
+.fr-toggle-replace {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    border: none;
+    background: none;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 5px;
+    transition: background 0.12s, color 0.12s;
+}
+
+.fr-toggle-replace:hover {
+    background: var(--border-color);
+    color: var(--text-primary);
+}
+
+.fr-toggle-replace svg {
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+}
+
+.fr-toggle-replace.replace-open svg {
+    transform: rotate(90deg);
+}
+
+.fr-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    border-radius: 5px;
+    color: var(--text-secondary);
+    transition: background 0.12s, color 0.12s;
+    flex-shrink: 0;
+}
+
+.fr-close:hover {
+    background: #fef2f2;
+    color: #ef4444;
+}
+
+/* ── Body ── */
+.fr-body {
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* ── Row: input + option buttons + nav ── */
+.fr-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.fr-input-wrap {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+}
+
+.fr-input {
+    width: 100%;
+    box-sizing: border-box;
+    height: 32px;
+    padding: 0 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: inherit;
+    color: var(--text-primary);
+    background: var(--bg-white);
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.fr-input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+
+.fr-input.fr-input--error {
+    border-color: #ef4444;
+    box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.15);
+    background: #fff5f5;
+}
+
+/* ── Option toggle buttons (Aa, W, .*) ── */
+.fr-options {
+    display: flex;
+    gap: 2px;
+    flex-shrink: 0;
+}
+
+.fr-opt-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: 1px solid transparent;
+    border-radius: 5px;
+    background: none;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    transition: background 0.1s, color 0.1s, border-color 0.1s;
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+.fr-opt-btn:hover {
+    background: var(--bg-light);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+.fr-opt-btn.active {
+    background: rgba(59, 130, 246, 0.1);
+    color: var(--primary-color);
+    border-color: rgba(59, 130, 246, 0.3);
+}
+
+/* ── Navigation buttons (prev / next) ── */
+.fr-nav {
+    display: flex;
+    gap: 2px;
+    flex-shrink: 0;
+}
+
+.fr-nav-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    background: var(--bg-white);
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: background 0.1s, color 0.1s, border-color 0.1s;
+    flex-shrink: 0;
+}
+
+.fr-nav-btn:hover {
+    background: var(--bg-light);
+    color: var(--text-primary);
+    border-color: #cbd5e1;
+}
+
+.fr-nav-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+/* ── Match counter ── */
+.fr-counter {
+    font-size: 11px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    min-width: 70px;
+    text-align: right;
+    flex-shrink: 0;
+}
+
+.fr-counter.fr-no-match {
+    color: #ef4444;
+}
+
+/* ── Replace row (collapsible) ── */
+.fr-replace-section {
+    display: none;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.fr-replace-section.open {
+    display: flex;
+}
+
+.fr-replace-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.fr-btn {
+    height: 28px;
+    padding: 0 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    background: var(--bg-white);
+    font-size: 12px;
+    font-family: inherit;
+    color: var(--text-primary);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.1s, border-color 0.1s, color 0.1s;
+}
+
+.fr-btn:hover {
+    background: var(--bg-light);
+    border-color: #cbd5e1;
+}
+
+.fr-btn.fr-btn--primary {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: #fff;
+}
+
+.fr-btn.fr-btn--primary:hover {
+    background: var(--primary-hover);
+    border-color: var(--primary-hover);
+}
+
+.fr-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* ── Regex error tooltip ── */
+.fr-regex-error {
+    display: none;
+    font-size: 11px;
+    color: #ef4444;
+    padding: 2px 4px;
+}
+
+.fr-regex-error.visible {
+    display: block;
+}
+
+/* ── Search highlights in the editor ── */
+.fr-highlight {
+    background: #fef08a;
+    border-radius: 2px;
+    color: inherit;
+}
+
+.fr-highlight.fr-highlight--current {
+    background: #fbbf24;
+    outline: 2px solid #f59e0b;
+    border-radius: 2px;
+}

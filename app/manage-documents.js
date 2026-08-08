@@ -302,12 +302,33 @@
         matches.forEach((tag, i) => {
             const item = document.createElement('div');
             item.className = 'md-tag-suggestion-item';
-            item.textContent = tag;
             item.dataset.idx = i;
-            item.addEventListener('mousedown', e => {
+
+            const label = document.createElement('span');
+            label.className = 'md-tag-suggestion-label';
+            label.textContent = tag;
+            label.addEventListener('mousedown', e => {
                 e.preventDefault();
                 selectTagSuggestion(tag);
             });
+
+            const del = document.createElement('button');
+            del.className = 'md-tag-suggestion-delete';
+            del.title = 'Verwijder onthouden tag';
+            del.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+            del.addEventListener('mousedown', async e => {
+                e.preventDefault();
+                e.stopPropagation();
+                _knownTags = _knownTags.filter(t => t !== tag);
+                if (window.electron && window.electron.knownTagsSave) {
+                    await window.electron.knownTagsSave(_knownTags);
+                }
+                // Re-render suggestions with updated list
+                showTagSuggestions(document.getElementById('mdTagInput').value.trim());
+            });
+
+            item.appendChild(label);
+            item.appendChild(del);
             box.appendChild(item);
         });
         box.style.display = 'block';
@@ -457,7 +478,7 @@
                 }
                 doSearch(document.getElementById('mdSearchInput').value);
             } else {
-                alert('Hernoemen mislukt. Controleer of het bestand niet in gebruik is.');
+                await window.SummieDialogs.alert('Hernoemen mislukt. Controleer of het bestand niet in gebruik is.', { title: 'Fout' });
             }
         });
 
@@ -540,7 +561,7 @@
                 if (_editingDoc.path && window.electron) {
                     const result = await window.electron.loadSpecificFile(_editingDoc.path);
                     if (!result || !result.success) {
-                        alert(`Kon bestand niet openen:\n${result?.error || 'Onbekende fout'}`);
+                        await window.SummieDialogs.alert(`Kon bestand niet openen:\n${result?.error || 'Onbekende fout'}`, { title: 'Fout' });
                         return;
                     }
 

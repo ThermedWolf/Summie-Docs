@@ -117,6 +117,9 @@
         const invoegSection = document.querySelector('.toolbar-content[data-content="invoegen"]');
         if (!invoegSection || document.getElementById('headerFooterBtn')) return;
 
+        // Append to the scroll track if it exists, otherwise directly to the section
+        const target = invoegSection.querySelector('.toolbar-scroll-track') || invoegSection;
+
         // Separator
         const sep = document.createElement('div');
         sep.className = 'toolbar-separator animate-item';
@@ -157,8 +160,8 @@
                 </div>
             </div>`;
 
-        invoegSection.appendChild(sep);
-        invoegSection.appendChild(group);
+        target.appendChild(sep);
+        target.appendChild(group);
 
         // Events
         const btn = document.getElementById('headerFooterBtn');
