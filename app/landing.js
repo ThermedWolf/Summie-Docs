@@ -141,9 +141,8 @@ function _showMissingDocDialog(doc) {
             if (window.electron.favouritesSave) await window.electron.favouritesSave(favs);
         }
         // Now open the document
-        localStorage.setItem('summie_pending_load', JSON.stringify({ data: result.data, path: newPath, name: newName }));
         localStorage.setItem('summie_current_file_path', newPath);
-        navigateToEditor(result.data);
+        navigateToEditor(result.data, false, newPath, newName);
     });
 
     overlay.querySelector('#mdRemove').addEventListener('click', async () => {
@@ -981,16 +980,10 @@ async function openRecentDoc(doc) {
         // Load from file
         const result = await window.electron.loadSpecificFile(doc.path);
         if (result.success) {
-            // Store as current and navigate
-            localStorage.setItem('summie_pending_load', JSON.stringify({
-                data: result.data,
-                path: result.path,
-                name: doc.name
-            }));
             // Update recent
             await window.electron.recentsAdd({ ...doc, lastOpened: new Date().toISOString() });
             localStorage.setItem('summie_current_file_path', doc.path);
-            navigateToEditor(result.data);
+            navigateToEditor(result.data, false, result.path, doc.name);
         } else {
             _showMissingDocDialog(doc);
         }
@@ -1033,13 +1026,15 @@ async function openFromFile() {
     });
 
     localStorage.setItem('summie_current_file_path', path);
-    localStorage.setItem('summie_pending_load', JSON.stringify({ data, path, name }));
-    navigateToEditor(data);
+    navigateToEditor(data, false, path, name);
 }
 
-function navigateToEditor(data, isNew = false) {
+function navigateToEditor(data, isNew = false, path = null, name = null) {
     if (data) {
-        localStorage.setItem('summie_pending_load', JSON.stringify({ data }));
+        const pending = { data };
+        if (path) pending.path = path;
+        if (name) pending.name = name;
+        localStorage.setItem('summie_pending_load', JSON.stringify(pending));
     }
     if (isNew) {
         localStorage.setItem('summie_new_document', '1');

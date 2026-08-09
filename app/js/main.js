@@ -31,6 +31,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             const pending = JSON.parse(pendingLoadRaw);
             if (pending.data) {
+                // Set the active file path synchronously, right away, so it can never be
+                // shadowed by the localStorage fallback below (step 3) or raced by anything
+                // else that runs before the deferred load finishes.
+                if (pending.path) {
+                    window.currentFilePath = pending.path;
+                    localStorage.setItem('summie_current_file_path', pending.path);
+                }
                 setTimeout(async () => {
                     let pendingData = pending.data;
                     if (window.DocumentProtection) {
@@ -39,8 +46,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                     applyLoadedData(pendingData);
                     if (pending.path) {
-                        window.currentFilePath = pending.path;
-                        localStorage.setItem('summie_current_file_path', pending.path);
                         window.updateWindowTitle && window.updateWindowTitle(pending.path);
                         window.AutoSave && window.AutoSave.onFileChanged();
                         window.updateFileSize && window.updateFileSize();
