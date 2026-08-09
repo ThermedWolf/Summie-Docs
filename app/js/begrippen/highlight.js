@@ -3,14 +3,17 @@
 // showBegripTooltip, hideBegripTooltip.
 
 function escapeRegex(str) {
-    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 // Build a regex for a begrip keyword that handles keywords containing dots or
 // other non-word characters.  For plain word characters we can use \b;
 // for anything else we fall back to a lookahead/lookbehind on non-word chars
 // (or start/end of string) so the keyword still matches as a whole "word".
+// Returns null for empty/missing keywords so callers can skip them safely —
+// malformed data in a .sumd file shouldn't be able to crash the whole load.
 function buildBegripRegex(keyword, flags) {
+    if (!keyword || typeof keyword !== 'string') return null;
     const escaped = escapeRegex(keyword);
     // If every character is a word char (\w), \b works perfectly.
     if (/^\w+$/.test(keyword)) {
@@ -97,10 +100,12 @@ function highlightBegrippen() {
         let hasMatch = false;
 
         begrippen.forEach(begrip => {
-            if (buildBegripRegex(begrip.keyword, 'i').test(text)) hasMatch = true;
+            const keywordRegex = buildBegripRegex(begrip.keyword, 'i');
+            if (keywordRegex && keywordRegex.test(text)) hasMatch = true;
             if (!hasMatch && begrip.aliases) {
                 begrip.aliases.forEach(alias => {
-                    if (buildBegripRegex(alias, 'i').test(text)) hasMatch = true;
+                    const aliasRegex = buildBegripRegex(alias, 'i');
+                    if (aliasRegex && aliasRegex.test(text)) hasMatch = true;
                 });
             }
         });
@@ -117,13 +122,17 @@ function highlightBegrippen() {
         const matches = [];
         begrippen.forEach(begrip => {
             const keywordRegex = buildBegripRegex(begrip.keyword, 'gi');
-            let match;
-            while ((match = keywordRegex.exec(text)) !== null) {
-                matches.push({ start: match.index, end: match.index + match[0].length, text: match[0], keyword: begrip.keyword, length: match[0].length });
+            if (keywordRegex) {
+                let match;
+                while ((match = keywordRegex.exec(text)) !== null) {
+                    matches.push({ start: match.index, end: match.index + match[0].length, text: match[0], keyword: begrip.keyword, length: match[0].length });
+                }
             }
             if (begrip.aliases) {
                 begrip.aliases.forEach(alias => {
                     const aliasRegex = buildBegripRegex(alias, 'gi');
+                    if (!aliasRegex) return;
+                    let match;
                     while ((match = aliasRegex.exec(text)) !== null) {
                         matches.push({ start: match.index, end: match.index + match[0].length, text: match[0], keyword: begrip.keyword, length: match[0].length });
                     }

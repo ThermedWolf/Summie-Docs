@@ -206,6 +206,115 @@
         '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16',
     ];
 
+    // Small, dependency-free recursive-descent parser/evaluator for the
+    // limited formula grammar this feature supports (numbers, x, + - * / **,
+    // parentheses, unary minus). Deliberately avoids new Function()/eval() so
+    // the app can run under a strict CSP without 'unsafe-eval'.
+    function _compileFormulaExpr(expr) {
+        const tokens = [];
+        let i = 0;
+        while (i < expr.length) {
+            const c = expr[i];
+            if (/[0-9.]/.test(c)) {
+                let j = i + 1;
+                while (j < expr.length && /[0-9.]/.test(expr[j])) j++;
+                const numStr = expr.slice(i, j);
+                if (!/^\d*\.?\d+$/.test(numStr)) return null;
+                tokens.push({ type: 'num', value: parseFloat(numStr) });
+                i = j;
+                continue;
+            }
+            if (c === 'x') { tokens.push({ type: 'var' }); i++; continue; }
+            if (c === '+' || c === '-' || c === '/' || c === '(' || c === ')') {
+                tokens.push({ type: c }); i++; continue;
+            }
+            if (c === '*') {
+                if (expr[i + 1] === '*') { tokens.push({ type: '**' }); i += 2; }
+                else { tokens.push({ type: '*' }); i++; }
+                continue;
+            }
+            return null; // unsupported character — invalid formula
+        }
+
+        let pos = 0;
+        const peek = () => tokens[pos];
+        const next = () => tokens[pos++];
+
+        function parseExpr() {
+            let left = parseTerm();
+            if (left === null) return null;
+            while (peek() && (peek().type === '+' || peek().type === '-')) {
+                const op = next().type;
+                const right = parseTerm();
+                if (right === null) return null;
+                const l = left, r = right;
+                left = op === '+' ? (x => l(x) + r(x)) : (x => l(x) - r(x));
+            }
+            return left;
+        }
+
+        function parseTerm() {
+            let left = parsePower();
+            if (left === null) return null;
+            while (peek() && (peek().type === '*' || peek().type === '/')) {
+                const op = next().type;
+                const right = parsePower();
+                if (right === null) return null;
+                const l = left, r = right;
+                left = op === '*' ? (x => l(x) * r(x)) : (x => l(x) / r(x));
+            }
+            return left;
+        }
+
+        function parsePower() {
+            const base = parseUnary();
+            if (base === null) return null;
+            if (peek() && peek().type === '**') {
+                next();
+                const exp = parsePower(); // right-associative
+                if (exp === null) return null;
+                const b = base, e = exp;
+                return x => Math.pow(b(x), e(x));
+            }
+            return base;
+        }
+
+        function parseUnary() {
+            if (peek() && peek().type === '-') {
+                next();
+                const operand = parseUnary();
+                if (operand === null) return null;
+                const o = operand;
+                return x => -o(x);
+            }
+            if (peek() && peek().type === '+') {
+                next();
+                return parseUnary();
+            }
+            return parsePrimary();
+        }
+
+        function parsePrimary() {
+            const t = peek();
+            if (!t) return null;
+            if (t.type === 'num') { next(); const v = t.value; return () => v; }
+            if (t.type === 'var') { next(); return x => x; }
+            if (t.type === '(') {
+                next();
+                const inner = parseExpr();
+                if (inner === null) return null;
+                if (!peek() || peek().type !== ')') return null;
+                next();
+                return inner;
+            }
+            return null;
+        }
+
+        const result = parseExpr();
+        if (result === null || pos !== tokens.length) return null;
+        return result;
+    }
+
     // Parse a formula like "y=2x+1" or "x=y-2" and return f(x) as a JS function
     function parseFormula(input) {
         let expr = input.trim()
@@ -223,8 +332,8 @@
         expr = expr.replace(/(\d)\(/g, '$1*(');
 
         try {
-            // eslint-disable-next-line no-new-func
-            const fn = new Function('x', `"use strict"; return (${expr});`);
+            const fn = _compileFormulaExpr(expr);
+            if (!fn) return null;
             // Quick test
             const test = fn(1);
             if (typeof test !== 'number' || !isFinite(test)) return null;

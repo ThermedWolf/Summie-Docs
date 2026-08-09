@@ -202,7 +202,13 @@ function applyLoadedData(data) {
     window.updateBegrippenList && window.updateBegrippenList();
     window.updateInhoudList && window.updateInhoudList();
     window.updateActiveInhoudItem && window.updateActiveInhoudItem();
-    window.highlightBegrippen && window.highlightBegrippen();
+    try {
+        window.highlightBegrippen && window.highlightBegrippen();
+    } catch (e) {
+        // A malformed begrip in the document shouldn't be able to abort the
+        // rest of the load (word count, styles, tab ruler, unsaved baseline).
+        console.error('highlightBegrippen failed, continuing with the rest of the load:', e);
+    }
     window.TextboxManager && window.TextboxManager.repairInlineTextboxes && window.TextboxManager.repairInlineTextboxes(state.editor);
     window.saveToLocalStorage && window.saveToLocalStorage();
     window.updateWordCounter && window.updateWordCounter();

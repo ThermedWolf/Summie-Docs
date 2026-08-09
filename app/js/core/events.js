@@ -231,6 +231,12 @@ function setupEventListeners() {
     const quickSaveBtn = document.getElementById('quickSaveBtn');
     const loadFileBtn = document.getElementById('loadFileBtn');
     const fileInput = document.getElementById('fileInput');
+    const openLerenBtn = document.getElementById('openLerenBtn');
+
+    if (openLerenBtn) openLerenBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        window.electron && window.electron.openLeren && window.electron.openLeren();
+    });
 
     if (newSummaryBtn) newSummaryBtn.addEventListener('click', window.newSummary);
     if (newWindowBtn) newWindowBtn.addEventListener('click', () => {
