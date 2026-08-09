@@ -1,5 +1,12 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
+// Single source of truth for the app version — same value main.js reads for the
+// window title (via app.getVersion(), which reads package.json's "version").
+// Fetched over sync IPC rather than require('./package.json') here, since that
+// relative path breaks once the app is packaged/bundled and preload.js ends up
+// in a different folder than package.json.
+const APP_VERSION = ipcRenderer.sendSync('get-app-version-sync');
+
 contextBridge.exposeInMainWorld(
     'electron',
     {
@@ -79,14 +86,14 @@ contextBridge.exposeInMainWorld(
         platform: process.platform,
 
         // App version
-        version: '4.1.0'
+        version: APP_VERSION
     }
 );
 
 contextBridge.exposeInMainWorld(
     'appInfo',
     {
-        version: '4.1.0',
+        version: APP_VERSION,
         name: 'Summie',
         isElectron: true
     }

@@ -2,6 +2,13 @@ const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
+// Single source of truth for the app version. app.getVersion() reads it
+// straight from package.json's "version" field, so bumping that one value
+// updates the window title, preload's appInfo, and the landing page UI.
+// (Deliberately not using require('./package.json') here — that path breaks
+// once the app is packaged/bundled and preload.js no longer sits next to it.)
+const APP_VERSION = app.getVersion();
+
 // Fix GPU disk cache errors (access denied when multiple instances share cache)
 app.commandLine.appendSwitch('disable-gpu-shader-disk-cache');
 app.commandLine.appendSwitch('disable-http-cache');
@@ -162,7 +169,7 @@ function createWindow(filePathToOpen = null) {
         y: isNewWindow ? undefined : (savedState ? savedState.y : undefined),
         minWidth: 1200,
         minHeight: 700,
-        title: 'Summie v4.1.0',
+        title: `Summie v${APP_VERSION}`,
         icon: path.join(__dirname, 'app', 'icon.png'),
         frame: false,
         webPreferences: {
@@ -634,6 +641,12 @@ ipcMain.handle('autosave-set', (event, filePath, enabled) => {
     }
     writeAutoSaveSettings(settings);
     return true;
+});
+
+// Sync IPC so preload.js can read the app version at startup without touching
+// the filesystem/require directly (that path breaks once packaged/bundled).
+ipcMain.on('get-app-version-sync', (event) => {
+    event.returnValue = APP_VERSION;
 });
 
 // Update the window title to show the current document name

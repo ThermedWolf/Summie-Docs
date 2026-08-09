@@ -1120,7 +1120,20 @@ function generateId() {
 
 // ==================== INIT ====================
 
+// Fills in every on-screen version display from window.appInfo.version, which
+// itself comes from package.json (see preload.js) — one place to update.
+function applyAppVersionToUI() {
+    const version = window.appInfo && window.appInfo.version;
+    if (!version) return;
+    const badge = document.getElementById('appVersionBadge');
+    if (badge) badge.textContent = `v${version}`;
+    const settingsVersion = document.getElementById('settingsVersion');
+    if (settingsVersion) settingsVersion.textContent = `v${version}`;
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
+    applyAppVersionToUI();
+
     // Animate the loading bar while content loads
     const loaderBar = document.getElementById('summieLoaderBar');
     if (loaderBar) {

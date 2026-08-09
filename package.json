@@ -1,6 +1,6 @@
 {
   "name": "summie",
-  "version": "4.1.0",
+  "version": "4.1.1",
   "description": "Summie - Samenvattingen Maker",
   "main": "main.js",
   "scripts": {
