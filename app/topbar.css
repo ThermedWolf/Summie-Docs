@@ -631,17 +631,18 @@
 }
 
 .color-picker-popup {
-    position: absolute;
-    top: calc(100% + 8px);
-    left: 0;
+    /* Positioned via JS (fixed coords from the button's bounding box) since
+       this element is moved to <body> at runtime — see initColorPickers() —
+       to escape the toolbar's scroll/animation clipping context. */
+    position: fixed;
     background: white;
     border: 1px solid var(--border-color);
     border-radius: 12px;
     padding: 16px;
     box-shadow: var(--shadow-lg);
     display: none;
-    z-index: 9999;
-    min-width: 280px;
+    z-index: 99999;
+    min-width: 244px;
     animation: slideDown 0.2s ease;
 }
 
@@ -663,15 +664,25 @@
 
 .color-grid {
     display: grid;
-    grid-template-columns: repeat(6, 1fr);
-    gap: 8px;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 6px;
     margin-bottom: 12px;
 }
 
+.color-section-common {
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.color-section-common .color-grid {
+    margin-bottom: 0;
+}
+
 .color-swatch {
-    width: 36px;
-    height: 36px;
-    border-radius: 6px;
+    width: 24px;
+    height: 24px;
+    border-radius: 5px;
     border: 2px solid transparent;
     cursor: pointer;
     transition: var(--transition);
@@ -682,13 +693,42 @@
 }
 
 .color-swatch:hover {
-    transform: scale(1.1);
+    transform: scale(1.15);
     border-color: var(--primary-color);
+    z-index: 1;
 }
 
 .color-swatch.selected {
     border-color: var(--primary-color);
     box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.color-none-btn {
+    width: 100%;
+    height: 32px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+    padding: 0 10px;
+    margin-bottom: 10px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    background: rgba(0, 0, 0, 0.03);
+    border: 1px solid var(--border-color);
+}
+
+.color-none-btn:hover {
+    transform: none;
+    background: rgba(59, 130, 246, 0.08);
+    border-color: var(--primary-color);
+    color: var(--text-primary);
+}
+
+.color-none-btn svg {
+    flex-shrink: 0;
 }
 
 .color-custom {

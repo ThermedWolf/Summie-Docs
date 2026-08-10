@@ -141,7 +141,13 @@ function renderStyleDropdown() {
         const delBtn = e.target.closest('.sdm-del-btn');
 
         if (delBtn) { e.stopPropagation(); _deleteStyle(delBtn.dataset.key); return; }
-        if (editBtn) { e.stopPropagation(); openStyleModal(editBtn.dataset.key); return; }
+        if (editBtn) {
+            e.stopPropagation();
+            openStyleModal(editBtn.dataset.key);
+            menu.classList.remove('active');
+            document.getElementById('styleDropdownToggle')?.classList.remove('active');
+            return;
+        }
         if (item) {
             const style = item.dataset.style;
             if (window.topbarManager) {
@@ -156,6 +162,8 @@ function renderStyleDropdown() {
     menu.querySelector('#sdmAddBtn').addEventListener('click', e => {
         e.stopPropagation();
         openStyleModal(null);
+        menu.classList.remove('active');
+        document.getElementById('styleDropdownToggle')?.classList.remove('active');
     });
 }
 

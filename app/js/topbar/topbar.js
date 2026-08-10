@@ -264,21 +264,61 @@ class TopbarManager {
         // Store saved range for cursor restoration
         this.savedRange = null;
 
-        // Text Color Picker
         const textColorBtn = document.getElementById('textColorBtn');
         const textColorPicker = document.getElementById('textColorPicker');
-        const textColorSwatches = textColorPicker.querySelectorAll('.color-swatch');
         const customTextColor = document.getElementById('customTextColor');
+
+        const highlightBtn = document.getElementById('highlightBtn');
+        const highlightColorPicker = document.getElementById('highlightColorPicker');
+        const customHighlightColor = document.getElementById('customHighlightColor');
+
+        // The toolbar wraps its groups in a horizontally-scrolling track
+        // (.toolbar-scroll-track, overflow-x: auto) and each group animates in
+        // with a transform. Both of those create a clipping/containing-block
+        // context that silently hides any position:absolute (or even
+        // position:fixed, since the transform makes it act like absolute)
+        // popup that pops open below a button in that group — no error, it's
+        // just clipped to invisible. Moving the popups to <body> and
+        // positioning them with fixed coordinates computed from the button's
+        // own bounding box sidesteps that entirely.
+        document.body.appendChild(textColorPicker);
+        document.body.appendChild(highlightColorPicker);
+
+        const positionPopup = (popup, btn) => {
+            const rect = btn.getBoundingClientRect();
+            const popupWidth = popup.offsetWidth || 296;
+            let left = rect.left;
+            if (left + popupWidth > window.innerWidth - 8) {
+                left = Math.max(8, window.innerWidth - popupWidth - 8);
+            }
+            popup.style.left = `${left}px`;
+            popup.style.top = `${rect.bottom + 8}px`;
+        };
+
+        const closeColorPickers = () => {
+            textColorPicker.classList.remove('active');
+            highlightColorPicker.classList.remove('active');
+        };
+
+        const openPopup = (popup, btn) => {
+            positionPopup(popup, btn);
+            popup.classList.add('active');
+        };
+
+        // Text Color Picker
+        textColorBtn.addEventListener('mousedown', (e) => {
+            e.preventDefault(); // Prevent focus/selection change before we can save it
+            this.saveCurrentRange();
+        });
 
         textColorBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            // Save cursor position when opening picker
-            this.saveCurrentRange();
-            textColorPicker.classList.toggle('active');
-            highlightColorPicker.classList.remove('active');
+            const wasOpen = textColorPicker.classList.contains('active');
+            closeColorPickers();
+            if (!wasOpen) openPopup(textColorPicker, textColorBtn);
         });
 
-        textColorSwatches.forEach(swatch => {
+        textColorPicker.querySelectorAll('.color-swatch').forEach(swatch => {
             swatch.addEventListener('click', () => {
                 const color = swatch.dataset.color;
                 this.applyTextColor(color);
@@ -298,20 +338,19 @@ class TopbarManager {
         });
 
         // Highlight Color Picker
-        const highlightBtn = document.getElementById('highlightBtn');
-        const highlightColorPicker = document.getElementById('highlightColorPicker');
-        const highlightColorSwatches = highlightColorPicker.querySelectorAll('.color-swatch');
-        const customHighlightColor = document.getElementById('customHighlightColor');
+        highlightBtn.addEventListener('mousedown', (e) => {
+            e.preventDefault(); // Prevent focus/selection change before we can save it
+            this.saveCurrentRange();
+        });
 
         highlightBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            // Save cursor position when opening picker
-            this.saveCurrentRange();
-            highlightColorPicker.classList.toggle('active');
-            textColorPicker.classList.remove('active');
+            const wasOpen = highlightColorPicker.classList.contains('active');
+            closeColorPickers();
+            if (!wasOpen) openPopup(highlightColorPicker, highlightBtn);
         });
 
-        highlightColorSwatches.forEach(swatch => {
+        highlightColorPicker.querySelectorAll('.color-swatch').forEach(swatch => {
             swatch.addEventListener('click', () => {
                 const color = swatch.dataset.color;
                 this.applyHighlight(color);
@@ -330,12 +369,19 @@ class TopbarManager {
             this.updateColorIndicator('highlight', color);
         });
 
-        // Close color pickers when clicking outside
+        // Close color pickers when clicking outside (popups now live at
+        // <body> level, so check against the popups/buttons directly rather
+        // than the old .color-picker-wrapper ancestor).
         document.addEventListener('click', (e) => {
-            if (!e.target.closest('.color-picker-wrapper')) {
-                textColorPicker.classList.remove('active');
-                highlightColorPicker.classList.remove('active');
-            }
+            if (e.target.closest('#textColorPicker') || e.target.closest('#textColorBtn')) return;
+            if (e.target.closest('#highlightColorPicker') || e.target.closest('#highlightBtn')) return;
+            closeColorPickers();
+        });
+
+        // Keep the popup anchored to its button if the window resizes.
+        window.addEventListener('resize', () => {
+            if (textColorPicker.classList.contains('active')) positionPopup(textColorPicker, textColorBtn);
+            if (highlightColorPicker.classList.contains('active')) positionPopup(highlightColorPicker, highlightBtn);
         });
     }
 
