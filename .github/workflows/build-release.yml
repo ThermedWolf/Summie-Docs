@@ -1,0 +1,84 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: ./app
+
+      - name: Build Windows
+        if: matrix.os == 'windows-latest'
+        run: npm run build:win
+        working-directory: ./app
+
+      - name: Build macOS
+        if: matrix.os == 'macos-latest'
+        run: npm run build:mac
+        working-directory: ./app
+
+      - name: Build Linux
+        if: matrix.os == 'ubuntu-latest'
+        run: npm run build:linux
+        working-directory: ./app
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Summie-${{ matrix.os }}
+          path: |
+            app/dist/*.exe
+            app/dist/*.dmg
+            app/dist/*.AppImage
+            app/dist/*.blockmap
+            app/dist/*.yml
+          retention-days: 30
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+
+      - name: Prepare release files
+        run: |
+          mkdir -p ./release-files
+          find ./artifacts -name "*.exe" -o -name "*.dmg" -o -name "*.AppImage" | while read file; do
+            cp "$file" ./release-files/
+          done
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ./release-files/*
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
