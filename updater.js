@@ -1,5 +1,7 @@
 const { dialog, BrowserWindow } = require('electron');
 const log = require('electron-log');
+const fs = require('fs');
+const path = require('path');
 
 const REPO_OWNER = 'ThermedWolf';
 const REPO_NAME = 'Summie-Docs';
@@ -11,6 +13,35 @@ let latestReleaseInfo = null;
 function getCurrentVersion() {
     const { app } = require('electron');
     return app.getVersion();
+}
+
+function cleanupOldInstallers() {
+    try {
+        const { app } = require('electron');
+        const tempDir = app.getPath('temp');
+        const currentVersion = getCurrentVersion();
+        
+        const files = fs.readdirSync(tempDir);
+        const installerPattern = /^Summie\.Setup\.([\d.]+)\.exe$/;
+        
+        for (const file of files) {
+            const match = file.match(installerPattern);
+            if (match) {
+                const fileVersion = match[1];
+                if (fileVersion !== currentVersion) {
+                    const filePath = path.join(tempDir, file);
+                    try {
+                        fs.unlinkSync(filePath);
+                        log.info(`Cleaned up old installer: ${file}`);
+                    } catch (err) {
+                        // File might be in use, ignore
+                    }
+                }
+            }
+        }
+    } catch (err) {
+        // Ignore cleanup errors
+    }
 }
 
 function compareVersions(current, latest) {
@@ -245,4 +276,5 @@ module.exports = {
     quitAndInstall,
     isUpdateDownloaded,
     getLatestReleaseInfo,
+    cleanupOldInstallers,
 };

@@ -714,6 +714,9 @@ ipcMain.handle('shell-open-external', async (event, url) => {
 app.whenReady().then(() => {
     createWindow(fileToOpen);
 
+    // Clean up old installer files from temp directory
+    updater.cleanupOldInstallers();
+
     // Check for updates on startup
     updater.checkForUpdates();
 
