@@ -5,6 +5,9 @@
 document.addEventListener('DOMContentLoaded', async () => {
     const state = window.AppState;
 
+    // Initialize updater
+    initUpdater();
+
     // 1. Resolve DOM references
     state.initRefs();
 
@@ -230,5 +233,124 @@ if (window.electron && window.electron.onLoadSumdFile) {
         state.lastSavedBegrippen = JSON.stringify(state.begrippen);
         state.lastSavedProtection = window.DocumentProtection?.isProtected?.() || false;
         localStorage.setItem('summie_saved_content', state.editor.innerHTML);
+    });
+}
+
+// ==================== UPDATER ====================
+
+function initUpdater() {
+    if (!window.electron) return;
+
+    const modal = document.getElementById('updateModal');
+    const currentVersionEl = document.getElementById('updateCurrentVersion');
+    const latestVersionEl = document.getElementById('updateLatestVersion');
+    const progressContainer = document.getElementById('updateProgress');
+    const progressText = document.getElementById('updateProgressText');
+    const progressBar = document.getElementById('updateProgressBar');
+    const downloadBtn = document.getElementById('updateDownloadBtn');
+    const downloadBtnText = document.getElementById('updateDownloadBtnText');
+    const installBtn = document.getElementById('updateInstallBtn');
+    const dismissBtn = document.getElementById('updateDismissBtn');
+    const changelogBtn = document.getElementById('updateChangelogBtn');
+    const content = document.getElementById('updateModalContent');
+
+    if (!modal) return;
+
+    let updateInfo = null;
+
+    function showModal(info) {
+        updateInfo = info;
+        currentVersionEl.textContent = `v${window.appInfo?.version || '?'}`;
+        latestVersionEl.textContent = `v${info.version}`;
+        progressContainer.style.display = 'none';
+        downloadBtn.style.display = 'inline-flex';
+        installBtn.style.display = 'none';
+        dismissBtn.textContent = 'Negeren';
+        changelogBtn.style.display = 'inline-flex';
+        content.style.display = 'block';
+        modal.classList.add('active');
+    }
+
+    function hideModal() {
+        modal.classList.remove('active');
+        updateInfo = null;
+    }
+
+    function showProgress(message) {
+        content.style.display = 'none';
+        progressContainer.style.display = 'block';
+        progressText.textContent = message;
+        progressBar.style.width = '0%';
+    }
+
+    function updateProgress(percent) {
+        progressBar.style.width = `${Math.round(percent)}%`;
+    }
+
+    function showInstallButton() {
+        progressContainer.style.display = 'none';
+        downloadBtn.style.display = 'none';
+        installBtn.style.display = 'inline-flex';
+        dismissBtn.textContent = 'Annuleren';
+        changelogBtn.style.display = 'none';
+        content.style.display = 'block';
+    }
+
+    window.electron.onUpdateAvailable((info) => {
+        if (!modal.classList.contains('active')) {
+            showModal(info);
+        }
+    });
+
+    window.electron.onDownloadProgress((progress) => {
+        if (progress && typeof progress.percent === 'number') {
+            showProgress(`Downloaden van update... ${progress.percent.toFixed(1)}%`);
+            updateProgress(progress.percent);
+        }
+    });
+
+    window.electron.onUpdateDownloaded((info) => {
+        showInstallButton();
+    });
+
+    window.electron.onUpdaterError((info) => {
+        if (info && info.error) {
+            alert(`Update-fout: ${info.error}`);
+        }
+    });
+
+    downloadBtn.addEventListener('click', async () => {
+        downloadBtn.disabled = true;
+        downloadBtnText.textContent = 'Downloaden...';
+        await window.electron.downloadUpdate();
+    });
+
+    installBtn.addEventListener('click', async () => {
+        installBtn.disabled = true;
+        installBtn.querySelector('span').textContent = 'Installeren...';
+        await window.electron.quitAndInstall();
+    });
+
+    dismissBtn.addEventListener('click', () => {
+        hideModal();
+    });
+
+    changelogBtn.addEventListener('click', () => {
+        if (updateInfo && updateInfo.html_url) {
+            window.electron.shell.openExternal(updateInfo.html_url);
+        } else if (updateInfo) {
+            // Fallback to repo releases page
+            window.electron.shell.openExternal('https://github.com/ThermedWolf/Summie-Docs/releases');
+        }
+    });
+
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) hideModal();
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modal.classList.contains('active')) {
+            hideModal();
+        }
     });
 }

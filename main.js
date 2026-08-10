@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const updater = require('./updater');
 
 // Single source of truth for the app version. app.getVersion() reads it
 // straight from package.json's "version" field, so bumping that one value
@@ -685,8 +686,36 @@ ipcMain.handle('read-code-file', async (event, filePath) => {
     }
 });
 
+// Updater IPC handlers
+ipcMain.handle('updater-download', async () => {
+    await updater.downloadUpdate();
+    return { success: true };
+});
+
+ipcMain.handle('updater-quit-and-install', async () => {
+    await updater.quitAndInstall();
+    return { success: true };
+});
+
+ipcMain.handle('updater-is-downloaded', () => {
+    return updater.isUpdateDownloaded();
+});
+
+ipcMain.handle('shell-open-external', async (event, url) => {
+    const { shell } = require('electron');
+    try {
+        await shell.openExternal(url);
+        return { success: true };
+    } catch (err) {
+        return { success: false, error: err.message };
+    }
+});
+
 app.whenReady().then(() => {
     createWindow(fileToOpen);
+
+    // Check for updates on startup
+    updater.checkForUpdates();
 
     // Windows taskbar right-click / Start menu "New Window" option
     if (process.platform === 'win32') {

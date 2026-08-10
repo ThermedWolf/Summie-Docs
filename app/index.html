@@ -8,7 +8,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Summie</title>
     <link rel="stylesheet" href="styles.css?v=13">
-    <link rel="stylesheet" href="topbar.css?v=2">
+    <link rel="stylesheet" href="topbar.css?v=3">
     <link rel="stylesheet" href="code-blocks.css?v=2">
     <link rel="stylesheet" href="textbox.css">
     <link rel="stylesheet" href="toc.css">
@@ -1511,6 +1511,60 @@ z" />
         </div>
     </div>
 
+    <!-- Update Modal -->
+    <div class="modal" id="updateModal">
+        <div class="modal-content update-modal-box" style="max-width: 480px;">
+            <div class="modal-header">
+                <h3>Update beschikbaar</h3>
+            </div>
+            <div class="modal-body">
+                <div id="updateModalContent" class="update-modal-content">
+                    <div class="update-version-compare">
+                        <div class="update-version-current">
+                            <div class="update-version-label">Huidige versie</div>
+                            <div id="updateCurrentVersion" class="update-version-value">—</div>
+                        </div>
+                        <div class="update-version-arrow" aria-hidden="true">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M5 12h14M12 5l7 7-7 7"/>
+                            </svg>
+                        </div>
+                        <div class="update-version-latest">
+                            <div class="update-version-label">Nieuwe versie</div>
+                            <div id="updateLatestVersion" class="update-version-value">—</div>
+                        </div>
+                    </div>
+                    <div id="updateProgress" class="update-progress" style="display:none">
+                        <div class="update-progress-header">
+                            <div class="update-spinner" aria-busy="true"></div>
+                            <span id="updateProgressText" class="update-progress-text">Downloaden van update...</span>
+                        </div>
+                        <div class="update-progress-bar-track">
+                            <div id="updateProgressBar" class="update-progress-bar"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer update-modal-footer">
+                <button class="btn btn-secondary update-btn-secondary" id="updateDismissBtn">Negeren</button>
+                <button class="btn btn-secondary update-btn-tertiary" id="updateChangelogBtn">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                        <polyline points="15 3 21 3 21 9"/>
+                        <line x1="10" y1="14" x2="21" y2="3"/>
+                    </svg>
+                    <span>Wijzigingen bekijken</span>
+                </button>
+                <button class="btn btn-primary update-btn-primary" id="updateDownloadBtn">
+                    <span id="updateDownloadBtnText">Downloaden</span>
+                </button>
+                <button class="btn btn-primary update-btn-primary" id="updateInstallBtn" style="display:none">
+                    <span>Installeren en herstarten</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Core -->
     <script src="js/core/state.js"></script>
     <script src="js/utils/text-count.js"></script>
@@ -1544,7 +1598,8 @@ z" />
     <script src="js/core/events.js"></script>
 
     <!-- Topbar (depends on format + state) -->
-    <script src="js/topbar/topbar.js?v=3"></script>
+    <script src="js/topbar/topbar-indicator.js"></script>
+    <script src="js/topbar/topbar.js?v=4"></script>
 
     <!-- Other feature modules -->
     <script src="js/features/images.js"></script>

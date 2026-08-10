@@ -3,8 +3,6 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none';">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Summie</title>
     <link rel="stylesheet" href="landing.css">
@@ -367,60 +365,6 @@
         </div>
     </div>
 
-    <!-- UPDATE MODAL -->
-    <div class="modal-overlay" id="updateModal" style="display:none">
-        <div class="modal-box update-modal-box" style="max-width: 480px;">
-            <div class="modal-header">
-                <h3>Update beschikbaar</h3>
-            </div>
-            <div class="modal-body">
-                <div id="updateModalContent" class="update-modal-content">
-                    <div class="update-version-compare">
-                        <div class="update-version-current">
-                            <div class="update-version-label">Huidige versie</div>
-                            <div id="updateCurrentVersion" class="update-version-value">—</div>
-                        </div>
-                        <div class="update-version-arrow" aria-hidden="true">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M5 12h14M12 5l7 7-7 7"/>
-                            </svg>
-                        </div>
-                        <div class="update-version-latest">
-                            <div class="update-version-label">Nieuwe versie</div>
-                            <div id="updateLatestVersion" class="update-version-value">—</div>
-                        </div>
-                    </div>
-                    <div id="updateProgress" class="update-progress" style="display:none">
-                        <div class="update-progress-header">
-                            <div class="update-spinner" aria-busy="true"></div>
-                            <span id="updateProgressText" class="update-progress-text">Downloaden van update...</span>
-                        </div>
-                        <div class="update-progress-bar-track">
-                            <div id="updateProgressBar" class="update-progress-bar"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer update-modal-footer">
-                <button class="btn-cancel update-btn-secondary" id="updateDismissBtn">Negeren</button>
-                <button class="btn-confirm update-btn-tertiary" id="updateChangelogBtn">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-                        <polyline points="15 3 21 3 21 9"/>
-                        <line x1="10" y1="14" x2="21" y2="3"/>
-                    </svg>
-                    <span>Wijzigingen bekijken</span>
-                </button>
-                <button class="btn-confirm update-btn-primary" id="updateDownloadBtn">
-                    <span id="updateDownloadBtnText">Downloaden</span>
-                </button>
-                <button class="btn-confirm update-btn-primary" id="updateInstallBtn" style="display:none">
-                    <span>Installeren en herstarten</span>
-                </button>
-            </div>
-        </div>
-    </div>
-
     <!-- SETTINGS OVERLAY -->
     <div class="settings-overlay" id="settingsOverlay">
         <div class="settings-page">
@@ -445,7 +389,7 @@
                         </div>
                         <select class="settings-select" id="settingLanguage">
                             <option value="nl">Nederlands</option>
-                            <option value="en">English (binnenkort)</option>
+                            <option value="en">English (coming soon)</option>
                         </select>
                     </div>
                 </div>

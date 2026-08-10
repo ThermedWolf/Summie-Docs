@@ -86,7 +86,21 @@ contextBridge.exposeInMainWorld(
         platform: process.platform,
 
         // App version
-        version: APP_VERSION
+        version: APP_VERSION,
+
+        // Updater
+        onUpdateAvailable: (callback) => ipcRenderer.on('updater-update-available', (_, info) => callback(info)),
+        onUpdateDownloaded: (callback) => ipcRenderer.on('updater-update-downloaded', (_, info) => callback(info)),
+        onDownloadProgress: (callback) => ipcRenderer.on('updater-download-progress', (_, progress) => callback(progress)),
+        onUpdaterError: (callback) => ipcRenderer.on('updater-error', (_, info) => callback(info)),
+        downloadUpdate: () => ipcRenderer.invoke('updater-download'),
+        quitAndInstall: () => ipcRenderer.invoke('updater-quit-and-install'),
+        isUpdateDownloaded: () => ipcRenderer.invoke('updater-is-downloaded'),
+
+        // Shell (for opening external links)
+        shell: {
+            openExternal: (url) => ipcRenderer.invoke('shell-open-external', url),
+        },
     }
 );
 

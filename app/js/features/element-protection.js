@@ -252,6 +252,18 @@ window.ElementProtection = (function () {
                 mainPanel.classList.add('active');
             }
 
+            // The normal section tab (e.g. "Bewerken") lost its "active" class
+            // back in switchPanel() when the context tab took over — restore it
+            // now so both the tab styling and the unified indicator land back
+            // on the right tab.
+            if (!activeSection) {
+                const fallbackTab = document.querySelector(`.topbar-section[data-section="${sectionName}"]`);
+                if (fallbackTab) {
+                    fallbackTab.classList.add('active');
+                    window.TopbarIndicator?.onActivate(fallbackTab);
+                }
+            }
+
             _currentPanel = null;
         };
 
@@ -286,6 +298,9 @@ window.ElementProtection = (function () {
 
         // Also clear active from normal section tabs since a context panel is now showing
         document.querySelectorAll('.topbar-section:not(.context-tab)').forEach(s => s.classList.remove('active'));
+
+        // Let the unified topbar indicator slide over to this context tab
+        if (tab) window.TopbarIndicator?.onActivate(tab);
     }
 
     // ── Cancel hide (called from controls when they get focus back) ───────

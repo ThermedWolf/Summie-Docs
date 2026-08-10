@@ -56,12 +56,44 @@
       "include": "installer.nsh"
     },
     "mac": {
-      "target": "dmg",
-      "icon": "app/icon.png"
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["x64", "arm64"]
+        }
+      ],
+      "icon": "app/icon.png",
+      "category": "public.app-category.productivity",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "extendInfo": {
+        "CFBundleDocumentTypes": [
+          {
+            "CFBundleTypeExtensions": ["sumd"],
+            "CFBundleTypeName": "Summie Document",
+            "CFBundleTypeRole": "Editor",
+            "LSHandlerRank": "Owner"
+          }
+        ]
+      }
     },
     "linux": {
-      "target": "AppImage",
-      "icon": "app/icon.png"
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "icon": "app/icon.png",
+      "category": "Office",
+      "maintainer": "ThermedWolf",
+      "description": "Summie - Samenvattingen Maker",
+      "desktop": {
+        "Name": "Summie",
+        "Comment": "Samenvattingen Maker",
+        "Categories": "Office;Education;",
+        "Keywords": "summary;notes;education;"
+      }
     }
   },
   "devDependencies": {
@@ -69,5 +101,8 @@
     "electron-builder": "^24.9.1"
   },
   "author": "",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "electron-log": "^5.4.4"
+  }
 }
