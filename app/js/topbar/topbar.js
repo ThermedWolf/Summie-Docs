@@ -147,6 +147,7 @@ class TopbarManager {
             activeTab.classList.add('active');
             // Scroll the tab into view if the tab bar is overflowing
             activeTab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+            window.TopbarIndicator?.onActivate(activeTab);
         }
 
         // When switching to a normal section, context tabs become inactive

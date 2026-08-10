@@ -33,6 +33,7 @@
     min-width: 0;
     align-items: center;
     overflow: visible;
+    position: relative;
 }
 
 .topbar-sections-scrollable {
@@ -179,32 +180,54 @@
     color: var(--primary-color);
 }
 
+/* Old per-tab underline element — kept in the DOM (element-protection.js
+   still stamps one into every context tab it builds) but no longer drawn.
+   It has been superseded by the single shared .topbar-indicator below,
+   which is what lets the indicator slide/stretch between tabs instead of
+   each tab animating its own underline independently. */
 .section-underline {
+    display: none;
+}
+
+/* ==================== UNIFIED TAB INDICATOR ====================
+   One shared underline for the entire tab row (normal sections AND
+   context tabs), positioned by JS — see js/topbar/topbar-indicator.js.
+   Resting under the active tab, it shrinks toward whatever tab is
+   hovered, and on an actual tab switch it stretches to ~2 buttons wide
+   while sliding to the new tab before shrinking back down again. */
+.topbar-indicator {
     position: absolute;
     bottom: 0;
-    left: 50%;
+    left: 0;
     height: 3px;
-    width: 0%;
+    width: 0;
     background: linear-gradient(90deg, var(--cyan-gradient-start), var(--primary-color));
     border-radius: 2px 2px 0 0;
-    transform: translateX(-50%) scaleX(1);
-    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-    transform-origin: center;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(0);
+    transition:
+        transform var(--topbar-indicator-duration, 0.28s) var(--topbar-indicator-easing, cubic-bezier(0.4, 0, 0.2, 1)),
+        width var(--topbar-indicator-duration, 0.28s) var(--topbar-indicator-easing, cubic-bezier(0.4, 0, 0.2, 1)),
+        opacity 0.2s ease,
+        background 0.25s ease;
+    will-change: transform, width;
+    z-index: 1;
 }
 
-.topbar-section:hover .section-underline {
-    width: 50%;
-    transform: translateX(-50%) scaleX(1.02);
+.topbar-indicator.visible {
+    opacity: 1;
 }
 
-.topbar-section.active .section-underline {
-    width: 75%;
-    transform: translateX(-50%) scaleX(1);
+/* Teal gradient while resting on / sliding to a context tab */
+.topbar-indicator.context-color {
+    background: linear-gradient(90deg, #06b6d4, #0d9488);
 }
 
-.topbar-section.active:hover .section-underline {
-    width: 60%;
-    transform: translateX(-50%) scaleX(1);
+/* Used briefly by JS to snap into position without animating (initial
+   load, window resize, tab-strip scroll) */
+.topbar-indicator.no-anim {
+    transition: none !important;
 }
 
 /* ==================== CONTEXT TABS ==================== */
@@ -262,25 +285,8 @@
     font-weight: 600;
 }
 
-/* Teal underline instead of blue */
-.context-tab .section-underline {
-    background: linear-gradient(90deg, #06b6d4, #0d9488);
-}
-
-.context-tab:hover .section-underline {
-    width: 50%;
-    transform: translateX(-50%) scaleX(1.02);
-}
-
-.context-tab.active .section-underline {
-    width: 80%;
-    transform: translateX(-50%) scaleX(1);
-}
-
-.context-tab.active:hover .section-underline {
-    width: 65%;
-    transform: translateX(-50%) scaleX(1);
-}
+/* Teal indicator color while on a context tab is handled by
+   .topbar-indicator.context-color (see js/topbar/topbar-indicator.js) */
 
 /* ==================== SECTION TOOLBAR ==================== */
 

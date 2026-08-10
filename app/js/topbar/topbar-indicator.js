@@ -10,18 +10,15 @@
 //   - Hovering the active tab itself shortens it in place (no movement —
 //     hovering any other tab does nothing to the indicator).
 //   - On an actual tab switch (a new tab becomes active), the indicator
-//     does an "inchworm" move toward the new tab, in two sequential
-//     phases:
-//       Phase 1 — the edge closer to the destination (the leading edge)
-//                 stretches out toward the new tab while the other edge
-//                 (the trailing edge) stays completely still.
-//       Phase 2 — once the leading edge has arrived, it stays put and the
-//                 trailing edge catches up to it, closing the gap back
-//                 down to the tab's normal resting width.
-//     This means the bar only ever stretches toward the side it's
-//     actually moving to, never both directions at once, and the width
-//     it reaches depends on the real distance between the two tabs
-//     rather than a fixed multiplier.
+//     does one continuous "inchworm" move toward the new tab: the edge
+//     closer to the destination (the leading edge) races ahead using a
+//     fast, front-loaded easing curve, while the trailing edge follows
+//     along the *same* timeline using a slow, back-loaded easing curve —
+//     so it's already creeping forward the whole time, just lagging
+//     behind, rather than sitting frozen until the leading edge arrives.
+//     Both edges are driven by the same elapsed-time value every frame,
+//     so the stretch, the move, and the catch-up read as one unbroken
+//     motion instead of two separate steps handed off to each other.
 //
 // Other modules never touch the indicator's DOM directly; they just call
 // TopbarIndicator.onActivate(tabElement) whenever they add the "active"
@@ -33,8 +30,7 @@ window.TopbarIndicator = (function () {
     const RATIO_ACTIVE = 0.75;       // resting width under the active tab
     const RATIO_ACTIVE_HOVER = 0.6;  // active tab, also currently hovered
 
-    const DUR_PHASE1 = 280;          // leading edge stretches toward the destination
-    const DUR_PHASE2 = 240;          // trailing edge catches up, closing the gap
+    const DUR_SWITCH = 440;          // total duration of the whole move
     const DUR_HOVER = 260;           // in-place shorten/lengthen on hover (active tab only)
 
     const EASE_HOVER = 'cubic-bezier(0.4, 0, 0.2, 1)';
@@ -85,12 +81,16 @@ window.TopbarIndicator = (function () {
         indicator.classList.add('visible');
     }
 
-    function easeOutCubic(t) {
-        return 1 - Math.pow(1 - t, 3);
+    // Fast, front-loaded — used for the leading edge, so it races ahead early.
+    function leadEase(t) {
+        return 1 - Math.pow(1 - t, 4); // easeOutQuart
     }
 
-    function easeInCubic(t) {
-        return t * t * t;
+    // Slow-starting but not as back-loaded as before — used for the
+    // trailing edge, so it's already creeping forward throughout and
+    // catches up to the leading edge a bit sooner.
+    function trailEase(t) {
+        return t * t * t; // easeInCubic
     }
 
     // Reads the indicator's current on-screen left offset from its computed
@@ -145,13 +145,14 @@ window.TopbarIndicator = (function () {
         sliding = false;
     }
 
-    // Two-phase "inchworm" animation. The edge closer to the destination
-    // (the leading edge) stretches out to meet it first while the other
-    // edge (the trailing edge) holds still; once the leading edge has
-    // arrived, it holds still in turn while the trailing edge catches up,
-    // closing the gap back down to the resting width. The target box is
-    // recomputed every frame, so if the hover state changes mid-flight the
-    // landing spot adapts smoothly.
+    // One continuous "inchworm" animation: both edges are driven by the
+    // *same* elapsed-time value every frame, but through different easing
+    // curves. The leading edge (closer to the destination) uses a fast,
+    // front-loaded curve so it races ahead; the trailing edge uses a slow,
+    // back-loaded curve so it's already creeping forward the whole time,
+    // just lagging behind, and only really catches up near the end. The
+    // target box is recomputed every frame, so if the hover state changes
+    // mid-flight the landing spot adapts smoothly.
     function slideTo(newTab) {
         const myGen = ++animGen;
         sliding = true;
@@ -171,13 +172,12 @@ window.TopbarIndicator = (function () {
         const destCenter = destRect.left + destRect.width / 2;
         const movingRight = destCenter >= startCenter;
 
-        const totalDuration = DUR_PHASE1 + DUR_PHASE2;
         const startTime = performance.now();
 
         function frame(now) {
             if (myGen !== animGen) return; // superseded by a newer switch
 
-            const elapsed = now - startTime;
+            const raw = Math.min(1, (now - startTime) / DUR_SWITCH);
 
             // Live final box — reflects current hover state even if it
             // changes while the animation is still running.
@@ -185,35 +185,21 @@ window.TopbarIndicator = (function () {
             const finalLeft = finalBox.left;
             const finalRight = finalBox.left + finalBox.width;
 
-            let left, right;
+            const lead = leadEase(raw);
+            const trail = trailEase(raw);
 
-            if (elapsed < DUR_PHASE1) {
-                // Phase 1: leading edge stretches toward the destination,
-                // trailing edge stays put.
-                const e = easeOutCubic(elapsed / DUR_PHASE1);
-                if (movingRight) {
-                    left = startLeft;
-                    right = startRight + (finalRight - startRight) * e;
-                } else {
-                    right = startRight;
-                    left = startLeft + (finalLeft - startLeft) * e;
-                }
+            let left, right;
+            if (movingRight) {
+                right = startRight + (finalRight - startRight) * lead;  // leading edge — races ahead
+                left = startLeft + (finalLeft - startLeft) * trail;     // trailing edge — creeps, catches up late
             } else {
-                // Phase 2: leading edge holds at the destination, trailing
-                // edge catches up and closes the gap.
-                const e = easeInCubic(Math.min(1, (elapsed - DUR_PHASE1) / DUR_PHASE2));
-                if (movingRight) {
-                    right = finalRight;
-                    left = startLeft + (finalLeft - startLeft) * e;
-                } else {
-                    left = finalLeft;
-                    right = startRight + (finalRight - startRight) * e;
-                }
+                left = startLeft + (finalLeft - startLeft) * lead;      // leading edge — races ahead
+                right = startRight + (finalRight - startRight) * trail; // trailing edge — creeps, catches up late
             }
 
             setBox(left, right - left);
 
-            if (elapsed < totalDuration) {
+            if (raw < 1) {
                 rafHandle = requestAnimationFrame(frame);
             } else {
                 sliding = false;
