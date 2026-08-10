@@ -56,7 +56,6 @@ function showDownloadProgress(progress) {
 
 async function fetchLatestRelease() {
     try {
-        log.info('Fetching latest release from GitHub API...');
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000);
         
@@ -70,14 +69,11 @@ async function fetchLatestRelease() {
         
         clearTimeout(timeoutId);
         
-        log.info('GitHub API response status:', response.status);
-        
         if (!response.ok) {
             throw new Error(`GitHub API error: ${response.status}`);
         }
         
         const data = await response.json();
-        log.info('Parsed release data:', data.tag_name);
         return data;
     } catch (err) {
         log.error('Failed to fetch latest release:', err);
@@ -101,18 +97,14 @@ async function checkForUpdates() {
     updateCheckInProgress = true;
 
     try {
-        log.info('Checking for updates...');
         const release = await fetchLatestRelease();
         
         const currentVersion = getCurrentVersion();
         const latestVersion = release.tag_name.replace(/^v/, '');
         
-        log.info(`Current version: ${currentVersion}, Latest version: ${latestVersion}`);
-        
         const comparison = compareVersions(currentVersion, latestVersion);
         
         if (comparison >= 0) {
-            log.info('No update available');
             return;
         }
         
@@ -132,7 +124,6 @@ async function checkForUpdates() {
             html_url: release.html_url
         };
         
-        log.info('Update available:', latestReleaseInfo.version);
         showUpdateAvailableDialog(latestReleaseInfo);
         
     } catch (err) {
@@ -162,8 +153,6 @@ async function downloadUpdate() {
         
         const downloadDir = app.getPath('temp');
         const filePath = path.join(downloadDir, latestReleaseInfo.fileName);
-        
-        log.info(`Downloading update to: ${filePath}`);
         
         const response = await fetch(latestReleaseInfo.downloadUrl);
         
@@ -208,7 +197,6 @@ async function downloadUpdate() {
             fileStream.on('error', reject);
         });
         
-        log.info('Update downloaded successfully');
         showDownloadProgress({ percent: 100, downloadedSize: totalSize, totalSize });
         showUpdateDownloadedDialog(latestReleaseInfo.version);
         
@@ -234,11 +222,6 @@ async function quitAndInstall() {
     const { shell } = require('electron');
     const { app } = require('electron');
     
-    log.info('Installing update:', latestReleaseInfo.downloadedPath);
-    
-    // For NSIS installer, we can launch it with /S for silent install
-    // But since we want the user to see the installer, we'll launch it normally
-    // and then quit the app
     shell.openPath(latestReleaseInfo.downloadedPath);
     
     // Give the installer time to start
