@@ -1141,6 +1141,8 @@ function initUpdater() {
     const latestVersionEl = document.getElementById('updateLatestVersion');
     const progressContainer = document.getElementById('updateProgress');
     const progressText = document.getElementById('updateProgressText');
+    const progressPercent = document.getElementById('updateProgressPercent');
+    const progressTrack = document.getElementById('updateProgressTrack');
     const progressBar = document.getElementById('updateProgressBar');
     const downloadBtn = document.getElementById('updateDownloadBtn');
     const downloadBtnText = document.getElementById('updateDownloadBtnText');
@@ -1158,6 +1160,8 @@ function initUpdater() {
         currentVersionEl.textContent = `v${window.appInfo?.version || '?'}`;
         latestVersionEl.textContent = `v${info.version}`;
         progressContainer.style.display = 'none';
+        progressTrack.classList.remove('is-indeterminate');
+        progressPercent.textContent = '';
         downloadBtn.style.display = 'inline-flex';
         installBtn.style.display = 'none';
         dismissBtn.textContent = 'Negeren';
@@ -1171,15 +1175,24 @@ function initUpdater() {
         updateInfo = null;
     }
 
-    function showProgress(message) {
+    function showProgress(message, indeterminate = false) {
         content.style.display = 'none';
         progressContainer.style.display = 'block';
         progressText.textContent = message;
-        progressBar.style.width = '0%';
+        if (indeterminate) {
+            progressTrack.classList.add('is-indeterminate');
+            progressPercent.textContent = '';
+            progressBar.style.width = '0%';
+        } else {
+            progressTrack.classList.remove('is-indeterminate');
+        }
     }
 
     function updateProgress(percent) {
-        progressBar.style.width = `${Math.round(percent)}%`;
+        progressTrack.classList.remove('is-indeterminate');
+        const rounded = Math.round(percent);
+        progressBar.style.width = `${rounded}%`;
+        progressPercent.textContent = `${rounded}%`;
     }
 
     function showInstallButton() {
@@ -1199,7 +1212,7 @@ function initUpdater() {
 
     window.electron.onDownloadProgress((progress) => {
         if (progress && typeof progress.percent === 'number') {
-            showProgress(`Downloaden van update... ${progress.percent.toFixed(1)}%`);
+            showProgress('Downloaden van update...');
             updateProgress(progress.percent);
         }
     });
@@ -1217,6 +1230,7 @@ function initUpdater() {
     downloadBtn.addEventListener('click', async () => {
         downloadBtn.disabled = true;
         downloadBtnText.textContent = 'Downloaden...';
+        showProgress('Update voorbereiden...', true);
         await window.electron.downloadUpdate();
     });
 
