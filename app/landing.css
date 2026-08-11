@@ -1712,6 +1712,12 @@ body {
     transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
 }
 
+.update-btn-ghost:disabled,
+.update-btn-link:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 .update-btn-ghost {
     background: transparent;
     color: var(--text-secondary);

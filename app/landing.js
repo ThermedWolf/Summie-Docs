@@ -1139,6 +1139,7 @@ function initUpdater() {
     const modal = document.getElementById('updateModal');
     const currentVersionEl = document.getElementById('updateCurrentVersion');
     const latestVersionEl = document.getElementById('updateLatestVersion');
+    const versionCompare = document.getElementById('updateVersionCompare');
     const progressContainer = document.getElementById('updateProgress');
     const progressText = document.getElementById('updateProgressText');
     const progressPercent = document.getElementById('updateProgressPercent');
@@ -1149,7 +1150,6 @@ function initUpdater() {
     const installBtn = document.getElementById('updateInstallBtn');
     const dismissBtn = document.getElementById('updateDismissBtn');
     const changelogBtn = document.getElementById('updateChangelogBtn');
-    const content = document.getElementById('updateModalContent');
 
     if (!modal) return;
 
@@ -1159,14 +1159,18 @@ function initUpdater() {
         updateInfo = info;
         currentVersionEl.textContent = `v${window.appInfo?.version || '?'}`;
         latestVersionEl.textContent = `v${info.version}`;
+        versionCompare.style.display = 'flex';
         progressContainer.style.display = 'none';
         progressTrack.classList.remove('is-indeterminate');
         progressPercent.textContent = '';
+        progressBar.style.width = '0%';
         downloadBtn.style.display = 'inline-flex';
+        downloadBtn.disabled = false;
+        downloadBtnText.textContent = 'Downloaden';
         installBtn.style.display = 'none';
-        dismissBtn.textContent = 'Negeren';
+        dismissBtn.textContent = 'Later';
+        dismissBtn.disabled = false;
         changelogBtn.style.display = 'inline-flex';
-        content.style.display = 'block';
         modal.style.display = 'flex';
     }
 
@@ -1175,8 +1179,11 @@ function initUpdater() {
         updateInfo = null;
     }
 
+    // Shows the progress card in place of the version-compare row. These are
+    // siblings inside #updateModalContent, so only the version-compare row
+    // gets hidden here — the progress card (and its loader bar) stays visible.
     function showProgress(message, indeterminate = false) {
-        content.style.display = 'none';
+        versionCompare.style.display = 'none';
         progressContainer.style.display = 'block';
         progressText.textContent = message;
         if (indeterminate) {
@@ -1195,13 +1202,18 @@ function initUpdater() {
         progressPercent.textContent = `${rounded}%`;
     }
 
+    // Fallback screen — only used if the automatic install (after download
+    // completes) fails, so the person still has a way to trigger it manually.
     function showInstallButton() {
-        progressContainer.style.display = 'none';
+        showProgress('Update gedownload', false);
+        progressTrack.classList.remove('is-indeterminate');
         downloadBtn.style.display = 'none';
         installBtn.style.display = 'inline-flex';
+        installBtn.disabled = false;
+        installBtn.querySelector('span').textContent = 'Installeren en herstarten';
         dismissBtn.textContent = 'Annuleren';
+        dismissBtn.disabled = false;
         changelogBtn.style.display = 'none';
-        content.style.display = 'block';
     }
 
     window.electron.onUpdateAvailable((info) => {
@@ -1217,8 +1229,22 @@ function initUpdater() {
         }
     });
 
+    // Download finished: no extra confirmation screen — move straight to
+    // installing so the person doesn't have to click through it twice.
     window.electron.onUpdateDownloaded((info) => {
-        showInstallButton();
+        changelogBtn.style.display = 'none';
+        downloadBtn.style.display = 'none';
+        dismissBtn.disabled = true;
+        showProgress('Update gedownload — Summie herstart zo...', false);
+        updateProgress(100);
+
+        setTimeout(async () => {
+            try {
+                await window.electron.quitAndInstall();
+            } catch (err) {
+                showInstallButton();
+            }
+        }, 900);
     });
 
     window.electron.onUpdaterError((info) => {
@@ -1230,6 +1256,7 @@ function initUpdater() {
     downloadBtn.addEventListener('click', async () => {
         downloadBtn.disabled = true;
         downloadBtnText.textContent = 'Downloaden...';
+        changelogBtn.style.display = 'none';
         showProgress('Update voorbereiden...', true);
         await window.electron.downloadUpdate();
     });
@@ -1241,6 +1268,7 @@ function initUpdater() {
     });
 
     dismissBtn.addEventListener('click', () => {
+        if (dismissBtn.disabled) return;
         hideModal();
     });
 
