@@ -42,6 +42,19 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: npm run build:linux
 
+      - name: Debug dist folder
+        run: |
+          echo "=== Current dir ==="
+          pwd
+          echo "=== Parent dir contents ==="
+          ls -la ..
+          echo "=== Dist folder (if exists) ==="
+          ls -la ../dist/ 2>/dev/null || echo "dist not found"
+          ls -la ../dist/*.exe 2>/dev/null || echo "no exe"
+          ls -la ../dist/*.dmg 2>/dev/null || echo "no dmg"
+          ls -la ../dist/*.AppImage 2>/dev/null || echo "no AppImage"
+          ls -la ../dist/*.deb 2>/dev/null || echo "no deb"
+
       - name: Copy artifacts (Unix)
         if: matrix.os != 'windows-latest'
         run: |
@@ -63,6 +76,11 @@ jobs:
           Copy-Item -Path ../dist/*.deb -Destination ./artifacts/ -ErrorAction SilentlyContinue
           Copy-Item -Path ../dist/*.blockmap -Destination ./artifacts/ -ErrorAction SilentlyContinue
           Copy-Item -Path ../dist/*.yml -Destination ./artifacts/ -ErrorAction SilentlyContinue
+
+      - name: Debug artifacts folder
+        run: |
+          echo "=== Artifacts folder ==="
+          ls -la ./artifacts/
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
