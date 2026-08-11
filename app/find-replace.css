@@ -101,6 +101,10 @@
     color: #ef4444;
 }
 
+[data-theme='dark'] .fr-close:hover {
+    background: rgba(239, 68, 68, 0.18);
+}
+
 /* ── Body ── */
 .fr-body {
     padding: 10px 12px;
@@ -146,6 +150,10 @@
     border-color: #ef4444;
     box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.15);
     background: #fff5f5;
+}
+
+[data-theme='dark'] .fr-input.fr-input--error {
+    background: rgba(239, 68, 68, 0.1);
 }
 
 /* ── Option toggle buttons (Aa, W, .*) ── */
@@ -210,7 +218,7 @@
 .fr-nav-btn:hover {
     background: var(--bg-light);
     color: var(--text-primary);
-    border-color: #cbd5e1;
+    border-color: var(--secondary-color, #cbd5e1);
 }
 
 .fr-nav-btn:disabled {
@@ -264,7 +272,7 @@
 
 .fr-btn:hover {
     background: var(--bg-light);
-    border-color: #cbd5e1;
+    border-color: var(--secondary-color, #cbd5e1);
 }
 
 .fr-btn.fr-btn--primary {
@@ -306,4 +314,12 @@
     background: #fbbf24;
     outline: 2px solid #f59e0b;
     border-radius: 2px;
+}
+
+/* The highlight yellow stays bright in dark mode too, so force dark text
+   here regardless of theme — otherwise the light document text color
+   becomes unreadable against it. */
+[data-theme='dark'] .fr-highlight,
+[data-theme='dark'] .fr-highlight.fr-highlight--current {
+    color: #1e293b;
 }

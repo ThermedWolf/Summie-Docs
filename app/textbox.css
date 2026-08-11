@@ -4,8 +4,8 @@
     min-width: 120px;
     min-height: 60px;
     width: 200px;
-    background: #ffffff;
-    border: 1.5px solid #cbd5e1;
+    background: var(--bg-white);
+    border: 1.5px solid var(--border-color, #cbd5e1);
     border-radius: 6px;
     padding: 4px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.10);
@@ -44,7 +44,7 @@
     box-sizing: border-box;
     outline: none;
     font-size: 14pt;
-    color: #1e293b;
+    color: var(--text-primary, #1e293b);
     word-break: break-word;
     line-height: 1.5;
     border-radius: 5px;
@@ -53,7 +53,7 @@
 
 .summie-textbox-inner:empty::before {
     content: attr(data-placeholder);
-    color: #94a3b8;
+    color: var(--text-secondary, #94a3b8);
     pointer-events: none;
 }
 
@@ -261,6 +261,11 @@
     word-break: break-all;
 }
 
+[data-theme='dark'] .summie-inline-code {
+    background: rgba(37, 99, 235, 0.18);
+    border-color: rgba(37, 99, 235, 0.4);
+}
+
 /* ==================== CONTEXT PANEL EXTRAS ==================== */
 .color-picker-group {
     display: flex;
@@ -314,6 +319,10 @@
     border-color: #ef4444 !important;
 }
 
+[data-theme='dark'] .btn-toolbar-danger:hover {
+    background: rgba(239, 68, 68, 0.18) !important;
+}
+
 /* Border style / width / shadow button active states */
 .tbx-border-style-btn.active,
 .tbx-border-width-btn.active,
@@ -321,4 +330,10 @@
     background: var(--primary-light, #eff6ff) !important;
     border-color: var(--primary-color, #3b82f6) !important;
     color: var(--primary-color, #3b82f6);
+}
+
+[data-theme='dark'] .tbx-border-style-btn.active,
+[data-theme='dark'] .tbx-border-width-btn.active,
+[data-theme='dark'] .tbx-shadow-btn.active {
+    background: rgba(37, 99, 235, 0.18) !important;
 }

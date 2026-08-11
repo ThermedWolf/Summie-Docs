@@ -100,7 +100,7 @@
 
 .toc-dots {
     flex: 1;
-    border-bottom: 1.5px dotted #cbd5e1;
+    border-bottom: 1.5px dotted var(--secondary-color, #cbd5e1);
     margin-bottom: 3px;
     min-width: 16px;
 }
@@ -170,6 +170,18 @@
 
 .toc-summie-item.level-kop3 .toc-summie-bar {
     background: #f1f5f9;
+}
+
+[data-theme='dark'] .toc-summie-item.level-kop1 .toc-summie-bar {
+    background: #6b6489;
+}
+
+[data-theme='dark'] .toc-summie-item.level-kop2 .toc-summie-bar {
+    background: #4a4468;
+}
+
+[data-theme='dark'] .toc-summie-item.level-kop3 .toc-summie-bar {
+    background: #322e4d;
 }
 
 .toc-summie-item.level-title {
@@ -265,6 +277,11 @@
     color: var(--primary-color, #3b82f6);
 }
 
+[data-theme='dark'] .toc-style-btn.active,
+[data-theme='dark'] .toc-mode-btn.active {
+    background: rgba(37, 99, 235, 0.18) !important;
+}
+
 /* ==================== HOVER ACTIONS ==================== */
 
 .summie-toc {
@@ -293,7 +310,7 @@
     height: 26px;
     border-radius: 6px;
     border: 1px solid var(--border-color, #e2e8f0);
-    background: var(--surface, #fff);
+    background: var(--bg-white, #fff);
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -314,6 +331,12 @@
     background: #fef2f2;
     color: #ef4444;
     border-color: #fca5a5;
+}
+
+[data-theme='dark'] .summie-toc-action-delete:hover {
+    background: rgba(239, 68, 68, 0.18);
+    color: #f87171;
+    border-color: rgba(239, 68, 68, 0.4);
 }
 
 /* TOC items get a pointer and subtle hover */

@@ -7,6 +7,8 @@
         content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none';">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Summie</title>
+    <!-- Apply saved theme before first paint to avoid a light-mode flash -->
+    <script src="js/ui/theme.js"></script>
     <link rel="stylesheet" href="styles.css?v=13">
     <link rel="stylesheet" href="topbar.css?v=3">
     <link rel="stylesheet" href="code-blocks.css?v=2">
@@ -67,6 +69,19 @@
                         </label>
                         <span class="topbar-autosave-label" id="autosaveLabel">Autosave</span>
                     </div>
+                    <button class="theme-toggle-btn" id="themeToggle" title="Donkere modus" aria-pressed="false"
+                        style="-webkit-app-region: no-drag;">
+                        <svg class="icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                        </svg>
+                        <svg class="icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="4" />
+                            <path
+                                d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+                        </svg>
+                    </button>
                     <div class="window-controls">
                         <button class="win-btn win-minimize" id="winMinimize" title="Minimaliseren">
                             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">

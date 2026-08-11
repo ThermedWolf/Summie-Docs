@@ -56,6 +56,10 @@
     color: var(--ctx-accent);
 }
 
+[data-theme='dark'] .ctx-btn:hover {
+    background: rgba(13, 148, 136, 0.18);
+}
+
 .ctx-btn:active {
     transform: scale(0.97);
 }
@@ -67,15 +71,28 @@
     font-weight: 600;
 }
 
+[data-theme='dark'] .ctx-btn.ctx-btn-active {
+    background: rgba(13, 148, 136, 0.28);
+}
+
 .ctx-btn-warn {
     border-color: #f59e0b;
     color: #78350f;
+}
+
+[data-theme='dark'] .ctx-btn-warn {
+    color: #fbbf24;
 }
 
 .ctx-btn-warn:hover {
     background: #fffbeb;
     border-color: #d97706;
     color: #78350f;
+}
+
+[data-theme='dark'] .ctx-btn-warn:hover {
+    background: rgba(217, 119, 6, 0.18);
+    color: #fbbf24;
 }
 
 .ctx-btn-danger {
@@ -87,6 +104,11 @@
     background: #fef2f2 !important;
     border-color: var(--danger-color) !important;
     color: #b91c1c !important;
+}
+
+[data-theme='dark'] .ctx-btn-danger:hover {
+    background: rgba(239, 68, 68, 0.18) !important;
+    color: #f87171 !important;
 }
 
 .ctx-label-danger {
@@ -371,6 +393,10 @@
     pointer-events: none;
     white-space: nowrap;
     min-width: 32px;
+}
+
+[data-theme='dark'] .cb-filename-ext {
+    background: rgba(13, 148, 136, 0.18);
 }
 
 /* ── Codeblock custom name ───────────────────────────────────────── */
@@ -665,4 +691,22 @@ th[data-formula]::after {
 #imgResetHeightBtn {
     min-width: 68px;
     justify-content: center;
+}
+
+/* ==================== DONKERE MODUS — Tabel Formules ====================
+   The formula-tab accent chips use light teal tints (#f0fdf9 / #ccfbf1)
+   that need a translucent dark equivalent so they don't look washed out
+   against the dark panel background. */
+[data-theme='dark'] .fml-cell-ref,
+[data-theme='dark'] .fml-apply-btn:hover,
+[data-theme='dark'] .fml-fmt-group .fml-fmt-btn.ctx-btn-active,
+[data-theme='dark'] .fml-pick-toggle.ctx-btn-active,
+[data-theme='dark'] .fml-chip,
+[data-theme='dark'] .fml-op-btn:hover,
+[data-theme='dark'] .fml-copy-btn.ctx-btn-active {
+    background: rgba(13, 148, 136, 0.18) !important;
+}
+
+[data-theme='dark'] .fml-chip:hover {
+    background: rgba(13, 148, 136, 0.28) !important;
 }

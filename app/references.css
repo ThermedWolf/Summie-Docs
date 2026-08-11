@@ -47,7 +47,8 @@
     position: fixed;
     z-index: 9000;
     background: var(--bg-white);
-    border: 1px solid #e2e8f0;
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
     border-radius: 10px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
     max-width: 360px;
@@ -131,7 +132,7 @@
 
 .ref-tooltip-preview td,
 .ref-tooltip-preview th {
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--border-color);
     padding: 4px 6px;
 }
 

@@ -328,7 +328,7 @@
 .page-header-zone:empty::before,
 .page-footer-zone:empty::before {
     content: attr(placeholder);
-    color: #c0c9d4;
+    color: var(--text-secondary, #c0c9d4);
     pointer-events: none;
     font-style: italic;
 }
