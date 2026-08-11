@@ -19,6 +19,7 @@
     "files": [
       "main.js",
       "preload.js",
+      "updater.js",
       "app/**/*"
     ],
     "fileAssociations": [
@@ -62,22 +63,7 @@
           "arch": ["x64", "arm64"]
         }
       ],
-      "icon": "app/icon.png",
-      "category": "public.app-category.productivity",
-      "hardenedRuntime": true,
-      "gatekeeperAssess": false,
-      "entitlements": "build/entitlements.mac.plist",
-      "entitlementsInherit": "build/entitlements.mac.plist",
-      "extendInfo": {
-        "CFBundleDocumentTypes": [
-          {
-            "CFBundleTypeExtensions": ["sumd"],
-            "CFBundleTypeName": "Summie Document",
-            "CFBundleTypeRole": "Editor",
-            "LSHandlerRank": "Owner"
-          }
-        ]
-      }
+      "icon": "app/icon.png"
     },
     "linux": {
       "target": [
