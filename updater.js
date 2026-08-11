@@ -2,6 +2,10 @@ const { dialog, BrowserWindow } = require('electron');
 const log = require('electron-log');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
+const { execFile } = require('child_process');
+const { promisify } = require('util');
+const execFileAsync = promisify(execFile);
 
 const REPO_OWNER = 'ThermedWolf';
 const REPO_NAME = 'Summie-Docs';
@@ -22,7 +26,7 @@ function cleanupOldInstallers() {
         const currentVersion = getCurrentVersion();
         
         const files = fs.readdirSync(tempDir);
-        const installerPattern = /^Summie\.Setup\.([\d.]+)\.exe$/;
+        const installerPattern = /^Summie-windows-x64-([\d.]+)\.exe$/;
         
         for (const file of files) {
             const match = file.match(installerPattern);
@@ -112,14 +116,44 @@ async function fetchLatestRelease() {
     }
 }
 
+function getPlatform() {
+    return process.platform;
+}
+
+function getArch() {
+    return process.arch;
+}
+
+function isArm64() {
+    return process.arch === 'arm64';
+}
+
+function getInstallerPattern() {
+    const platform = getPlatform();
+    
+    if (platform === 'win32') {
+        return /^Summie-windows-x64-[\d.]+\.exe$/;
+    }
+    
+    if (platform === 'darwin') {
+        const arch = isArm64() ? 'arm64' : 'x64';
+        return new RegExp(`^Summie-mac-${arch}-[\\d.]+\\.dmg$`);
+    }
+    
+    if (platform === 'linux') {
+        return /^Summie-linux-.*\.(AppImage|deb)$/;
+    }
+    
+    return null;
+}
+
 function findInstallerAsset(release) {
     if (!release.assets || release.assets.length === 0) return null;
     
-    // Look for Windows NSIS installer (.exe)
-    const installer = release.assets.find(asset => 
-        asset.name.endsWith('.exe') && asset.name.includes('Setup')
-    );
+    const pattern = getInstallerPattern();
+    if (!pattern) return null;
     
+    const installer = release.assets.find(asset => pattern.test(asset.name));
     return installer || null;
 }
 
@@ -245,6 +279,65 @@ function cancelDownload() {
     downloadAborted = true;
 }
 
+async function installMacUpdate(filePath) {
+    const mountPoint = fs.mkdtempSync(path.join(os.tmpdir(), 'summie-mount-'));
+    try {
+        await execFileAsync('hdiutil', ['attach', filePath, '-nobrowse', '-readonly', '-mountpoint', mountPoint]);
+        
+        const entries = fs.readdirSync(mountPoint);
+        const appName = entries.find(name => name.endsWith('.app'));
+        if (!appName) {
+            throw new Error('Geen .app gevonden in de DMG');
+        }
+        
+        const sourceApp = path.join(mountPoint, appName);
+        const destApp = path.join('/Applications', appName);
+        
+        if (fs.existsSync(destApp)) {
+            await execFileAsync('rm', ['-rf', destApp]);
+        }
+        await execFileAsync('ditto', [sourceApp, destApp]);
+        
+        try {
+            await execFileAsync('xattr', ['-dr', 'com.apple.quarantine', destApp]);
+        } catch (err) {
+            log.warn('Could not clear quarantine attribute:', err.message);
+        }
+        
+        return destApp;
+    } finally {
+        try {
+            await execFileAsync('hdiutil', ['detach', mountPoint, '-quiet']);
+        } catch (err) {
+            log.warn('Could not detach DMG:', err.message);
+        }
+    }
+}
+
+async function installLinuxUpdate(filePath, isDeb) {
+    if (isDeb) {
+        const pkexec = await execFileAsync('which', ['pkexec']).catch(() => ({ stdout: '' }));
+        if (pkexec.stdout.trim()) {
+            await execFileAsync('pkexec', ['dpkg', '-i', filePath]);
+        } else {
+            const sudo = await execFileAsync('which', ['sudo']).catch(() => ({ stdout: '' }));
+            if (sudo.stdout.trim()) {
+                await execFileAsync('sudo', ['dpkg', '-i', filePath]);
+            } else {
+                return filePath;
+            }
+        }
+        return null;
+    }
+    
+    try {
+        await execFileAsync('chmod', ['+x', filePath]);
+    } catch (err) {
+        log.warn('Could not set executable bit:', err.message);
+    }
+    return filePath;
+}
+
 async function quitAndInstall() {
     if (!latestReleaseInfo || !latestReleaseInfo.downloadedPath) {
         throw new Error('Geen gedownloade update om te installeren');
@@ -253,9 +346,24 @@ async function quitAndInstall() {
     const { shell } = require('electron');
     const { app } = require('electron');
     
-    shell.openPath(latestReleaseInfo.downloadedPath);
+    const platform = getPlatform();
+    const downloadedPath = latestReleaseInfo.downloadedPath;
+    const fileName = latestReleaseInfo.fileName;
     
-    // Give the installer time to start
+    if (platform === 'darwin') {
+        const installedApp = await installMacUpdate(downloadedPath);
+        if (installedApp) {
+            shell.openPath(installedApp);
+        }
+    } else if (platform === 'linux') {
+        const runPath = await installLinuxUpdate(downloadedPath, fileName.endsWith('.deb'));
+        if (runPath) {
+            shell.openPath(runPath);
+        }
+    } else {
+        shell.openPath(downloadedPath);
+    }
+    
     setTimeout(() => {
         app.quit();
     }, 1000);
