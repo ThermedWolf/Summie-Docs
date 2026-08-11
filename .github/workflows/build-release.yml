@@ -42,17 +42,21 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: npm run build:linux
 
+      - name: Copy artifacts
+        run: |
+          mkdir -p ../artifacts
+          cp ../dist/*.exe ../artifacts/ 2>/dev/null || true
+          cp ../dist/*.dmg ../artifacts/ 2>/dev/null || true
+          cp ../dist/*.AppImage ../artifacts/ 2>/dev/null || true
+          cp ../dist/*.deb ../artifacts/ 2>/dev/null || true
+          cp ../dist/*.blockmap ../artifacts/ 2>/dev/null || true
+          cp ../dist/*.yml ../artifacts/ 2>/dev/null || true
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: Summie-${{ matrix.os }}
-          path: |
-            ../dist/*.exe
-            ../dist/*.dmg
-            ../dist/*.AppImage
-            ../dist/*.deb
-            ../dist/*.blockmap
-            ../dist/*.yml
+          path: ../artifacts/*
           retention-days: 30
 
   release:
