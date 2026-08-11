@@ -32,44 +32,27 @@ jobs:
 
       - name: Build Windows
         if: matrix.os == 'windows-latest'
-        run: |
-          npm run build:win
-          dir dist
-        working-directory: ./app
+        run: npm run build:win
 
       - name: Build macOS
         if: matrix.os == 'macos-latest'
-        run: |
-          npm run build:mac
-          pwd
-          ls -la
-          ls -la dist/ 2>/dev/null || echo "dist not found"
-          ls -la dist/mac/ 2>/dev/null || echo "dist/mac not found"
-          ls -la dist/mac-arm64/ 2>/dev/null || echo "dist/mac-arm64 not found"
-        working-directory: ./app
+        run: npm run build:mac
 
       - name: Build Linux
         if: matrix.os == 'ubuntu-latest'
-        run: |
-          npm run build:linux
-          pwd
-          ls -la
-          ls -la dist/ 2>/dev/null || echo "dist not found"
-        working-directory: ./app
+        run: npm run build:linux
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: Summie-${{ matrix.os }}
           path: |
-            app/dist/*.exe
-            app/dist/*.dmg
-            app/dist/mac/*.dmg
-            app/dist/mac-arm64/*.dmg
-            app/dist/*.AppImage
-            app/dist/*.deb
-            app/dist/*.blockmap
-            app/dist/*.yml
+            ../dist/*.exe
+            ../dist/*.dmg
+            ../dist/*.AppImage
+            ../dist/*.deb
+            ../dist/*.blockmap
+            ../dist/*.yml
           retention-days: 30
 
   release:
@@ -89,6 +72,7 @@ jobs:
           find ./artifacts -name "*.exe" -o -name "*.dmg" -o -name "*.AppImage" -o -name "*.deb" | while read file; do
             cp "$file" ./release-files/
           done
+          ls -la ./release-files/
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
