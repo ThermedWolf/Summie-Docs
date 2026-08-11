@@ -53,6 +53,7 @@ jobs:
             app/dist/*.exe
             app/dist/*.dmg
             app/dist/*.AppImage
+            app/dist/*.deb
             app/dist/*.blockmap
             app/dist/*.yml
           retention-days: 30
@@ -71,7 +72,7 @@ jobs:
       - name: Prepare release files
         run: |
           mkdir -p ./release-files
-          find ./artifacts -name "*.exe" -o -name "*.dmg" -o -name "*.AppImage" | while read file; do
+          find ./artifacts -name "*.exe" -o -name "*.dmg" -o -name "*.AppImage" -o -name "*.deb" | while read file; do
             cp "$file" ./release-files/
           done
 
