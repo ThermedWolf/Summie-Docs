@@ -421,11 +421,10 @@
             doSearch(document.getElementById('mdSearchInput').value);
         });
 
-        // Back button
+        // Back button — always navigate to the landing page, independent of the
+        // 'close to home' setting (that setting only applies to the window close button).
         document.getElementById('mdBackBtn').addEventListener('click', () => {
-            if (window.electron && window.electron.navigateToLanding) {
-                window.electron.navigateToLanding();
-            }
+            window.location.href = 'landing.html';
         });
 
         // Search
