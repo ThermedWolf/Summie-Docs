@@ -55,13 +55,7 @@ app.on('second-instance', (event, argv) => {
     if (argv.includes('--new-window')) {
         createWindow();
     } else if (secondInstanceFile) {
-        if (mainWindow) {
-            if (mainWindow.isMinimized()) mainWindow.restore();
-            mainWindow.focus();
-            loadFileIntoApp(secondInstanceFile);
-        } else {
-            createWindow(secondInstanceFile);
-        }
+        openSumdFileFromOS(secondInstanceFile);
     } else {
         // Bring existing window to front
         if (mainWindow) {
@@ -358,12 +352,33 @@ function loadFileIntoApp(filePath) {
     loadFileIntoWindow(mainWindow, filePath);
 }
 
+// Open a .sumd file "from the OS" (double-click in file explorer / file:// URI).
+// If a window sits on the landing page (no document open), load the file there
+// so an already-open document in another window is never replaced. Otherwise all
+// windows have a document open, so the file opens in a brand new window.
+function openSumdFileFromOS(filePath) {
+    const windows = BrowserWindow.getAllWindows();
+    const landingWin = windows.find(win => {
+        const url = win.webContents.getURL();
+        return url.includes('landing.html') || url.includes('manage-documents.html');
+    });
+
+    if (landingWin) {
+        if (landingWin.isMinimized()) landingWin.restore();
+        landingWin.focus();
+        loadFileIntoWindow(landingWin, filePath);
+        return;
+    }
+
+    createWindow(filePath);
+}
+
 app.on('open-file', (event, filePath) => {
     event.preventDefault();
     const normalized = normalizeSumdArg(filePath);
     if (normalized && normalized.toLowerCase().endsWith('.sumd')) {
         if (mainWindow) {
-            loadFileIntoApp(normalized);
+            openSumdFileFromOS(normalized);
         } else {
             fileToOpen = normalized;
         }
