@@ -42,6 +42,8 @@ jobs:
         run: |
           npm run build:mac
           ls -la dist/
+          ls -la dist/mac/ 2>/dev/null || true
+          ls -la dist/mac-arm64/ 2>/dev/null || true
         working-directory: ./app
 
       - name: Build Linux
@@ -58,6 +60,8 @@ jobs:
           path: |
             app/dist/*.exe
             app/dist/*.dmg
+            app/dist/mac/*.dmg
+            app/dist/mac-arm64/*.dmg
             app/dist/*.AppImage
             app/dist/*.deb
             app/dist/*.blockmap
