@@ -22,7 +22,7 @@
       "updater.js",
       "app/**/*"
     ],
-    "publish": "never",
+    "publish": null,
     "fileAssociations": [
       {
         "ext": "sumd",
