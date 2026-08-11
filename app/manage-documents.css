@@ -611,6 +611,11 @@
     color: #ef4444;
 }
 
+[data-theme='dark'] .md-tag-suggestion-delete:hover {
+    background: rgba(239, 68, 68, 0.18);
+    color: #f87171;
+}
+
 /* Actions */
 .md-sheet-actions {
     display: flex;
