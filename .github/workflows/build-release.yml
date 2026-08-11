@@ -42,7 +42,8 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: npm run build:linux
 
-      - name: Copy artifacts
+      - name: Copy artifacts (Unix)
+        if: matrix.os != 'windows-latest'
         run: |
           mkdir -p ./artifacts
           cp ../dist/*.exe ./artifacts/ 2>/dev/null || true
@@ -51,6 +52,17 @@ jobs:
           cp ../dist/*.deb ./artifacts/ 2>/dev/null || true
           cp ../dist/*.blockmap ./artifacts/ 2>/dev/null || true
           cp ../dist/*.yml ./artifacts/ 2>/dev/null || true
+
+      - name: Copy artifacts (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          New-Item -ItemType Directory -Force -Path ./artifacts | Out-Null
+          Copy-Item -Path ../dist/*.exe -Destination ./artifacts/ -ErrorAction SilentlyContinue
+          Copy-Item -Path ../dist/*.dmg -Destination ./artifacts/ -ErrorAction SilentlyContinue
+          Copy-Item -Path ../dist/*.AppImage -Destination ./artifacts/ -ErrorAction SilentlyContinue
+          Copy-Item -Path ../dist/*.deb -Destination ./artifacts/ -ErrorAction SilentlyContinue
+          Copy-Item -Path ../dist/*.blockmap -Destination ./artifacts/ -ErrorAction SilentlyContinue
+          Copy-Item -Path ../dist/*.yml -Destination ./artifacts/ -ErrorAction SilentlyContinue
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
