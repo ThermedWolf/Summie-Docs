@@ -42,43 +42,15 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: npm run build:linux
 
-      - name: Debug dist folder
+      - name: Collect build artifacts
+        shell: bash
         run: |
           echo "=== Current dir ==="
           pwd
-          echo "=== Parent dir contents ==="
-          ls -la ..
-          echo "=== Dist folder (if exists) ==="
-          ls -la ../dist/ 2>/dev/null || echo "dist not found"
-          ls -la ../dist/*.exe 2>/dev/null || echo "no exe"
-          ls -la ../dist/*.dmg 2>/dev/null || echo "no dmg"
-          ls -la ../dist/*.AppImage 2>/dev/null || echo "no AppImage"
-          ls -la ../dist/*.deb 2>/dev/null || echo "no deb"
-
-      - name: Copy artifacts (Unix)
-        if: matrix.os != 'windows-latest'
-        run: |
+          echo "=== Files under workspace ==="
+          find "${GITHUB_WORKSPACE}" -maxdepth 4 -type f \( -name "*.exe" -o -name "*.dmg" -o -name "*.AppImage" -o -name "*.deb" -o -name "*.blockmap" -o -name "latest*.yml" \) -not -path "*/node_modules/*"
           mkdir -p ./artifacts
-          cp ../dist/*.exe ./artifacts/ 2>/dev/null || true
-          cp ../dist/*.dmg ./artifacts/ 2>/dev/null || true
-          cp ../dist/*.AppImage ./artifacts/ 2>/dev/null || true
-          cp ../dist/*.deb ./artifacts/ 2>/dev/null || true
-          cp ../dist/*.blockmap ./artifacts/ 2>/dev/null || true
-          cp ../dist/*.yml ./artifacts/ 2>/dev/null || true
-
-      - name: Copy artifacts (Windows)
-        if: matrix.os == 'windows-latest'
-        run: |
-          New-Item -ItemType Directory -Force -Path ./artifacts | Out-Null
-          Copy-Item -Path ../dist/*.exe -Destination ./artifacts/ -ErrorAction SilentlyContinue
-          Copy-Item -Path ../dist/*.dmg -Destination ./artifacts/ -ErrorAction SilentlyContinue
-          Copy-Item -Path ../dist/*.AppImage -Destination ./artifacts/ -ErrorAction SilentlyContinue
-          Copy-Item -Path ../dist/*.deb -Destination ./artifacts/ -ErrorAction SilentlyContinue
-          Copy-Item -Path ../dist/*.blockmap -Destination ./artifacts/ -ErrorAction SilentlyContinue
-          Copy-Item -Path ../dist/*.yml -Destination ./artifacts/ -ErrorAction SilentlyContinue
-
-      - name: Debug artifacts folder
-        run: |
+          find "${GITHUB_WORKSPACE}" -maxdepth 4 -type f \( -name "*.exe" -o -name "*.dmg" -o -name "*.AppImage" -o -name "*.deb" -o -name "*.blockmap" -o -name "latest*.yml" \) -not -path "*/node_modules/*" -exec cp {} ./artifacts/ \;
           echo "=== Artifacts folder ==="
           ls -la ./artifacts/
 
