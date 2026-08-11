@@ -7,6 +7,11 @@ const { contextBridge, ipcRenderer } = require('electron');
 // in a different folder than package.json.
 const APP_VERSION = ipcRenderer.sendSync('get-app-version-sync');
 
+// Theme setting fetched synchronously so the theme can be applied before first
+// paint without waiting for async IPC. Always fresh, even when navigating
+// between pages within the same window.
+const initialTheme = ipcRenderer.sendSync('get-theme-sync');
+
 contextBridge.exposeInMainWorld(
     'electron',
     {
@@ -81,6 +86,7 @@ contextBridge.exposeInMainWorld(
         settingsGet: () => ipcRenderer.invoke('settings-get'),
         settingsSet: (patch) => ipcRenderer.invoke('settings-set', patch),
         settingsPickDirectory: () => ipcRenderer.invoke('settings-pick-directory'),
+        onThemeChanged: (callback) => ipcRenderer.on('theme-changed', (_, theme) => callback(theme)),
 
         // Platform info
         platform: process.platform,
@@ -109,6 +115,7 @@ contextBridge.exposeInMainWorld(
     {
         version: APP_VERSION,
         name: 'Summie',
-        isElectron: true
+        isElectron: true,
+        theme: initialTheme
     }
 );

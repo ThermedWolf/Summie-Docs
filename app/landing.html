@@ -35,18 +35,6 @@
             </div>
         </div>
         <div class="topbar-actions">
-            <button class="theme-toggle-btn" id="themeToggle" title="Donkere modus" aria-pressed="false">
-                <svg class="icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-                </svg>
-                <svg class="icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="4" />
-                    <path
-                        d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
-                </svg>
-            </button>
             <button class="landing-settings-btn" id="landingSettingsBtn" title="Instellingen">
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                     stroke-linecap="round" stroke-linejoin="round">
@@ -461,6 +449,21 @@
                 </button>
             </div>
             <div class="settings-page-body">
+                <div class="settings-group">
+                    <h3 class="settings-group-title">Weergave</h3>
+                    <div class="settings-item">
+                        <div class="settings-item-info">
+                            <span class="settings-item-label">Thema</span>
+                            <span class="settings-item-desc">Systeemstandaard volgt het thema van het
+                                besturingssysteem.</span>
+                        </div>
+                        <select class="settings-select" id="settingTheme">
+                            <option value="system">Systeemstandaard</option>
+                            <option value="dark">Donker</option>
+                            <option value="light">Licht</option>
+                        </select>
+                    </div>
+                </div>
                 <div class="settings-group">
                     <h3 class="settings-group-title">Taal</h3>
                     <div class="settings-item">

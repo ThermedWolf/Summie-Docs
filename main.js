@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, nativeTheme } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const updater = require('./updater');
@@ -120,6 +120,7 @@ const DEFAULT_APP_SETTINGS = {
     newFilesDirectory: path.join(app.getPath('home'), 'Documents'),
     closeToHome: true,                  // close button → landing page instead of quitting
     numberLocale: 'eu',                 // 'eu' = komma decimaal | 'us' = punt decimaal
+    theme: 'system',                    // 'system' = volg OS | 'dark' | 'light'
 };
 
 function readAppSettings() {
@@ -132,6 +133,15 @@ function readAppSettings() {
 function writeAppSettings(settings) {
     const merged = { ...DEFAULT_APP_SETTINGS, ...settings };
     fs.writeFileSync(appSettingsPath, JSON.stringify(merged, null, 2), 'utf8');
+}
+
+// Window background color for the moment before the page renders — matches the
+// light/dark palette in styles.css / landing.css so there is no flash.
+function resolveWindowBackgroundColor() {
+    const theme = readAppSettings().theme || 'system';
+    if (theme === 'dark') return '#08081a';
+    if (theme === 'light') return '#f8fafc';
+    return nativeTheme.shouldUseDarkColors ? '#08081a' : '#f8fafc';
 }
 
 function readAutoSaveSettings() {
@@ -188,7 +198,7 @@ function createWindow(filePathToOpen = null) {
             preload: path.join(__dirname, 'preload.js'),
             partition: partition
         },
-        backgroundColor: '#f8fafc',
+        backgroundColor: resolveWindowBackgroundColor(),
         show: false
     });
 
@@ -639,11 +649,21 @@ ipcMain.handle('favourites-save', (event, favs) => {
 });
 
 // App-wide settings (language, auto-save new files, default directory, etc.)
+ipcMain.on('get-theme-sync', (event) => {
+    event.returnValue = readAppSettings().theme || 'system';
+});
 ipcMain.handle('settings-get', () => readAppSettings());
 ipcMain.handle('settings-set', (event, patch) => {
     const current = readAppSettings();
     writeAppSettings({ ...current, ...patch });
-    return readAppSettings();
+    const updated = readAppSettings();
+    // Keep every open window in sync when the theme changes via settings
+    if (patch && patch.theme) {
+        BrowserWindow.getAllWindows().forEach(win => {
+            win.webContents.send('theme-changed', updated.theme || 'system');
+        });
+    }
+    return updated;
 });
 ipcMain.handle('settings-get-number-locale', () => readAppSettings().numberLocale || 'eu');
 ipcMain.handle('settings-pick-directory', async () => {
