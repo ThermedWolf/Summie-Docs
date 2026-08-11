@@ -34,7 +34,7 @@ jobs:
         if: matrix.os == 'windows-latest'
         run: |
           npm run build:win
-          ls -la dist/
+          dir dist
         working-directory: ./app
 
       - name: Build macOS
