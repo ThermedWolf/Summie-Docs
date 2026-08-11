@@ -41,16 +41,20 @@ jobs:
         if: matrix.os == 'macos-latest'
         run: |
           npm run build:mac
-          ls -la dist/
-          ls -la dist/mac/ 2>/dev/null || true
-          ls -la dist/mac-arm64/ 2>/dev/null || true
+          pwd
+          ls -la
+          ls -la dist/ 2>/dev/null || echo "dist not found"
+          ls -la dist/mac/ 2>/dev/null || echo "dist/mac not found"
+          ls -la dist/mac-arm64/ 2>/dev/null || echo "dist/mac-arm64 not found"
         working-directory: ./app
 
       - name: Build Linux
         if: matrix.os == 'ubuntu-latest'
         run: |
           npm run build:linux
-          ls -la dist/
+          pwd
+          ls -la
+          ls -la dist/ 2>/dev/null || echo "dist not found"
         working-directory: ./app
 
       - name: Upload artifacts
