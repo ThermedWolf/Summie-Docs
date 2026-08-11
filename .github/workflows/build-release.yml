@@ -45,12 +45,15 @@ jobs:
       - name: Collect build artifacts
         shell: bash
         run: |
-          echo "=== Current dir ==="
-          pwd
-          echo "=== Files under workspace ==="
-          find "${GITHUB_WORKSPACE}" -maxdepth 4 -type f \( -name "*.exe" -o -name "*.dmg" -o -name "*.AppImage" -o -name "*.deb" -o -name "*.blockmap" -o -name "latest*.yml" \) -not -path "*/node_modules/*"
           mkdir -p ./artifacts
-          find "${GITHUB_WORKSPACE}" -maxdepth 4 -type f \( -name "*.exe" -o -name "*.dmg" -o -name "*.AppImage" -o -name "*.deb" -o -name "*.blockmap" -o -name "latest*.yml" \) -not -path "*/node_modules/*" -exec cp {} ./artifacts/ \;
+          find "${GITHUB_WORKSPACE}" -maxdepth 4 -type f \( -name "*.exe" -o -name "*.dmg" -o -name "*.AppImage" -o -name "*.deb" \) \
+            \( -path "*/dist/*" -o -path "*/release/*" \) \
+            -not -path "*/node_modules/*" \
+            -not -path "*/win-unpacked/*" \
+            -not -path "*/mac-unpacked/*" \
+            -not -path "*/linux-unpacked/*" \
+            -not -name "elevate.exe" \
+            -exec cp {} ./artifacts/ \;
           echo "=== Artifacts folder ==="
           ls -la ./artifacts/
 

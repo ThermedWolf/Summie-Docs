@@ -41,6 +41,7 @@
           ]
         }
       ],
+      "artifactName": "Summie-Setup-${version}.${ext}",
       "icon": "app/icon.png",
       "sign": null
     },
@@ -64,6 +65,7 @@
           "arch": ["x64", "arm64"]
         }
       ],
+      "artifactName": "Summie-mac-${arch}-${version}.${ext}",
       "icon": "app/icon.png"
     },
     "linux": {
@@ -71,6 +73,7 @@
         "AppImage",
         "deb"
       ],
+      "artifactName": "Summie-linux-${arch}.${ext}",
       "icon": "app/icon.png",
       "category": "Office",
       "maintainer": "ThermedWolf",
