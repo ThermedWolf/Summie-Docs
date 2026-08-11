@@ -29,7 +29,8 @@
         "name": "Summie Document",
         "description": "Summie Document",
         "icon": "app/icon.png",
-        "role": "Editor"
+        "role": "Editor",
+        "mimeType": "application/x-summie-sumd"
       }
     ],
     "win": {

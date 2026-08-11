@@ -25,11 +25,26 @@ if (!gotSingleInstanceLock) {
 }
 
 function findSumdPath(args) {
-    return args.find(arg => typeof arg === 'string' && arg.toLowerCase().endsWith('.sumd')) || null;
+    return args.map(normalizeSumdArg).find(p => p && p.toLowerCase().endsWith('.sumd')) || null;
 }
 
-// Handle file opening on Windows (double-click .sumd file)
-if (process.platform === 'win32' && process.argv.length >= 2) {
+// File managers on Linux may hand the app a file:// URI (desktop Exec %U)
+// instead of a plain path — normalise to a filesystem path so .sumd matching
+// and loadFileIntoWindow/readFileSync keep working everywhere.
+function normalizeSumdArg(arg) {
+    if (typeof arg !== 'string') return null;
+    try {
+        if (arg.startsWith('file://')) return decodeURIComponent(arg.slice(7));
+    } catch {
+        /* malformed URI — fall through and treat as plain path */
+    }
+    return arg;
+}
+
+// Handle file opening on Windows/Linux (double-click .sumd file).
+// macOS delivers opened files via the 'open-file' event instead, so we skip
+// argv scanning there to avoid double-handling the path.
+if (process.platform !== 'darwin' && process.argv.length >= 2) {
     fileToOpen = findSumdPath(process.argv);
 }
 
@@ -345,11 +360,12 @@ function loadFileIntoApp(filePath) {
 
 app.on('open-file', (event, filePath) => {
     event.preventDefault();
-    if (filePath.endsWith('.sumd')) {
+    const normalized = normalizeSumdArg(filePath);
+    if (normalized && normalized.toLowerCase().endsWith('.sumd')) {
         if (mainWindow) {
-            loadFileIntoApp(filePath);
+            loadFileIntoApp(normalized);
         } else {
-            fileToOpen = filePath;
+            fileToOpen = normalized;
         }
     }
 });
