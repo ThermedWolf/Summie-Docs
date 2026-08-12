@@ -154,7 +154,7 @@ function _ensureReferencesTab(activate) {
         refTab = document.createElement('button');
         refTab.className = 'tab';
         refTab.dataset.tab = 'references';
-        refTab.textContent = 'Verwijzingen';
+        refTab.textContent = SummieI18n.t('Verwijzingen');
         tabs.appendChild(refTab);
 
         refTab.addEventListener('click', () => {
@@ -271,9 +271,9 @@ function initUpdater() {
         progressBar.style.width = '0%';
         downloadBtn.style.display = 'inline-flex';
         downloadBtn.disabled = false;
-        downloadBtnText.textContent = 'Downloaden';
+        downloadBtnText.textContent = t('Downloaden');
         installBtn.style.display = 'none';
-        dismissBtn.textContent = 'Later';
+        dismissBtn.textContent = t('Later');
         dismissBtn.disabled = false;
         changelogBtn.style.display = 'inline-flex';
         modal.classList.add('active');
@@ -310,13 +310,13 @@ function initUpdater() {
     // Fallback screen — only used if the automatic install (after download
     // completes) fails, so the person still has a way to trigger it manually.
     function showInstallButton() {
-        showProgress('Update gedownload', false);
+        showProgress(t('Update gedownload'), false);
         progressTrack.classList.remove('is-indeterminate');
         downloadBtn.style.display = 'none';
         installBtn.style.display = 'inline-flex';
         installBtn.disabled = false;
-        installBtn.querySelector('span').textContent = 'Installeren en herstarten';
-        dismissBtn.textContent = 'Annuleren';
+        installBtn.querySelector('span').textContent = t('Installeren en herstarten');
+        dismissBtn.textContent = t('Annuleren');
         dismissBtn.disabled = false;
         changelogBtn.style.display = 'none';
     }
@@ -329,7 +329,7 @@ function initUpdater() {
 
     window.electron.onDownloadProgress((progress) => {
         if (progress && typeof progress.percent === 'number') {
-            showProgress('Downloaden van update...');
+            showProgress(t('Downloaden van update...'));
             updateProgress(progress.percent);
         }
     });
@@ -340,7 +340,7 @@ function initUpdater() {
         changelogBtn.style.display = 'none';
         downloadBtn.style.display = 'none';
         dismissBtn.disabled = true;
-        showProgress('Update gedownload — Summie herstart zo...', false);
+        showProgress(t('Update gedownload — Summie herstart zo...'), false);
         updateProgress(100);
 
         setTimeout(async () => {
@@ -354,21 +354,21 @@ function initUpdater() {
 
     window.electron.onUpdaterError((info) => {
         if (info && info.error) {
-            alert(`Update-fout: ${info.error}`);
+            alert(t('Update-fout: ' + info.error));
         }
     });
 
     downloadBtn.addEventListener('click', async () => {
         downloadBtn.disabled = true;
-        downloadBtnText.textContent = 'Downloaden...';
+        downloadBtnText.textContent = t('Downloaden...');
         changelogBtn.style.display = 'none';
-        showProgress('Update voorbereiden...', true);
+        showProgress(t('Update voorbereiden...'), true);
         await window.electron.downloadUpdate();
     });
 
     installBtn.addEventListener('click', async () => {
         installBtn.disabled = true;
-        installBtn.querySelector('span').textContent = 'Installeren...';
+        installBtn.querySelector('span').textContent = t('Installeren...');
         await window.electron.quitAndInstall();
     });
 

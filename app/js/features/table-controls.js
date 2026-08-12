@@ -7,8 +7,8 @@ window.TableControls = (function () {
     'use strict';
 
     const TABS = [
-        { id: 'tabel-indeling', label: 'Tabelindeling' },
-        { id: 'tabel-ontwerp', label: 'Tabelontwerp' },
+        { id: 'tabel-indeling', label: SummieI18n.t('Tabelindeling') },
+        { id: 'tabel-ontwerp', label: SummieI18n.t('Tabelontwerp') },
     ];
 
     let _activeTable = null; // currently focused <table>
@@ -423,7 +423,7 @@ window.TableControls = (function () {
         }
 
         if (action === 'delRow') {
-            if (rows.length <= 1) { window.showNotification?.('Tabel', 'Kan de enige rij niet verwijderen.', 'warning'); return; }
+            if (rows.length <= 1) { window.showNotification?.(SummieI18n.t('Tabel'), SummieI18n.t('Kan de enige rij niet verwijderen.'), 'warning'); return; }
             rows[ri].remove();
         }
 
@@ -459,7 +459,7 @@ window.TableControls = (function () {
         }
 
         if (action === 'delCol') {
-            if (cols <= 1) { window.showNotification?.('Tabel', 'Kan de enige kolom niet verwijderen.', 'warning'); return; }
+            if (cols <= 1) { window.showNotification?.(SummieI18n.t('Tabel'), SummieI18n.t('Kan de enige kolom niet verwijderen.'), 'warning'); return; }
             rows.forEach(tr => {
                 const cells = Array.from(tr.querySelectorAll('th,td'));
                 cells[ci]?.remove();
@@ -966,7 +966,7 @@ window.TableControls = (function () {
             btn.disabled = !!isRatio;
             btn.style.opacity = isRatio ? '0.35' : '';
             btn.title = isRatio
-                ? 'Rijen aanpassen niet mogelijk in een verhoudingstabel'
+                ? SummieI18n.t('Rijen aanpassen niet mogelijk in een verhoudingstabel')
                 : btn.dataset.origTitle || btn.title;
             if (!btn.dataset.origTitle && !isRatio) btn.dataset.origTitle = btn.title;
         });
@@ -1078,7 +1078,7 @@ window.TableControls = (function () {
     'use strict';
 
     const TAB_ID = 'tabel-formules';
-    const TAB_LABEL = 'Formules';
+    const TAB_LABEL = SummieI18n.t('Formules');
 
     // ── Cell Reference Helpers ────────────────────────────────────────────
 
@@ -1529,9 +1529,9 @@ window.TableControls = (function () {
 
     const CATEGORIES = {
         'Aggregatie': [
-            { label: 'SOM(bereik)', desc: 'Optellen', tmpl: 'SOM(A1:A5)' },
-            { label: 'GEMIDDELDE(bereik)', desc: 'Gemiddelde', tmpl: 'GEMIDDELDE(A1:A5)' },
-            { label: 'MIN(bereik)', desc: 'Kleinste waarde', tmpl: 'MIN(A1:A5)' },
+            { label: 'SOM(bereik)', desc: SummieI18n.t('Optellen'), tmpl: 'SOM(A1:A5)' },
+            { label: 'GEMIDDELDE(bereik)', desc: SummieI18n.t('Gemiddelde'), tmpl: 'GEMIDDELDE(A1:A5)' },
+            { label: 'MIN(bereik)', desc: SummieI18n.t('Kleinste waarde'), tmpl: 'MIN(A1:A5)' },
             { label: 'MAX(bereik)', desc: 'Grootste waarde', tmpl: 'MAX(A1:A5)' },
             { label: 'AANTAL(bereik)', desc: 'Tel cellen', tmpl: 'AANTAL(A1:A5)' },
             { label: 'PRODUCT(bereik)', desc: 'Vermenigvuldigen', tmpl: 'PRODUCT(A1:A5)' },
@@ -1540,7 +1540,7 @@ window.TableControls = (function () {
         ],
         'Wiskunde': [
             { label: 'ABS(cel)', desc: 'Absolute waarde', tmpl: 'ABS(A1)' },
-            { label: 'SQRT(cel)', desc: 'Vierkantswortel', tmpl: 'SQRT(A1)' },
+            { label: 'SQRT(cel)', desc: SummieI18n.t('Vierkantswortel'), tmpl: 'SQRT(A1)' },
             { label: 'MACHT(cel,macht)', desc: 'Machtsverheffing', tmpl: 'MACHT(A1,2)' },
             { label: 'MOD(cel,deler)', desc: 'Rest na deling', tmpl: 'MOD(A1,2)' },
             { label: 'AFRONDEN(cel,dec)', desc: 'Afronden', tmpl: 'AFRONDEN(A1,2)' },
@@ -1553,13 +1553,13 @@ window.TableControls = (function () {
             { label: 'PI()', desc: 'Waarde van π', tmpl: 'PI()' },
         ],
         'Logisch': [
-            { label: 'ALS(vw,dan,anders)', desc: 'Als-dan-anders', tmpl: 'ALS(A1>0,A1,0)' },
+            { label: 'ALS(vw,dan,anders)', desc: SummieI18n.t('Als-dan-anders'), tmpl: 'ALS(A1>0,A1,0)' },
             { label: 'EN(vw1,vw2)', desc: 'Alles waar?', tmpl: 'EN(A1>0,B1>0)' },
             { label: 'OF(vw1,vw2)', desc: 'Minstens één waar?', tmpl: 'OF(A1>0,B1>0)' },
             { label: 'NIET(voorwaarde)', desc: 'Omgekeerde logica', tmpl: 'NIET(A1>0)' },
         ],
         'Tekst': [
-            { label: 'SAMENVOEGEN(c1,c2)', desc: 'Tekst samenvoegen', tmpl: 'SAMENVOEGEN(A1,B1)' },
+            { label: 'SAMENVOEGEN(c1,c2)', desc: SummieI18n.t('Tekst samenvoegen'), tmpl: 'SAMENVOEGEN(A1,B1)' },
             { label: 'LENGTE(cel)', desc: 'Aantal tekens', tmpl: 'LENGTE(A1)' },
             { label: 'HOOFDLETTERS(cel)', desc: 'Naar hoofdletters', tmpl: 'HOOFDLETTERS(A1)' },
             { label: 'KLEINE_LETTERS(cel)', desc: 'Naar kleine letters', tmpl: 'KLEINE_LETTERS(A1)' },
@@ -1731,7 +1731,7 @@ window.TableControls = (function () {
             copyBtn.classList.add('ctx-btn-active');
             const label = document.createElement('span');
             label.className = 'fml-copy-toast';
-            label.textContent = 'Gekopieerd! Klik een cel om te plakken';
+            label.textContent = SummieI18n.t('Gekopieerd! Klik een cel om te plakken');
             const bar = panel.querySelector('.fml-bar-row');
             bar.appendChild(label);
             setTimeout(() => { label.remove(); copyBtn.classList.remove('ctx-btn-active'); }, 2500);
@@ -1746,12 +1746,12 @@ window.TableControls = (function () {
             if (_pickerMode) {
                 stopPicker();
                 pickToggle.classList.remove('ctx-btn-active');
-                pickLabel.textContent = 'Cellen selecteren';
+                pickLabel.textContent = SummieI18n.t('Cellen selecteren');
                 pickHint.style.display = 'none';
             } else {
                 startPicker();
                 pickToggle.classList.add('ctx-btn-active');
-                pickLabel.textContent = 'Stop selecteren';
+                pickLabel.textContent = SummieI18n.t('Stop selecteren');
                 pickHint.style.display = '';
             }
         });
@@ -1770,7 +1770,7 @@ window.TableControls = (function () {
             }
             stopPicker();
             pickToggle.classList.remove('ctx-btn-active');
-            pickLabel.textContent = 'Cellen selecteren';
+            pickLabel.textContent = SummieI18n.t('Cellen selecteren');
             pickHint.style.display = 'none';
             if (_activeCell) _activeCell.focus();
         });
@@ -1881,7 +1881,7 @@ window.TableControls = (function () {
         const lbl = document.getElementById('fmlPickToggleLabel');
         const hint = document.getElementById('fmlPickHint');
         const tog = document.getElementById('fmlPickToggle');
-        if (lbl) lbl.textContent = 'Cellen selecteren';
+        if (lbl) lbl.textContent = SummieI18n.t('Cellen selecteren');
         if (hint) hint.style.display = 'none';
         if (tog) tog.classList.remove('ctx-btn-active');
     }
@@ -1898,7 +1898,7 @@ window.TableControls = (function () {
             btn.disabled = !!isRatio;
             btn.style.opacity = isRatio ? '0.35' : '';
             btn.title = isRatio
-                ? 'Rijen aanpassen niet mogelijk in een verhoudingstabel'
+                ? SummieI18n.t('Rijen aanpassen niet mogelijk in een verhoudingstabel')
                 : btn.dataset.origTitle || btn.title;
             if (!btn.dataset.origTitle && !isRatio) btn.dataset.origTitle = btn.title;
         });

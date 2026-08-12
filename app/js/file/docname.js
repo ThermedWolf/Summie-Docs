@@ -212,7 +212,7 @@ function showSaveStatusSuccess() {
     if (_saveStatusTimer) clearTimeout(_saveStatusTimer);
     if (_saveStatusIntervalId) clearInterval(_saveStatusIntervalId);
 
-    _setStatusText(area, 'save-status-text save-success', 'Opgeslagen!');
+    _setStatusText(area, 'save-status-text save-success', SummieI18n.t('Opgeslagen!'));
 
     // Update file size display after save
     window.updateFileSize && window.updateFileSize();
@@ -236,12 +236,12 @@ function updateLastSavedText() {
     const hasUnsaved = _hasUnsavedChanges();
 
     if (hasUnsaved) {
-        _setStatusText(area, 'save-status-text save-unsaved', 'Niet opgeslagen wijzigingen');
+        _setStatusText(area, 'save-status-text save-unsaved', SummieI18n.t('Niet opgeslagen wijzigingen'));
     } else if (_saveStatusLastSavedTime) {
         const diffMs = new Date() - _saveStatusLastSavedTime;
         const diffMin = Math.floor(diffMs / 60000);
-        const timeStr = diffMin < 1 ? 'zojuist' : diffMin === 1 ? '1 min geleden' : `${diffMin} min geleden`;
-        _setStatusTextTime(area, `Laatst opgeslagen ${timeStr}`);
+        const timeStr = diffMin < 1 ? SummieI18n.t('zojuist') : diffMin === 1 ? SummieI18n.t('1 min geleden') : SummieI18n.t(`${diffMin} min geleden`);
+        _setStatusTextTime(area, SummieI18n.t(`Laatst opgeslagen ${timeStr}`));
     }
     // If no prior save and no unsaved changes, show nothing
 }
@@ -261,12 +261,12 @@ function updateUnsavedIndicator() {
     const area = document.getElementById('saveStatusArea');
     if (!area) return;
     if (hasUnsaved) {
-        _setStatusText(area, 'save-status-text save-unsaved', 'Niet opgeslagen wijzigingen');
+        _setStatusText(area, 'save-status-text save-unsaved', SummieI18n.t('Niet opgeslagen wijzigingen'));
     } else if (_saveStatusLastSavedTime) {
         const diffMs = new Date() - _saveStatusLastSavedTime;
         const diffMin = Math.floor(diffMs / 60000);
-        const timeStr = diffMin < 1 ? 'zojuist' : diffMin === 1 ? '1 min geleden' : `${diffMin} min geleden`;
-        _setStatusTextTime(area, `Laatst opgeslagen ${timeStr}`);
+        const timeStr = diffMin < 1 ? SummieI18n.t('zojuist') : diffMin === 1 ? SummieI18n.t('1 min geleden') : SummieI18n.t(`${diffMin} min geleden`);
+        _setStatusTextTime(area, SummieI18n.t(`Laatst opgeslagen ${timeStr}`));
     } else {
         // No prior save and no unsaved changes — clear the area
         const current = area.querySelector('.save-status-text');
@@ -378,7 +378,7 @@ function setupDocNameInput() {
             window.updateWindowTitle && window.updateWindowTitle(newPath);
             window.AutoSave && window.AutoSave.onFileChanged();
         } else {
-            window.showNotification && window.showNotification('Fout', `Kon niet hernoemen: ${result.error || ''}`, 'error');
+            window.showNotification && window.showNotification(SummieI18n.t('Fout'), `Kon niet hernoemen: ${result.error || ''}`, 'error');
             loadDocName();
         }
     }

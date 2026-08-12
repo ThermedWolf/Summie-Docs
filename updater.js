@@ -11,6 +11,24 @@ const REPO_OWNER = 'ThermedWolf';
 const REPO_NAME = 'Summie-Docs';
 const GITHUB_API_URL = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases/latest`;
 
+const EN_DICT = require('./app/js/i18n/en.js');
+const { app } = require('electron');
+const path2 = require('path');
+const fs2 = require('fs');
+const appSettingsPath = path2.join(app.getPath('userData'), 'app-settings.json');
+
+// Translate a user-facing string (updater errors/release notes fallback).
+function tUpdater(str) {
+    let lang = 'nl';
+    try {
+        const raw = JSON.parse(fs2.readFileSync(appSettingsPath, 'utf8'));
+        lang = raw.language || 'nl';
+    } catch (e) { /* defaults */ }
+    if (lang !== 'en') return str;
+    const hit = EN_DICT && EN_DICT[str];
+    return hit !== undefined && hit !== null ? hit : str;
+}
+
 let updateCheckInProgress = false;
 let latestReleaseInfo = null;
 
@@ -181,7 +199,7 @@ async function checkForUpdates() {
         
         latestReleaseInfo = {
             version: latestVersion,
-            releaseNotes: release.body || 'Geen release notes beschikbaar.',
+            releaseNotes: release.body || tUpdater('Geen release notes beschikbaar.'),
             downloadUrl: installer.browser_download_url,
             fileName: installer.name,
             fileSize: installer.size,
@@ -204,7 +222,7 @@ let downloadProgress = 0;
 
 async function downloadUpdate() {
     if (!latestReleaseInfo) {
-        throw new Error('Geen update beschikbaar om te downloaden');
+        throw new Error(tUpdater('Geen update beschikbaar om te downloaden'));
     }
     
     downloadAborted = false;
@@ -236,7 +254,7 @@ async function downloadUpdate() {
             if (downloadAborted) {
                 fileStream.close();
                 fs.unlinkSync(filePath);
-                throw new Error('Download geannuleerd');
+                throw new Error(tUpdater('Download geannuleerd'));
             }
             
             const { done, value } = await reader.read();
@@ -287,7 +305,7 @@ async function installMacUpdate(filePath) {
         const entries = fs.readdirSync(mountPoint);
         const appName = entries.find(name => name.endsWith('.app'));
         if (!appName) {
-            throw new Error('Geen .app gevonden in de DMG');
+            throw new Error(tUpdater('Geen .app gevonden in de DMG'));
         }
         
         const sourceApp = path.join(mountPoint, appName);
@@ -340,7 +358,7 @@ async function installLinuxUpdate(filePath, isDeb) {
 
 async function quitAndInstall() {
     if (!latestReleaseInfo || !latestReleaseInfo.downloadedPath) {
-        throw new Error('Geen gedownloade update om te installeren');
+        throw new Error(tUpdater('Geen gedownloade update om te installeren'));
     }
     
     const { shell } = require('electron');

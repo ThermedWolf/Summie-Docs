@@ -168,10 +168,10 @@ function animateSearchCounter(element, targetCount) {
     const timer = setInterval(() => {
         step++;
         current = Math.min(Math.round(increment * step), targetCount);
-        element.textContent = `${current} ${current === 1 ? 'resultaat' : 'resultaten'} in document`;
+        element.textContent = SummieI18n.t(`${current} ${current === 1 ? 'resultaat' : 'resultaten'} in document`);
         if (step >= steps || current >= targetCount) {
             clearInterval(timer);
-            element.textContent = `${targetCount} ${targetCount === 1 ? 'resultaat' : 'resultaten'} in document`;
+            element.textContent = SummieI18n.t(`${targetCount} ${targetCount === 1 ? 'resultaat' : 'resultaten'} in document`);
             setTimeout(() => element.classList.remove('counting'), 100);
         }
     }, duration / steps);

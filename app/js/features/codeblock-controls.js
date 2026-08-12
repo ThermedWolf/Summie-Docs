@@ -3,7 +3,7 @@ window.CodeblockControls = (function () {
     'use strict';
 
     const TAB_ID = 'codeblock-styling';
-    const TAB_LABEL = 'CodeBlock Stijl';
+    const TAB_LABEL = SummieI18n.t('CodeBlock Stijl');
 
     let _activeBlock = null;
 
@@ -75,7 +75,7 @@ window.CodeblockControls = (function () {
             const input = document.createElement('input');
             input.type = 'text';
             input.className = 'cb-name-input';
-            input.placeholder = 'naamloos';
+            input.placeholder = SummieI18n.t('naamloos');
             input.spellcheck = false;
 
             // Stop ALL keyboard events from reaching the editor (capture + bubble)
@@ -93,7 +93,7 @@ window.CodeblockControls = (function () {
                     input.value = clean;
                     input.setSelectionRange(pos, pos);
                 }
-                wrapper.dataset.cbFilename = clean || 'naamloos';
+                wrapper.dataset.cbFilename = clean || SummieI18n.t('naamloos');
                 const panelInput = document.getElementById('cbNameInput');
                 if (panelInput) panelInput.value = clean;
                 window.saveToLocalStorage?.();
@@ -137,7 +137,7 @@ window.CodeblockControls = (function () {
             if (grp) {
                 grp.style.display = '';
                 const input = grp.querySelector('.cb-name-input');
-                if (input) input.value = wrapper.dataset.cbFilename || 'naamloos';
+                if (input) input.value = wrapper.dataset.cbFilename || SummieI18n.t('naamloos');
             }
             // Switch dropdown button text to extension
             if (langBtn) langBtn.textContent = getExt(wrapper);
@@ -259,7 +259,7 @@ window.CodeblockControls = (function () {
             if (!_activeBlock) return;
             if (nameToggle.checked) {
                 filenameEditor.style.display = '';
-                nameInput.value = _activeBlock.dataset.cbFilename || 'naamloos';
+                nameInput.value = _activeBlock.dataset.cbFilename || SummieI18n.t('naamloos');
                 extDisplay.textContent = getExt(_activeBlock);
                 setNameMode(_activeBlock, true);
             } else {
@@ -277,7 +277,7 @@ window.CodeblockControls = (function () {
                 nameInput.value = clean;
                 nameInput.setSelectionRange(pos, pos);
             }
-            _activeBlock.dataset.cbFilename = clean || 'naamloos';
+            _activeBlock.dataset.cbFilename = clean || SummieI18n.t('naamloos');
             // Sync the header inline input
             const headerInput = _activeBlock.querySelector('.cb-name-input');
             if (headerInput) headerInput.value = clean;
@@ -430,7 +430,7 @@ window.CodeblockControls = (function () {
         nameToggle.checked = on;
         if (on) {
             filenameEditor.style.display = '';
-            nameInput.value = wrapper.dataset.cbFilename || 'naamloos';
+            nameInput.value = wrapper.dataset.cbFilename || SummieI18n.t('naamloos');
             extDisplay.textContent = getExt(wrapper);
         } else {
             filenameEditor.style.display = 'none';

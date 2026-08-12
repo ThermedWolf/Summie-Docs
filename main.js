@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, dialog, shell, nativeTheme } = require('ele
 const path = require('path');
 const fs = require('fs');
 const updater = require('./updater');
+const EN_DICT = require('./app/js/i18n/en.js');
 
 // Single source of truth for the app version. app.getVersion() reads it
 // straight from package.json's "version" field, so bumping that one value
@@ -114,8 +115,15 @@ function writeFavourites(favs) {
 }
 
 // ── App settings ──────────────────────────────────────────────────────────
+// The default language follows the device: Dutch when the OS is Dutch,
+// English otherwise (the universal fallback for all other locales).
+function detectDefaultLanguage() {
+    const locale = (app.getLocale() || '').toLowerCase();
+    return locale.startsWith('nl') ? 'nl' : 'en';
+}
+
 const DEFAULT_APP_SETTINGS = {
-    language: 'nl',                     // 'nl' | 'en'
+    language: detectDefaultLanguage(),  // 'nl' | 'en'
     autoSaveNewFiles: false,            // automatically save new documents
     newFilesDirectory: path.join(app.getPath('home'), 'Documents'),
     closeToHome: true,                  // close button → landing page instead of quitting
@@ -124,15 +132,29 @@ const DEFAULT_APP_SETTINGS = {
 };
 
 function readAppSettings() {
+    let raw = {};
     try {
-        const raw = JSON.parse(fs.readFileSync(appSettingsPath, 'utf8'));
-        return { ...DEFAULT_APP_SETTINGS, ...raw };
-    } catch { return { ...DEFAULT_APP_SETTINGS }; }
+        raw = JSON.parse(fs.readFileSync(appSettingsPath, 'utf8'));
+    } catch { /* corrupt or missing — fall through with defaults */ }
+    const merged = { ...DEFAULT_APP_SETTINGS, ...raw };
+    if (merged.language !== 'nl' && merged.language !== 'en') {
+        merged.language = detectDefaultLanguage();
+    }
+    return merged;
 }
 
 function writeAppSettings(settings) {
     const merged = { ...DEFAULT_APP_SETTINGS, ...settings };
     fs.writeFileSync(appSettingsPath, JSON.stringify(merged, null, 2), 'utf8');
+}
+
+// Translate a main-process UI string (native dialogs, taskbar, window titles).
+// Dutch is returned as-is; English is looked up in the shared dictionary.
+function tMain(str) {
+    const lang = readAppSettings().language || detectDefaultLanguage();
+    if (lang !== 'en') return str;
+    const hit = EN_DICT && EN_DICT[str];
+    return hit !== undefined && hit !== null ? hit : str;
 }
 
 // Window background color for the moment before the page renders — matches the
@@ -291,13 +313,13 @@ function createWindow(filePathToOpen = null) {
         let choice;
         try {
             choice = await win.webContents.executeJavaScript(`
-                window.SummieDialogs.choice('Wil je het huidige document opslaan?', {
-                    title: 'Niet-opgeslagen wijzigingen',
-                    detail: 'Het huidige document gaat verloren als je een nieuw bestand laadt.',
+                window.SummieDialogs.choice(${JSON.stringify(tMain('Wil je het huidige document opslaan?'))}, {
+                    title: ${JSON.stringify(tMain('Niet opgeslagen wijzigingen'))},
+                    detail: ${JSON.stringify(tMain('Het huidige document gaat verloren als je een nieuw bestand laadt.'))},
                     buttons: [
-                        { label: 'Opslaan', value: 'save', primary: true },
-                        { label: 'Niet opslaan', value: 'dontsave', danger: true },
-                        { label: 'Annuleren', value: 'cancel' }
+                        { label: ${JSON.stringify(tMain('Opslaan'))}, value: 'save', primary: true },
+                        { label: ${JSON.stringify(tMain('Niet opslaan'))}, value: 'dontsave', danger: true },
+                        { label: ${JSON.stringify(tMain('Annuleren'))}, value: 'cancel' }
                     ],
                     escValue: 'cancel'
                 })
@@ -401,16 +423,16 @@ ipcMain.handle('save-sumd-file', async (event, data, existingPath = null, defaul
     let filePath = existingPath;
 
     if (!filePath) {
-        let defaultPath = defaultName ? `${defaultName}.sumd` : 'samenvatting.sumd';
+        let defaultPath = defaultName ? `${defaultName}.sumd` : `${tMain('samenvatting')}.sumd`;
         if (defaultDir) {
             defaultPath = path.join(defaultDir, defaultPath);
         }
         const result = await dialog.showSaveDialog(mainWindow, {
-            title: 'Samenvatting Opslaan',
+            title: tMain('Samenvatting Opslaan'),
             defaultPath,
             filters: [
-                { name: 'Summie Document', extensions: ['sumd'] },
-                { name: 'All Files', extensions: ['*'] }
+                { name: tMain('Summie Document'), extensions: ['sumd'] },
+                { name: tMain('All Files'), extensions: ['*'] }
             ]
         });
         if (result.canceled) return { success: false, canceled: true };
@@ -427,11 +449,11 @@ ipcMain.handle('save-sumd-file', async (event, data, existingPath = null, defaul
 
 ipcMain.handle('open-sumd-file', async () => {
     const result = await dialog.showOpenDialog(mainWindow, {
-        title: 'Document Openen',
+        title: tMain('Document Openen'),
         filters: [
-            { name: 'Summie Document', extensions: ['sumd'] },
-            { name: 'JSON Files', extensions: ['json'] },
-            { name: 'All Files', extensions: ['*'] }
+            { name: tMain('Summie Document'), extensions: ['sumd'] },
+            { name: tMain('JSON Files'), extensions: ['json'] },
+            { name: tMain('All Files'), extensions: ['*'] }
         ],
         properties: ['openFile']
     });
@@ -451,11 +473,11 @@ ipcMain.handle('open-sumd-file', async () => {
 
 ipcMain.handle('open-sumd-file-at', async (event, defaultDir) => {
     const opts = {
-        title: 'Document Openen',
+        title: tMain('Document Openen'),
         filters: [
-            { name: 'Summie Document', extensions: ['sumd'] },
-            { name: 'JSON Files', extensions: ['json'] },
-            { name: 'All Files', extensions: ['*'] }
+            { name: tMain('Summie Document'), extensions: ['sumd'] },
+            { name: tMain('JSON Files'), extensions: ['json'] },
+            { name: tMain('All Files'), extensions: ['*'] }
         ],
         properties: ['openFile']
     };
@@ -538,9 +560,9 @@ ipcMain.handle('print-document', async (event) => {
 ipcMain.handle('save-as-pdf', async (event) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     const result = await dialog.showSaveDialog(win, {
-        title: 'Opslaan als PDF',
+        title: tMain('Opslaan als PDF'),
         defaultPath: 'document.pdf',
-        filters: [{ name: 'PDF bestanden', extensions: ['pdf'] }]
+        filters: [{ name: tMain('PDF bestanden'), extensions: ['pdf'] }]
     });
     if (result.canceled || !result.filePath) return { success: false, canceled: true };
     try {
@@ -663,13 +685,19 @@ ipcMain.handle('settings-set', (event, patch) => {
             win.webContents.send('theme-changed', updated.theme || 'system');
         });
     }
+    // Keep every open window in sync when the language changes via settings
+    if (patch && patch.language && patch.language !== current.language) {
+        BrowserWindow.getAllWindows().forEach(win => {
+            win.webContents.send('language-changed', updated.language || 'nl');
+        });
+    }
     return updated;
 });
 ipcMain.handle('settings-get-number-locale', () => readAppSettings().numberLocale || 'eu');
 ipcMain.handle('settings-pick-directory', async () => {
     const current = readAppSettings();
     const result = await dialog.showOpenDialog({
-        title: 'Kies standaard map voor nieuwe documenten',
+        title: tMain('Kies standaard map voor nieuwe documenten'),
         defaultPath: current.newFilesDirectory,
         properties: ['openDirectory', 'createDirectory'],
     });
@@ -701,6 +729,12 @@ ipcMain.on('get-app-version-sync', (event) => {
     event.returnValue = APP_VERSION;
 });
 
+// Sync IPC for the active language — lets each page resolve translations
+// synchronously before anything is painted or rendered.
+ipcMain.on('get-language-sync', (event) => {
+    event.returnValue = readAppSettings().language || detectDefaultLanguage();
+});
+
 // Update the window title to show the current document name
 ipcMain.on('set-window-title', (event, documentName) => {
     const win = BrowserWindow.fromWebContents(event.sender);
@@ -712,7 +746,7 @@ ipcMain.on('set-window-title', (event, documentName) => {
 // Open a source code file via dialog and return path + content
 ipcMain.handle('open-code-file', async () => {
     const result = await dialog.showOpenDialog(mainWindow, {
-        title: 'Bestand Laden in Codeblok',
+        title: tMain('Bestand Laden in Codeblok'),
         properties: ['openFile']
     });
     if (!result.canceled && result.filePaths.length > 0) {
@@ -779,8 +813,8 @@ app.whenReady().then(() => {
                 arguments: '--new-window',
                 iconPath: process.execPath,
                 iconIndex: 0,
-                title: 'Nieuw venster',
-                description: 'Open een nieuw Summie venster'
+                title: tMain('Nieuw venster'),
+                description: tMain('Open een nieuw Summie venster')
             }
         ]);
     }
@@ -902,13 +936,13 @@ ipcMain.on('navigate-to-landing', async (event) => {
         let choice;
         try {
             choice = await win.webContents.executeJavaScript(`
-                window.SummieDialogs.choice('Wil je het huidige document opslaan?', {
-                    title: 'Niet-opgeslagen wijzigingen',
-                    detail: 'Het huidige document gaat verloren als je teruggaat naar het startmenu.',
+                window.SummieDialogs.choice(${JSON.stringify(tMain('Wil je het huidige document opslaan?'))}, {
+                    title: ${JSON.stringify(tMain('Niet opgeslagen wijzigingen'))},
+                    detail: ${JSON.stringify(tMain('Het huidige document gaat verloren als je teruggaat naar het startmenu.'))},
                     buttons: [
-                        { label: 'Opslaan', value: 'save', primary: true },
-                        { label: 'Niet opslaan', value: 'dontsave', danger: true },
-                        { label: 'Annuleren', value: 'cancel' }
+                        { label: ${JSON.stringify(tMain('Opslaan'))}, value: 'save', primary: true },
+                        { label: ${JSON.stringify(tMain('Niet opslaan'))}, value: 'dontsave', danger: true },
+                        { label: ${JSON.stringify(tMain('Annuleren'))}, value: 'cancel' }
                     ],
                     escValue: 'cancel'
                 })
@@ -942,7 +976,7 @@ ipcMain.on('open-leren', (event) => {
         y: bounds.y,
         minWidth: 800,
         minHeight: 600,
-        title: 'Begrippen Leren — Summie',
+        title: tMain('Begrippen Leren — Summie'),
         icon: path.join(__dirname, 'app', 'icon.png'),
         frame: false,
         webPreferences: {

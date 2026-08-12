@@ -5,7 +5,7 @@ window.TextboxManager = (function () {
     'use strict';
 
     const CTX_ID = 'textbox-opmaak';
-    const CTX_LABEL = 'Tekstvak';
+    const CTX_LABEL = SummieI18n.t('Tekstvak');
     const CTX_KEY = 'textbox';
 
     let _activeBox = null;
@@ -49,7 +49,7 @@ window.TextboxManager = (function () {
         const inner = document.createElement('div');
         inner.className = 'summie-textbox-inner';
         inner.contentEditable = 'true';
-        inner.setAttribute('data-placeholder', 'Typ hier...');
+        inner.setAttribute('data-placeholder', SummieI18n.t('Typ hier...'));
         box.appendChild(inner);
 
         // Word-style resize handles (8 handles around the border)

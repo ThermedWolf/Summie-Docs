@@ -403,10 +403,10 @@
         if (ind.left + ind.firstLine === 0) addSnapLine(layer, defaultLeftX);
         if (ind.right === 0) addSnapLine(layer, defaultRightX);
 
-        const block = makeHandle('indent-block', leftX, 'Linker inspringing');
-        const hangTri = makeHandle('indent-hang-tri', leftX, 'Hangende inspringing');
-        const firstTri = makeHandle('indent-first-tri', firstLineX, 'Eerste-regel inspringing');
-        const rightTri = makeHandle('indent-right-tri', rightX, 'Rechter inspringing');
+        const block = makeHandle('indent-block', leftX, SummieI18n.t('Linker inspringing'));
+        const hangTri = makeHandle('indent-hang-tri', leftX, SummieI18n.t('Hangende inspringing'));
+        const firstTri = makeHandle('indent-first-tri', firstLineX, SummieI18n.t('Eerste-regel inspringing'));
+        const rightTri = makeHandle('indent-right-tri', rightX, SummieI18n.t('Rechter inspringing'));
 
         layer.appendChild(block);
         layer.appendChild(hangTri);

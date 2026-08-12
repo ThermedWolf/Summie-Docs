@@ -632,7 +632,7 @@
             };
             const lang = (textarea && textarea.getAttribute('data-language')) || 'plaintext';
             const ext = LANG_EXT[lang] || lang;
-            const name = (wrapperEl.dataset.cbFilename || 'naamloos') + '.' + ext;
+            const name = (wrapperEl.dataset.cbFilename || SummieI18n.t('naamloos')) + '.' + ext;
             paras.push(new Paragraph({
                 children: [new TextRun({ text: name, font: 'Courier New', size: 18, color: '9CDCFE', bold: true })],
                 shading: { fill: '2D2D2D', type: ShadingType.CLEAR },
@@ -762,7 +762,7 @@
         const strokeXml = strokeWidth > 0
             ? `<a:ln w="${strokeWidth}"><a:solidFill><a:srgbClr val="${stroke}"/></a:solidFill>${lineEnd}</a:ln>`
             : '<a:ln w="0"><a:noFill/></a:ln>';
-        const name = xmlEscape(type === 'arrow' ? 'Pijl' : type === 'line' ? 'Lijn' : 'Vorm');
+        const name = xmlEscape(type === 'arrow' ? SummieI18n.t('Pijl') : type === 'line' ? SummieI18n.t('Lijn') : SummieI18n.t('Vorm'));
 
         const xml = `
             <w:r xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
@@ -863,7 +863,7 @@
             data: img.src,
             transformation: { width, height },
             altText: {
-                title: 'Afbeelding',
+                title: SummieI18n.t('Afbeelding'),
                 description: img.alt || ''
             }
         };
@@ -946,12 +946,12 @@
         out.push(new Paragraph({ children: [new TextRun('')], pageBreakBefore: true }));
         out.push(new Paragraph({
             heading: HeadingLevel.HEADING_1,
-            children: [new TextRun({ text: 'Begrippen', font: 'Arial' })],
+            children: [new TextRun({ text: SummieI18n.t('Begrippen'), font: 'Arial' })],
             spacing: { before: 0, after: 240 },
         }));
 
         if (begrippen.length === 0) {
-            out.push(new Paragraph({ children: [new TextRun({ text: 'Geen begrippen gedefinieerd.', italics: true, font: 'Arial', size: 24 })] }));
+            out.push(new Paragraph({ children: [new TextRun({ text: SummieI18n.t('Geen begrippen gedefinieerd.'), italics: true, font: 'Arial', size: 24 })] }));
             return out;
         }
 
@@ -968,8 +968,8 @@
 
         const headerRow = new TableRow({
             tableHeader: true, children: [
-                mkCell([new Paragraph({ children: [new TextRun({ text: 'Begrip', bold: true, font: 'Arial', size: 22, color: '1E293B' })] })], 'EFF6FF', 2800),
-                mkCell([new Paragraph({ children: [new TextRun({ text: 'Omschrijving', bold: true, font: 'Arial', size: 22, color: '1E293B' })] })], 'EFF6FF', 6226),
+                mkCell([new Paragraph({ children: [new TextRun({ text: SummieI18n.t('Begrip'), bold: true, font: 'Arial', size: 22, color: '1E293B' })] })], 'EFF6FF', 2800),
+                mkCell([new Paragraph({ children: [new TextRun({ text: SummieI18n.t('Omschrijving'), bold: true, font: 'Arial', size: 22, color: '1E293B' })] })], 'EFF6FF', 6226),
             ]
         });
 
@@ -996,7 +996,7 @@
     async function exportToDocx() {
         const docxLib = window.docx;
         if (!docxLib) {
-            window.showNotification && window.showNotification('Fout', 'DOCX bibliotheek niet geladen.', 'error');
+            window.showNotification && window.showNotification(SummieI18n.t('Fout'), SummieI18n.t('DOCX bibliotheek niet geladen.'), 'error');
             return;
         }
 
@@ -1006,7 +1006,7 @@
         const currentPath = window.currentFilePath || localStorage.getItem('summie_current_file_path') || '';
         const docName = currentPath
             ? currentPath.split('\\').pop().split('/').pop().replace(/\.[^.]+$/, '')
-            : 'samenvatting';
+            : SummieI18n.t('samenvatting');
 
         showDocxLoadingModal();
         try {
@@ -1089,13 +1089,13 @@
             URL.revokeObjectURL(url);
 
             hideDocxLoadingModal();
-            window.showNotification && window.showNotification('Geëxporteerd', `${docName}.docx is opgeslagen.`, 'success');
+            window.showNotification && window.showNotification(SummieI18n.t('Geëxporteerd'), `${docName}.docx is opgeslagen.`, 'success');
             window.topbarManager && window.topbarManager.closeFileSidebar();
 
         } catch (err) {
             hideDocxLoadingModal();
             console.error('DOCX export error:', err);
-            window.showNotification && window.showNotification('Fout', `Kon niet exporteren: ${err.message}`, 'error');
+            window.showNotification && window.showNotification(SummieI18n.t('Fout'), `Kon niet exporteren: ${err.message}`, 'error');
         }
     }
 
@@ -1111,7 +1111,7 @@
             loader.className = 'docx-loader';
             var label = document.createElement('p');
             label.style.cssText = 'margin:0;font-size:14px;color:#64748b;font-family:Arial,sans-serif;';
-            label.textContent = 'Word document genereren...';
+            label.textContent = SummieI18n.t('Word document genereren...');
             inner.appendChild(loader);
             inner.appendChild(label);
             modal.appendChild(inner);

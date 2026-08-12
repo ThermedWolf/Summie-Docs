@@ -25,16 +25,16 @@ window.ReferencesManager = {
         this._updateReferencesPanelIfOpen();
         window.saveToLocalStorage && window.saveToLocalStorage();
         window.updateUnsavedIndicator && window.updateUnsavedIndicator();
-        window.showNotification && window.showNotification('Verwijzing toegevoegd', `"${name}" is toegevoegd.`, 'success');
+        window.showNotification && window.showNotification(SummieI18n.t('Verwijzing toegevoegd'), `"${name}" is toegevoegd.`, 'success');
     },
 
     async deleteReference(id) {
         const ref = this.references.find(r => r.id === id);
         if (!ref) return;
         const ok = await window.SummieDialogs.confirm(`Verwijzing "${ref.name}" verwijderen?`, {
-            title: 'Verwijzing verwijderen',
-            confirmText: 'Verwijderen',
-            cancelText: 'Annuleren',
+            title: SummieI18n.t('Verwijzing verwijderen'),
+            confirmText: SummieI18n.t('Verwijderen'),
+            cancelText: SummieI18n.t('Annuleren'),
             danger: true
         });
         if (!ok) return;
@@ -47,7 +47,7 @@ window.ReferencesManager = {
         this._highlightReferenceWords();
         this._updateReferencesPanelIfOpen();
         window.saveToLocalStorage && window.saveToLocalStorage();
-        window.showNotification && window.showNotification('Verwijzing verwijderd', `"${ref.name}" is verwijderd.`, 'success');
+        window.showNotification && window.showNotification(SummieI18n.t('Verwijzing verwijderd'), `"${ref.name}" is verwijderd.`, 'success');
     },
 
     // ---- Highlighting keywords in document ----
@@ -333,7 +333,7 @@ window.ReferencesManager = {
         el.dataset.refBtn = '1';
         const btn = document.createElement('button');
         btn.className = 'ref-select-btn';
-        btn.title = 'Selecteer als verwijzingsdoel';
+        btn.title = SummieI18n.t('Selecteer als verwijzingsdoel');
         btn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> Selecteer`;
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -571,7 +571,7 @@ function openReferenceModal(existingRef, preselectedTarget) {
         document.getElementById('refSelectTargetBtn').addEventListener('click', () => {
             const name = document.getElementById('referenceNameInput').value.trim();
             if (!name) {
-                window.showNotification && window.showNotification('Fout', 'Voer eerst een naam in.', 'error');
+                window.showNotification && window.showNotification(SummieI18n.t('Fout'), SummieI18n.t('Voer eerst een naam in.'), 'error');
                 return;
             }
             window.ReferencesManager.startSelectionMode(name);
@@ -581,12 +581,12 @@ function openReferenceModal(existingRef, preselectedTarget) {
         document.getElementById('saveReferenceBtn').addEventListener('click', () => {
             const name = document.getElementById('referenceNameInput').value.trim();
             if (!name) {
-                window.showNotification && window.showNotification('Fout', 'Vul een naam in.', 'error');
+                window.showNotification && window.showNotification(SummieI18n.t('Fout'), SummieI18n.t('Vul een naam in.'), 'error');
                 return;
             }
             const target = window.ReferencesManager._pendingModalTarget;
             if (!target) {
-                window.showNotification && window.showNotification('Fout', 'Selecteer eerst een doel.', 'error');
+                window.showNotification && window.showNotification(SummieI18n.t('Fout'), SummieI18n.t('Selecteer eerst een doel.'), 'error');
                 return;
             }
             window.ReferencesManager._pendingModalTarget = null;
@@ -602,16 +602,16 @@ function openReferenceModal(existingRef, preselectedTarget) {
     if (preselectedTarget) {
         window.ReferencesManager._pendingModalTarget = preselectedTarget;
         const statusText = document.getElementById('refTargetStatusText');
-        const text = preselectedTarget.tagName === 'IMG' ? '📷 Afbeelding geselecteerd' :
-            preselectedTarget.classList.contains('code-block-wrapper') ? '💻 Codeblok geselecteerd' :
-                preselectedTarget.tagName === 'TABLE' ? '📋 Tabel geselecteerd' :
-                    `"${preselectedTarget.textContent.substring(0, 40)}…" geselecteerd`;
+        const text = preselectedTarget.tagName === 'IMG' ? SummieI18n.t('📷 Afbeelding geselecteerd') :
+            preselectedTarget.classList.contains('code-block-wrapper') ? SummieI18n.t('💻 Codeblok geselecteerd') :
+                preselectedTarget.tagName === 'TABLE' ? SummieI18n.t('📋 Tabel geselecteerd') :
+                    SummieI18n.t(`"${preselectedTarget.textContent.substring(0, 40)}…" geselecteerd`);
         statusText.textContent = text;
         statusText.style.color = 'var(--success-color)';
     } else {
         window.ReferencesManager._pendingModalTarget = null;
         const statusText = document.getElementById('refTargetStatusText');
-        statusText.textContent = 'Nog geen doel geselecteerd.';
+        statusText.textContent = SummieI18n.t('Nog geen doel geselecteerd.');
         statusText.style.color = 'var(--text-secondary)';
     }
 

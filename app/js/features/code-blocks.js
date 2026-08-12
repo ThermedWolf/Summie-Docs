@@ -170,7 +170,7 @@ class CodeBlockManager {
         copyGroup.contentEditable = 'false';
         const copyLabel = document.createElement('span');
         copyLabel.className = 'copy-label';
-        copyLabel.textContent = 'Gekopieerd';
+        copyLabel.textContent = SummieI18n.t('Gekopieerd');
         copyLabel.contentEditable = 'false';
         const copyBtn = this.createCopyButton();
         copyGroup.appendChild(copyLabel);
@@ -421,7 +421,7 @@ class CodeBlockManager {
     createCopyButton() {
         const button = document.createElement('button');
         button.className = 'code-copy-btn';
-        button.title = 'Kopieër code';
+        button.title = SummieI18n.t('Kopieër code');
         button.innerHTML = `
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75" />
@@ -544,7 +544,7 @@ class CodeBlockManager {
         }).catch(err => {
             console.error('Failed to copy code:', err);
             if (window.showNotification) {
-                window.showNotification('Kopiëren mislukt', 'Kon code niet kopiëren.', 'error');
+                window.showNotification(SummieI18n.t('Kopiëren mislukt'), SummieI18n.t('Kon code niet kopiëren.'), 'error');
             }
         });
     }
@@ -705,11 +705,11 @@ class CodeBlockManager {
         // Error label (hidden by default, shown when file not found)
         const errLabel = document.createElement('span');
         errLabel.className = 'cb-refresh-error';
-        errLabel.textContent = 'Bestand niet gevonden';
+        errLabel.textContent = SummieI18n.t('Bestand niet gevonden');
 
         const btn = document.createElement('button');
         btn.className = 'cb-refresh-btn';
-        btn.title = 'Bestand opnieuw laden';
+        btn.title = SummieI18n.t('Bestand opnieuw laden');
         btn.contentEditable = 'false';
         btn.innerHTML = `
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">

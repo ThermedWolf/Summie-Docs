@@ -12,7 +12,7 @@
     'use strict';
 
     const TAB_ID = 'afbeelding-opmaak';
-    const TAB_LABEL = 'Afbeelding';
+    const TAB_LABEL = SummieI18n.t('Afbeelding');
 
     let _activeWrapper = null; // the currently selected .editable-image-wrapper
     let _aspectLocked = true;

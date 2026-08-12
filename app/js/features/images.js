@@ -142,7 +142,7 @@ class ImageManager {
         if (!file) return;
 
         if (!file.type.startsWith('image/')) {
-            this.showNotification('Ongeldig bestand', 'Selecteer een afbeeldingsbestand.', 'error');
+            this.showNotification(SummieI18n.t('Ongeldig bestand'), SummieI18n.t('Selecteer een afbeeldingsbestand.'), 'error');
             return;
         }
 
@@ -232,11 +232,11 @@ class ImageManager {
                 this.insertImage(dataUrl, 'url-image.jpg');
             } catch (error) {
                 // If CORS error, show error message
-                this.showNotification('Fout', 'CORS fout - de afbeelding kan niet worden geladen. Upload het bestand in plaats daarvan.', 'error');
+                this.showNotification(SummieI18n.t('Fout'), SummieI18n.t('CORS fout - de afbeelding kan niet worden geladen. Upload het bestand in plaats daarvan.'), 'error');
             }
         };
         tempImg.onerror = () => {
-            this.showNotification('Fout', 'Kon afbeelding niet laden van URL.', 'error');
+            this.showNotification(SummieI18n.t('Fout'), SummieI18n.t('Kon afbeelding niet laden van URL.'), 'error');
         };
         tempImg.crossOrigin = 'anonymous';
         tempImg.src = url;
@@ -316,7 +316,7 @@ class ImageManager {
 
         this.selectImage(imageId);
         this.saveToLocalStorage();
-        this.showNotification('Afbeelding toegevoegd', 'Tip: Versleep de afbeelding om te verplaatsen, of gebruik Ctrl+X en Ctrl+V', 'success');
+        this.showNotification(SummieI18n.t('Afbeelding toegevoegd'), SummieI18n.t('Tip: Versleep de afbeelding om te verplaatsen, of gebruik Ctrl+X en Ctrl+V'), 'success');
     }
 
     createImageId() {
@@ -410,8 +410,8 @@ class ImageManager {
         toolbar.className = 'image-toolbar';
 
         const buttons = [
-            { id: 'crop', icon: this.getCropIcon(), label: 'Bijsnijden', action: () => this.startCrop() },
-            { id: 'delete', icon: this.getDeleteIcon(), label: 'Verwijderen', action: () => this.deleteImage() }
+            { id: 'crop', icon: this.getCropIcon(), label: SummieI18n.t('Bijsnijden'), action: () => this.startCrop() },
+            { id: 'delete', icon: this.getDeleteIcon(), label: SummieI18n.t('Verwijderen'), action: () => this.deleteImage() }
         ];
 
         buttons.forEach(btn => {
@@ -1027,7 +1027,7 @@ class ImageManager {
 
             this.cancelCrop();
             this.saveToLocalStorage();
-            this.showNotification('Afbeelding bijgesneden', '', 'success');
+            this.showNotification(SummieI18n.t('Afbeelding bijgesneden'), '', 'success');
         };
         tempImg.src = imageData.src;
     }
@@ -1049,10 +1049,10 @@ class ImageManager {
     async deleteImage() {
         if (!this.selectedImage) return;
 
-        const ok = await window.SummieDialogs.confirm('Weet je zeker dat je deze afbeelding wilt verwijderen?', {
-            title: 'Afbeelding verwijderen',
-            confirmText: 'Verwijderen',
-            cancelText: 'Annuleren',
+        const ok = await window.SummieDialogs.confirm(SummieI18n.t('Weet je zeker dat je deze afbeelding wilt verwijderen?'), {
+            title: SummieI18n.t('Afbeelding verwijderen'),
+            confirmText: SummieI18n.t('Verwijderen'),
+            cancelText: SummieI18n.t('Annuleren'),
             danger: true
         });
         if (ok) {
@@ -1061,7 +1061,7 @@ class ImageManager {
             this.selectedImage = null;
             wrapper.remove();
             this.saveToLocalStorage();
-            this.showNotification('Afbeelding verwijderd', '', 'success');
+            this.showNotification(SummieI18n.t('Afbeelding verwijderd'), '', 'success');
         }
     }
 

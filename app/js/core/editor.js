@@ -1,7 +1,7 @@
 // ==================== EDITOR CORE ====================
 // Placeholder behaviour, focus management, loading data into the editor.
 
-const PLACEHOLDER_TEXT = 'Begin hier met typen...';
+const PLACEHOLDER_TEXT = SummieI18n.t('Begin hier met typen...');
 let _pendingEmptyEditorStyle = 'normal';
 
 function getEditorPlaceholderOverlay() {

@@ -76,7 +76,7 @@ class TopbarManager {
         const iconRestore = maximize.querySelector('.icon-restore');
         if (iconMax) iconMax.style.display = isMaximized ? 'none' : '';
         if (iconRestore) iconRestore.style.display = isMaximized ? '' : 'none';
-        maximize.title = isMaximized ? 'Terugzetten' : 'Maximaliseren';
+        maximize.title = isMaximized ? SummieI18n.t('Terugzetten') : SummieI18n.t('Maximaliseren');
     }
 
     // Track cursor position in editor to preserve it when clicking UI elements
@@ -881,9 +881,9 @@ class TopbarManager {
         if (window.electron && window.electron.saveAsPDF) {
             const result = await window.electron.saveAsPDF();
             if (result && result.success) {
-                this.showNotification('PDF opgeslagen!', 'success');
+                this.showNotification(SummieI18n.t('PDF opgeslagen!'), 'success');
             } else if (result && !result.canceled) {
-                this.showNotification('PDF opslaan mislukt.', 'error');
+                this.showNotification(SummieI18n.t('PDF opslaan mislukt.'), 'error');
             }
         } else {
             // Fallback voor niet-Electron omgevingen

@@ -4,12 +4,12 @@
 
 // ── Built-in defaults ────────────────────────────────────────────────────────
 const BUILTIN_STYLES = {
-    normal: { label: 'Normaal', fontSize: '', fontWeight: '', fontStyle: '', textDecoration: '', color: '', marginTop: '', marginBottom: '', lineHeight: '', onEnterReset: false, onEnterTo: 'normal' },
-    title: { label: 'Titel', fontSize: '24pt', fontWeight: 'bold', fontStyle: '', textDecoration: '', color: '', marginTop: '24px', marginBottom: '16px', lineHeight: '1.3', onEnterReset: true, onEnterTo: 'normal' },
-    subtitle: { label: 'Subtitel', fontSize: '18pt', fontWeight: '', fontStyle: '', textDecoration: '', color: '#64748b', marginTop: '16px', marginBottom: '12px', lineHeight: '1.4', onEnterReset: true, onEnterTo: 'normal' },
-    kop1: { label: 'Kop 1', fontSize: '16pt', fontWeight: '600', fontStyle: '', textDecoration: '', color: '', marginTop: '16px', marginBottom: '10px', lineHeight: '', onEnterReset: true, onEnterTo: 'normal' },
-    kop2: { label: 'Kop 2', fontSize: '14pt', fontWeight: '600', fontStyle: '', textDecoration: '', color: '', marginTop: '12px', marginBottom: '8px', lineHeight: '', onEnterReset: true, onEnterTo: 'normal' },
-    kop3: { label: 'Kop 3', fontSize: '13pt', fontWeight: '500', fontStyle: '', textDecoration: '', color: '', marginTop: '10px', marginBottom: '6px', lineHeight: '', onEnterReset: true, onEnterTo: 'normal' },
+    normal: { label: SummieI18n.t('Normaal'), fontSize: '', fontWeight: '', fontStyle: '', textDecoration: '', color: '', marginTop: '', marginBottom: '', lineHeight: '', onEnterReset: false, onEnterTo: 'normal' },
+    title: { label: SummieI18n.t('Titel'), fontSize: '24pt', fontWeight: 'bold', fontStyle: '', textDecoration: '', color: '', marginTop: '24px', marginBottom: '16px', lineHeight: '1.3', onEnterReset: true, onEnterTo: 'normal' },
+    subtitle: { label: SummieI18n.t('Subtitel'), fontSize: '18pt', fontWeight: '', fontStyle: '', textDecoration: '', color: '#64748b', marginTop: '16px', marginBottom: '12px', lineHeight: '1.4', onEnterReset: true, onEnterTo: 'normal' },
+    kop1: { label: SummieI18n.t('Kop 1'), fontSize: '16pt', fontWeight: '600', fontStyle: '', textDecoration: '', color: '', marginTop: '16px', marginBottom: '10px', lineHeight: '', onEnterReset: true, onEnterTo: 'normal' },
+    kop2: { label: SummieI18n.t('Kop 2'), fontSize: '14pt', fontWeight: '600', fontStyle: '', textDecoration: '', color: '', marginTop: '12px', marginBottom: '8px', lineHeight: '', onEnterReset: true, onEnterTo: 'normal' },
+    kop3: { label: SummieI18n.t('Kop 3'), fontSize: '13pt', fontWeight: '500', fontStyle: '', textDecoration: '', color: '', marginTop: '10px', marginBottom: '6px', lineHeight: '', onEnterReset: true, onEnterTo: 'normal' },
 };
 
 const MANAGED_PROPS = ['fontSize', 'fontWeight', 'fontStyle', 'textDecoration', 'color', 'marginTop', 'marginBottom', 'lineHeight'];
@@ -275,7 +275,7 @@ function openStyleModal(keyOrNull) {
     if (!modal) return;
 
     // Title
-    modal.querySelector('#semTitle').textContent = isNew ? 'Nieuwe stijl' : `Stijl bewerken: ${def.label}`;
+    modal.querySelector('#semTitle').textContent = isNew ? SummieI18n.t('Nieuwe stijl') : SummieI18n.t(`Stijl bewerken: ${def.label}`);
 
     // Name field
     const nameInput = modal.querySelector('#semName');
@@ -350,7 +350,7 @@ function _updateModalPreview(modal, def) {
     if (def.textDecoration) style.push(`text-decoration:${def.textDecoration}`);
     if (def.color) style.push(`color:${def.color}`);
     prev.style.cssText = style.join(';');
-    prev.textContent = def.label || 'Voorbeeld tekst';
+    prev.textContent = def.label || SummieI18n.t('Voorbeeld tekst');
 }
 
 function _readModalDef(modal) {
@@ -366,7 +366,7 @@ function _readModalDef(modal) {
     const reset = modal.querySelector('#semEnterReset').checked;
     const resetTo = modal.querySelector('#semEnterTo').value;
     return {
-        label: modal.querySelector('#semName').value.trim() || 'Naamloos',
+        label: modal.querySelector('#semName').value.trim() || SummieI18n.t('Naamloos'),
         fontSize: fontSize ? fontSize + 'pt' : '',
         fontWeight: bold ? 'bold' : '',
         fontStyle: italic ? 'italic' : '',

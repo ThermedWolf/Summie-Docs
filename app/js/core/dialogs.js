@@ -193,7 +193,7 @@
             footer.className = 'summie-dlg-footer';
             const okBtn = document.createElement('button');
             okBtn.className = 'summie-dlg-btn summie-dlg-btn-primary';
-            okBtn.textContent = options.okText || 'OK';
+            okBtn.textContent = options.okText || SummieI18n.t('OK');
             footer.appendChild(okBtn);
             box.appendChild(footer);
 
@@ -236,11 +236,11 @@
 
             const cancelBtn = document.createElement('button');
             cancelBtn.className = 'summie-dlg-btn';
-            cancelBtn.textContent = options.cancelText || 'Annuleren';
+            cancelBtn.textContent = options.cancelText || SummieI18n.t('Annuleren');
 
             const confirmBtn = document.createElement('button');
             confirmBtn.className = 'summie-dlg-btn ' + (options.danger ? 'summie-dlg-btn-danger' : 'summie-dlg-btn-primary');
-            confirmBtn.textContent = options.confirmText || 'OK';
+            confirmBtn.textContent = options.confirmText || SummieI18n.t('OK');
 
             footer.appendChild(cancelBtn);
             footer.appendChild(confirmBtn);
@@ -290,7 +290,7 @@
             const footer = document.createElement('div');
             footer.className = 'summie-dlg-footer';
 
-            const buttons = options.buttons || [{ label: 'OK', value: 'ok', primary: true }];
+            const buttons = options.buttons || [{ label: SummieI18n.t('OK'), value: 'ok', primary: true }];
             const close = _withFocusRestore((value) => {
                 overlay.remove();
                 resolve(value);
@@ -357,11 +357,11 @@
 
             const cancelBtn = document.createElement('button');
             cancelBtn.className = 'summie-dlg-btn';
-            cancelBtn.textContent = options.cancelText || 'Annuleren';
+            cancelBtn.textContent = options.cancelText || SummieI18n.t('Annuleren');
 
             const okBtn = document.createElement('button');
             okBtn.className = 'summie-dlg-btn summie-dlg-btn-primary';
-            okBtn.textContent = options.confirmText || 'OK';
+            okBtn.textContent = options.confirmText || SummieI18n.t('OK');
 
             footer.appendChild(cancelBtn);
             footer.appendChild(okBtn);
@@ -387,7 +387,7 @@
                 const mismatch = !!first && !!second && first !== second;
                 okBtn.disabled = empty || mismatch;
                 input._secondInput.classList.toggle('summie-dlg-input-error', mismatch);
-                input._errorText.textContent = mismatch ? 'De wachtwoorden zijn niet hetzelfde.' : '';
+                input._errorText.textContent = mismatch ? SummieI18n.t('De wachtwoorden zijn niet hetzelfde.') : '';
             };
 
             okBtn.addEventListener('click', submit);

@@ -9,21 +9,21 @@
 
 (function () {
     const SENTENCES = [
-        'De snelle bruine vos springt over de luie hond.',
-        'Voer tekst in om te zien hoe het er in dit lettertype uitziet.',
-        'Dit is voorbeeldtekst om de opmaak van het document te testen.',
-        'Elke paragraaf bevat een aantal zinnen om de lay-out te demonstreren.',
-        'Gebruik deze tekst als tijdelijke aanduiding totdat de echte inhoud beschikbaar is.',
-        'Het document ziet er professioneel uit met goed gevormde alinea\'s.',
-        'De marges en regelafstand zijn ingesteld voor optimale leesbaarheid.',
-        'Kopteksten en voetteksten geven het document een nette, consistente uitstraling.',
-        'Tabstops en inspringing helpen bij het uitlijnen van de tekst op de pagina.',
-        'Stijlen zorgen voor een uniforme opmaak in het hele document.',
-        'Een goed document begint met een heldere structuur en duidelijke opbouw.',
-        'De inhoud van dit document is puur bedoeld als voorbeeld en heeft geen betekenis.',
-        'Met dummy tekst kun je de opmaak beoordelen zonder afgeleid te worden door de inhoud.',
-        'Dit gedeelte toont hoe normale lopende tekst eruitziet in het gekozen lettertype.',
-        'Varieer de hoeveelheid tekst om te zien hoe het document zich gedraagt bij meer inhoud.',
+        SummieI18n.t('De snelle bruine vos springt over de luie hond.'),
+        SummieI18n.t('Voer tekst in om te zien hoe het er in dit lettertype uitziet.'),
+        SummieI18n.t('Dit is voorbeeldtekst om de opmaak van het document te testen.'),
+        SummieI18n.t('Elke paragraaf bevat een aantal zinnen om de lay-out te demonstreren.'),
+        SummieI18n.t('Gebruik deze tekst als tijdelijke aanduiding totdat de echte inhoud beschikbaar is.'),
+        SummieI18n.t('Het document ziet er professioneel uit met goed gevormde alinea\'s.'),
+        SummieI18n.t('De marges en regelafstand zijn ingesteld voor optimale leesbaarheid.'),
+        SummieI18n.t('Kopteksten en voetteksten geven het document een nette, consistente uitstraling.'),
+        SummieI18n.t('Tabstops en inspringing helpen bij het uitlijnen van de tekst op de pagina.'),
+        SummieI18n.t('Stijlen zorgen voor een uniforme opmaak in het hele document.'),
+        SummieI18n.t('Een goed document begint met een heldere structuur en duidelijke opbouw.'),
+        SummieI18n.t('De inhoud van dit document is puur bedoeld als voorbeeld en heeft geen betekenis.'),
+        SummieI18n.t('Met dummy tekst kun je de opmaak beoordelen zonder afgeleid te worden door de inhoud.'),
+        SummieI18n.t('Dit gedeelte toont hoe normale lopende tekst eruitziet in het gekozen lettertype.'),
+        SummieI18n.t('Varieer de hoeveelheid tekst om te zien hoe het document zich gedraagt bij meer inhoud.'),
     ];
 
     // Returns a paragraph string of `count` sentences

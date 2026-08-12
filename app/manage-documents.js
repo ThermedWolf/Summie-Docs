@@ -75,7 +75,7 @@
                 ? await window.electron.scanSumdElements(doc.path)
                 : null;
             const filename = doc.path.split('\\').pop().split('/').pop();
-            const displayName = doc.name || filename.replace(/\.sumd$/i, '') || 'Naamloos';
+            const displayName = doc.name || filename.replace(/\.sumd$/i, '') || SummieI18n.t('Naamloos');
 
             const freshDoc = {
                 ...doc,
@@ -148,7 +148,7 @@
             row.innerHTML = `
                 <div class="md-row-icon"><img src="icon.png" width="18" height="18" style="object-fit:contain;border-radius:3px;"></div>
                 <div class="md-row-info">
-                    <div class="md-row-name">${escHtml(doc.name || 'Naamloos')}</div>
+                    <div class="md-row-name">${escHtml(doc.name || SummieI18n.t('Naamloos'))}</div>
                     ${doc.description ? `<div class="md-row-desc">${escHtml(doc.description)}</div>` : ''}
                     <div class="md-row-bottom">
                         <span class="md-row-path">${escHtml(doc.path || '')}</span>
@@ -228,10 +228,10 @@
         if (!saveBtn) return;
         if (dirty) {
             saveBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Opslaan`;
-            saveBtn.title = 'Wijzigingen opslaan';
+            saveBtn.title = SummieI18n.t('Wijzigingen opslaan');
         } else {
             saveBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg> Openen`;
-            saveBtn.title = 'Document openen in editor';
+            saveBtn.title = SummieI18n.t('Document openen in editor');
         }
     }
 
@@ -240,7 +240,7 @@
         _isDirty = false;
         const overlay = document.getElementById('mdEditSheet');
         const backdrop = document.getElementById('mdEditBackdrop');
-        document.getElementById('mdEditTitle').textContent = doc.name || 'Naamloos';
+        document.getElementById('mdEditTitle').textContent = doc.name || SummieI18n.t('Naamloos');
         document.getElementById('mdEditDocId').value = doc.id || '';
         document.getElementById('mdEditDocPath').value = doc.path || '';
         document.getElementById('mdEditName').value = doc.name || '';
@@ -314,7 +314,7 @@
 
             const del = document.createElement('button');
             del.className = 'md-tag-suggestion-delete';
-            del.title = 'Verwijder onthouden tag';
+            del.title = SummieI18n.t('Verwijder onthouden tag');
             del.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
             del.addEventListener('mousedown', async e => {
                 e.preventDefault();
@@ -477,7 +477,7 @@
                 }
                 doSearch(document.getElementById('mdSearchInput').value);
             } else {
-                await window.SummieDialogs.alert('Hernoemen mislukt. Controleer of het bestand niet in gebruik is.', { title: 'Fout' });
+                await window.SummieDialogs.alert(SummieI18n.t('Hernoemen mislukt. Controleer of het bestand niet in gebruik is.'), { title: SummieI18n.t('Fout') });
             }
         });
 
@@ -560,7 +560,7 @@
                 if (_editingDoc.path && window.electron) {
                     const result = await window.electron.loadSpecificFile(_editingDoc.path);
                     if (!result || !result.success) {
-                        await window.SummieDialogs.alert(`Kon bestand niet openen:\n${result?.error || 'Onbekende fout'}`, { title: 'Fout' });
+                        await window.SummieDialogs.alert(`Kon bestand niet openen:\n${result?.error || SummieI18n.t('Onbekende fout')}`, { title: SummieI18n.t('Fout') });
                         return;
                     }
 
@@ -621,10 +621,10 @@
     function formatDate(date) {
         if (isNaN(date)) return '';
         const now = new Date(), diff = now - date, day = 86400000;
-        if (diff < 60000) return 'Zojuist';
+        if (diff < 60000) return SummieI18n.t('Zojuist');
         if (diff < 3600000) return `${Math.floor(diff / 60000)} min geleden`;
         if (diff < day) return `${Math.floor(diff / 3600000)} uur geleden`;
-        if (diff < 2 * day) return 'Gisteren';
+        if (diff < 2 * day) return SummieI18n.t('Gisteren');
         return date.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' });
     }
 

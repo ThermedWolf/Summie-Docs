@@ -32,14 +32,14 @@
         container.classList.toggle('is-active', _enabled && hasFile);
 
         if (label) {
-            label.textContent = 'Automatisch opslaan';
+            label.textContent = SummieI18n.t('Automatisch opslaan');
         }
         if (!hasFile) {
-            container.title = 'Sla eerst het document op om autosave te activeren';
+            container.title = SummieI18n.t('Sla eerst het document op om autosave te activeren');
         } else if (_enabled) {
-            container.title = 'Automatisch opslaan is ingeschakeld — klik om uit te schakelen';
+            container.title = SummieI18n.t('Automatisch opslaan is ingeschakeld — klik om uit te schakelen');
         } else {
-            container.title = 'Automatisch opslaan is uitgeschakeld — klik om in te schakelen';
+            container.title = SummieI18n.t('Automatisch opslaan is uitgeschakeld — klik om in te schakelen');
         }
     }
 

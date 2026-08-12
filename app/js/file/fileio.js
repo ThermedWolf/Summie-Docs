@@ -5,7 +5,7 @@ function updateWindowTitle(filePath) {
     if (!window.electron || !window.electron.setWindowTitle) return;
     const name = filePath
         ? filePath.split('\\').pop().split('/').pop().replace(/\.sumd$/i, '')
-        : 'Nieuw Document';
+        : SummieI18n.t('Nieuw Document');
     window.electron.setWindowTitle(name);
 }
 window.updateWindowTitle = updateWindowTitle;
@@ -130,7 +130,7 @@ function _showFileMissingDialog(data, missingPath) {
             window.updateUnsavedIndicator && window.updateUnsavedIndicator();
             updateWindowTitle(missingPath);
         } else {
-            window.showNotification && window.showNotification('Fout', `Kon niet opslaan: ${result.error}`, 'error');
+            window.showNotification && window.showNotification(SummieI18n.t('Fout'), `Kon niet opslaan: ${result.error}`, 'error');
         }
     });
 
@@ -157,7 +157,7 @@ function _showFileMissingDialog(data, missingPath) {
             updateWindowTitle(result.path);
             window.AutoSave && window.AutoSave.onFileChanged();
         } else if (!result.canceled) {
-            window.showNotification && window.showNotification('Fout', `Kon niet opslaan: ${result.error}`, 'error');
+            window.showNotification && window.showNotification(SummieI18n.t('Fout'), `Kon niet opslaan: ${result.error}`, 'error');
         }
     });
 
@@ -246,7 +246,7 @@ async function saveToFile(saveAs = false) {
             updateWindowTitle(result.path);
             window.AutoSave && window.AutoSave.onFileChanged();
         } else if (!result.canceled) {
-            window.showNotification && window.showNotification('Fout', `Kon niet opslaan: ${result.error}`, 'error');
+            window.showNotification && window.showNotification(SummieI18n.t('Fout'), `Kon niet opslaan: ${result.error}`, 'error');
         }
         return;
     }
@@ -269,7 +269,7 @@ async function loadFromFile(e) {
     if (window.electron && window.appInfo && window.appInfo.isElectron) {
         const result = await window.electron.openSumdFile();
         if (!result.success) {
-            if (!result.canceled) window.showNotification && window.showNotification('Fout', `Kon niet laden: ${result.error}`, 'error');
+            if (!result.canceled) window.showNotification && window.showNotification(SummieI18n.t('Fout'), `Kon niet laden: ${result.error}`, 'error');
             return;
         }
         data = result.data;
@@ -290,7 +290,7 @@ async function loadFromFile(e) {
             data = JSON.parse(fileContent);
             fileName = file.name;
         } catch (error) {
-            window.showNotification && window.showNotification('Fout', 'Kon bestand niet lezen', 'error');
+            window.showNotification && window.showNotification(SummieI18n.t('Fout'), SummieI18n.t('Kon bestand niet lezen'), 'error');
             return;
         }
     }
@@ -367,12 +367,12 @@ async function loadFromFile(e) {
         localStorage.setItem('summie_saved_content', state.editor.innerHTML);
 
         window.showNotification && window.showNotification(
-            'Document geladen',
-            fileName ? `${fileName} is geladen` : 'Bestand is geladen',
+            SummieI18n.t('Document geladen'),
+            fileName ? `${fileName} is geladen` : SummieI18n.t('Bestand is geladen'),
             'success'
         );
     } catch (error) {
-        window.showNotification && window.showNotification('Fout', 'Kon bestand niet laden', 'error');
+        window.showNotification && window.showNotification(SummieI18n.t('Fout'), SummieI18n.t('Kon bestand niet laden'), 'error');
         console.error('Load error:', error);
     }
 }
@@ -401,7 +401,7 @@ function newSummary() {
         state.lastSavedBegrippen = JSON.stringify(state.begrippen);
         state.lastSavedProtection = window.DocumentProtection?.isProtected?.() || false;
         window.clearDocNameInput && window.clearDocNameInput();
-        window.showNotification && window.showNotification('Nieuw document gestart', '', 'success');
+        window.showNotification && window.showNotification(SummieI18n.t('Nieuw document gestart'), '', 'success');
         setTimeout(() => window.focusEditor && window.focusEditor(), 450);
     };
 

@@ -16,7 +16,7 @@ function _showMissingDocDialog(doc) {
     const existing = document.getElementById('missingDocOverlay');
     if (existing) existing.remove();
 
-    const displayName = doc.name || (doc.path ? doc.path.split(/[\\/]/).pop().replace(/\.sumd$/i, '') : 'Naamloos');
+    const displayName = doc.name || (doc.path ? doc.path.split(/[\\/]/).pop().replace(/\.sumd$/i, '') : SummieI18n.t('Naamloos'));
     const displayPath = doc.path || '';
 
     const overlay = document.createElement('div');
@@ -191,10 +191,10 @@ let _searchState = {
 function formatDate(date) {
     if (!date || isNaN(date)) return '';
     const now = new Date(), diff = now - date, day = 86400000;
-    if (diff < 60000) return 'Zojuist';
+    if (diff < 60000) return SummieI18n.t('Zojuist');
     if (diff < 3600000) return `${Math.floor(diff / 60000)} min geleden`;
     if (diff < day) return `${Math.floor(diff / 3600000)} uur geleden`;
-    if (diff < 2 * day) return 'Gisteren';
+    if (diff < 2 * day) return SummieI18n.t('Gisteren');
     if (diff < 7 * day) return `${Math.floor(diff / day)} dagen geleden`;
     return date.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' });
 }
@@ -346,7 +346,7 @@ async function loadCurrentDocPreview() {
             const tmp = document.createElement('div');
             tmp.innerHTML = content;
             const h = tmp.querySelector('.style-title, h1, h2, h3');
-            docName = h ? h.textContent.trim() : 'Naamloos Document';
+            docName = h ? h.textContent.trim() : SummieI18n.t('Naamloos Document');
         }
 
         currentDocName.textContent = docName;
@@ -535,8 +535,8 @@ function renderSearchResults(docs) {
 
     if (docs.length === 0) {
         emptyMsg.style.display = 'flex';
-        emptyMsg.querySelector('p').textContent = 'Geen documenten gevonden';
-        emptyMsg.querySelector('span').textContent = 'Probeer een andere zoekterm of pas de filters aan.';
+        emptyMsg.querySelector('p').textContent = SummieI18n.t('Geen documenten gevonden');
+        emptyMsg.querySelector('span').textContent = SummieI18n.t('Probeer een andere zoekterm of pas de filters aan.');
         return;
     }
     emptyMsg.style.display = 'none';
@@ -546,7 +546,7 @@ function renderSearchResults(docs) {
         item.className = 'recent-doc-item';
         item.dataset.id = doc.id;
 
-        const displayName = doc.name || (doc.path ? doc.path.split(/[\\/]/).pop().replace(/\.sumd$/i, '') : 'Naamloos');
+        const displayName = doc.name || (doc.path ? doc.path.split(/[\\/]/).pop().replace(/\.sumd$/i, '') : SummieI18n.t('Naamloos'));
         const tagsHtml = (doc.tags || []).slice(0, 3).map(t => `<span class="rdi-tag">${escapeHtml(t)}</span>`).join('');
 
         item.innerHTML = `
@@ -600,7 +600,7 @@ async function renderFavourites() {
         const empty = document.createElement('div');
         empty.className = 'fav-empty-zone';
         empty.id = 'favEmptyZone';
-        empty.textContent = 'Sleep een document hiernaartoe om het toe te voegen aan favorieten';
+        empty.textContent = SummieI18n.t('Sleep een document hiernaartoe om het toe te voegen aan favorieten');
         list.appendChild(empty);
         updateFavouriteScrollButton();
         return;
@@ -618,7 +618,7 @@ async function renderFavourites() {
             <div class="fav-doc-preview" aria-hidden="true"></div>
             <div class="fav-doc-footer">
                 <img src="icon.png" width="16" height="16" alt="" class="fav-doc-icon">
-                <span class="fav-chip-name">${escapeHtml(fav.name || 'Naamloos')}</span>
+                <span class="fav-chip-name">${escapeHtml(fav.name || SummieI18n.t('Naamloos'))}</span>
                 <button class="fav-chip-remove" title="Verwijder uit favorieten">
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                         <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -702,7 +702,7 @@ async function renderFavourites() {
     // Drop zone hint at the end of the list
     const dropHint = document.createElement('div');
     dropHint.className = 'fav-drop-hint';
-    dropHint.textContent = '+ Zet hier neer';
+    dropHint.textContent = SummieI18n.t('+ Zet hier neer');
     dropHint.addEventListener('dragover', e => { e.preventDefault(); dropHint.classList.add('drag-over'); });
     dropHint.addEventListener('dragleave', () => dropHint.classList.remove('drag-over'));
     dropHint.addEventListener('drop', async e => {
@@ -754,8 +754,8 @@ function updateFavouriteScrollButton() {
         button = document.createElement('button');
         button.className = 'fav-scroll-next';
         button.type = 'button';
-        button.title = 'Ga naar de volgende favorieten';
-        button.setAttribute('aria-label', 'Ga naar de volgende favorieten');
+        button.title = SummieI18n.t('Ga naar de volgende favorieten');
+        button.setAttribute('aria-label', SummieI18n.t('Ga naar de volgende favorieten'));
         button.innerHTML = `
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M9 18l6-6-6-6"/>
@@ -885,9 +885,9 @@ async function renderRecentDocs() {
         if (ext === 'sumd' || ext === 'json' || ext === 'docx') {
             const filename = filePath.split('\\').pop().split('/').pop();
             const stripped = filename.replace(/\.[^.]+$/, '');
-            displayName = doc.name || stripped || 'Naamloos Document';
+            displayName = doc.name || stripped || SummieI18n.t('Naamloos Document');
         } else {
-            displayName = filePath ? filePath.split('\\').pop().split('/').pop() : (doc.name || 'Naamloos Document');
+            displayName = filePath ? filePath.split('\\').pop().split('/').pop() : (doc.name || SummieI18n.t('Naamloos Document'));
         }
 
         // Document-shaped icon with folded top-right corner
@@ -1087,7 +1087,7 @@ async function showRenameModal(docId) {
             const newPath = dir + newName + ext;
             const result = await window.electron.renameFile(doc.path, newPath);
             if (!result.success) {
-                await window.SummieDialogs.alert('Kon bestand niet hernoemen:\n' + (result.error || 'Onbekende fout'), { title: 'Hernoemen mislukt' });
+                await window.SummieDialogs.alert('Kon bestand niet hernoemen:\n' + (result.error || SummieI18n.t('Onbekende fout')), { title: SummieI18n.t('Hernoemen mislukt') });
                 closeRenameModal();
                 return;
             }
@@ -1166,9 +1166,9 @@ function initUpdater() {
         progressBar.style.width = '0%';
         downloadBtn.style.display = 'inline-flex';
         downloadBtn.disabled = false;
-        downloadBtnText.textContent = 'Downloaden';
+        downloadBtnText.textContent = t('Downloaden');
         installBtn.style.display = 'none';
-        dismissBtn.textContent = 'Later';
+        dismissBtn.textContent = t('Later');
         dismissBtn.disabled = false;
         changelogBtn.style.display = 'inline-flex';
         modal.style.display = 'flex';
@@ -1205,13 +1205,13 @@ function initUpdater() {
     // Fallback screen — only used if the automatic install (after download
     // completes) fails, so the person still has a way to trigger it manually.
     function showInstallButton() {
-        showProgress('Update gedownload', false);
+        showProgress(t('Update gedownload'), false);
         progressTrack.classList.remove('is-indeterminate');
         downloadBtn.style.display = 'none';
         installBtn.style.display = 'inline-flex';
         installBtn.disabled = false;
-        installBtn.querySelector('span').textContent = 'Installeren en herstarten';
-        dismissBtn.textContent = 'Annuleren';
+        installBtn.querySelector('span').textContent = t('Installeren en herstarten');
+        dismissBtn.textContent = t('Annuleren');
         dismissBtn.disabled = false;
         changelogBtn.style.display = 'none';
     }
@@ -1224,7 +1224,7 @@ function initUpdater() {
 
     window.electron.onDownloadProgress((progress) => {
         if (progress && typeof progress.percent === 'number') {
-            showProgress('Downloaden van update...');
+            showProgress(t('Downloaden van update...'));
             updateProgress(progress.percent);
         }
     });
@@ -1235,7 +1235,7 @@ function initUpdater() {
         changelogBtn.style.display = 'none';
         downloadBtn.style.display = 'none';
         dismissBtn.disabled = true;
-        showProgress('Update gedownload — Summie herstart zo...', false);
+        showProgress(t('Update gedownload — Summie herstart zo...'), false);
         updateProgress(100);
 
         setTimeout(async () => {
@@ -1249,21 +1249,21 @@ function initUpdater() {
 
     window.electron.onUpdaterError((info) => {
         if (info && info.error) {
-            alert(`Update-fout: ${info.error}`);
+            alert(t('Update-fout: ' + info.error));
         }
     });
 
     downloadBtn.addEventListener('click', async () => {
         downloadBtn.disabled = true;
-        downloadBtnText.textContent = 'Downloaden...';
+        downloadBtnText.textContent = t('Downloaden...');
         changelogBtn.style.display = 'none';
-        showProgress('Update voorbereiden...', true);
+        showProgress(t('Update voorbereiden...'), true);
         await window.electron.downloadUpdate();
     });
 
     installBtn.addEventListener('click', async () => {
         installBtn.disabled = true;
-        installBtn.querySelector('span').textContent = 'Installeren...';
+        installBtn.querySelector('span').textContent = t('Installeren...');
         await window.electron.quitAndInstall();
     });
 
@@ -1356,7 +1356,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const iconRestore = winMaximize.querySelector('.icon-restore');
         if (iconMax) iconMax.style.display = isMaximized ? 'none' : '';
         if (iconRestore) iconRestore.style.display = isMaximized ? '' : 'none';
-        winMaximize.title = isMaximized ? 'Terugzetten' : 'Maximaliseren';
+        winMaximize.title = isMaximized ? SummieI18n.t('Terugzetten') : SummieI18n.t('Maximaliseren');
     };
 
     if (window.electron) {
@@ -1408,10 +1408,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('ctxRemoveFromList').addEventListener('click', async () => {
         const id = contextTargetId;
         hideContextMenu();
-        const ok = await window.SummieDialogs.confirm('Wil je dit document uit de lijst verwijderen?', {
-            title: 'Document verwijderen uit lijst',
-            confirmText: 'Verwijderen',
-            cancelText: 'Annuleren',
+        const ok = await window.SummieDialogs.confirm(SummieI18n.t('Wil je dit document uit de lijst verwijderen?'), {
+            title: SummieI18n.t('Document verwijderen uit lijst'),
+            confirmText: SummieI18n.t('Verwijderen'),
+            cancelText: SummieI18n.t('Annuleren'),
             danger: true
         });
         if (ok) {
@@ -1428,11 +1428,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         const doc = docs.find(d => d.id === id);
         if (!doc) return;
         const ok = await window.SummieDialogs.confirm(
-            'Dit verwijdert het bestand van de schijf en kan niet ongedaan worden gemaakt.',
+            SummieI18n.t('Dit verwijdert het bestand van de schijf en kan niet ongedaan worden gemaakt.'),
             {
-                title: `"${doc.name || 'dit document'}" permanent verwijderen?`,
-                confirmText: 'Verwijderen',
-                cancelText: 'Annuleren',
+                title: `"${doc.name || SummieI18n.t('dit document')}" permanent verwijderen?`,
+                confirmText: SummieI18n.t('Verwijderen'),
+                cancelText: SummieI18n.t('Annuleren'),
                 danger: true
             }
         );
@@ -1440,7 +1440,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (doc.path && window.electron) {
                 const result = await window.electron.deleteFile(doc.path);
                 if (!result || !result.success) {
-                    await window.SummieDialogs.alert(`Verwijderen mislukt: ${result?.error || 'Onbekende fout'}`, { title: 'Fout' });
+                    await window.SummieDialogs.alert(`Verwijderen mislukt: ${result?.error || SummieI18n.t('Onbekende fout')}`, { title: SummieI18n.t('Fout') });
                     return;
                 }
             }
@@ -1655,9 +1655,12 @@ async function initSettings() {
         });
     }
 
-    // Language
+    // Language — the settings overlay is rendered once at page load, so a
+    // change needs a reload to re-render JS-generated strings (recents, etc.)
     langSelect.addEventListener('change', async () => {
         await window.electron.settingsSet({ language: langSelect.value });
+        if (window.SummieI18n) window.SummieI18n.setLang(langSelect.value);
+        location.reload();
     });
 
     // Auto-save new files toggle

@@ -147,7 +147,7 @@ window.TableManager = {
         window.saveToLocalStorage && window.saveToLocalStorage();
         window.updateUnsavedIndicator && window.updateUnsavedIndicator();
         window.updateInhoudList && window.updateInhoudList();
-        window.showNotification && window.showNotification('Tabel ingevoegd', `${rows}×${cols} tabel toegevoegd.`, 'success');
+        window.showNotification && window.showNotification(SummieI18n.t('Tabel ingevoegd'), `${rows}×${cols} tabel toegevoegd.`, 'success');
 
         // Register table with ReferencesManager so it gets a select button
         if (window.ReferencesManager) {
@@ -178,7 +178,7 @@ window.TableManager = {
         table.className = 'summie-table summie-ratio-table';
         const tbody = document.createElement('tbody');
 
-        ['Rode tulpen', 'Gele tulpen'].forEach((label, ri) => {
+        [SummieI18n.t('Rode tulpen'), SummieI18n.t('Gele tulpen')].forEach((label, ri) => {
             const tr = document.createElement('tr');
             for (let c = 0; c < COLS; c++) {
                 const td = document.createElement(c === 0 ? 'th' : 'td');
@@ -234,7 +234,7 @@ window.TableManager = {
 
         window.saveToLocalStorage?.();
         window.updateUnsavedIndicator?.();
-        window.showNotification?.('Verhoudingstabel', 'Vul de waarden in — pijlen worden automatisch getekend.', 'success');
+        window.showNotification?.(SummieI18n.t('Verhoudingstabel'), SummieI18n.t('Vul de waarden in — pijlen worden automatisch getekend.'), 'success');
         if (window.ReferencesManager) window.ReferencesManager._addSelectButtonToElement(table);
         return wrapper;
     },

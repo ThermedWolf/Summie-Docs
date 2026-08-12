@@ -7,7 +7,7 @@ window.TocManager = (function () {
     'use strict';
 
     const CTX_ID = 'toc-opmaak';
-    const CTX_LABEL = 'Inhoudsopgave';
+    const CTX_LABEL = SummieI18n.t('Inhoudsopgave');
     const CTX_KEY = 'toc';
 
     // Heading levels to include, in priority order
@@ -147,11 +147,11 @@ window.TocManager = (function () {
         overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,0.4);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;animation:tocFadeIn 0.15s ease;';
 
         const previewItems = [
-            { cls: 'level-title', text: 'Introductie', num: '1' },
-            { cls: 'level-kop1', text: 'Achtergrond', num: '1.1' },
-            { cls: 'level-kop2', text: 'Context', num: '1.1.1' },
-            { cls: 'level-title', text: 'Hoofdstuk 2', num: '2' },
-            { cls: 'level-kop1', text: 'Methoden', num: '2.1' },
+            { cls: 'level-title', text: SummieI18n.t('Introductie'), num: '1' },
+            { cls: 'level-kop1', text: SummieI18n.t('Achtergrond'), num: '1.1' },
+            { cls: 'level-kop2', text: SummieI18n.t('Context'), num: '1.1.1' },
+            { cls: 'level-title', text: SummieI18n.t('Hoofdstuk 2'), num: '2' },
+            { cls: 'level-kop1', text: SummieI18n.t('Methoden'), num: '2.1' },
         ];
 
         function _klassiekPreview() {
@@ -185,9 +185,9 @@ window.TocManager = (function () {
         }
 
         const cards = [
-            { key: 'klassiek', label: 'Klassiek', desc: 'Genummerd met stippellijn', preview: _klassiekPreview() },
-            { key: 'summie', label: 'Summie', desc: 'Kleurlijnen, modern', preview: _summiePreview() },
-            { key: 'word', label: 'Word', desc: 'Eenvoudig, zwarte tekst', preview: _wordPreview() },
+            { key: 'klassiek', label: SummieI18n.t('Klassiek'), desc: SummieI18n.t('Genummerd met stippellijn'), preview: _klassiekPreview() },
+            { key: 'summie', label: SummieI18n.t('Summie'), desc: SummieI18n.t('Kleurlijnen, modern'), preview: _summiePreview() },
+            { key: 'word', label: SummieI18n.t('Word'), desc: SummieI18n.t('Eenvoudig, zwarte tekst'), preview: _wordPreview() },
         ];
 
         const dialog = document.createElement('div');
@@ -220,7 +220,7 @@ window.TocManager = (function () {
             <div style="height:0.5px;background:var(--border-light,#f1f5f9);"></div>
             <div style="display:flex;justify-content:flex-end;gap:8px;padding:14px 24px;">
                 <button id="tocPickerCancel" style="height:34px;padding:0 16px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-secondary);font-size:13px;cursor:pointer;">Annuleren</button>
-                <button id="tocPickerConfirm" style="height:34px;padding:0 18px;border-radius:8px;border:none;background:var(--primary,#3b82f6);color:#fff;font-size:13px;font-weight:600;cursor:pointer;opacity:0.5;pointer-events:none;">${preSelected ? 'Toepassen' : 'Invoegen'}</button>
+                <button id="tocPickerConfirm" style="height:34px;padding:0 18px;border-radius:8px;border:none;background:var(--primary,#3b82f6);color:#fff;font-size:13px;font-weight:600;cursor:pointer;opacity:0.5;pointer-events:none;">${preSelected ? SummieI18n.t('Toepassen') : SummieI18n.t('Invoegen')}</button>
             </div>
         `;
 
@@ -276,7 +276,7 @@ window.TocManager = (function () {
         if (existing) {
             _setActive(existing);
             existing.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            window.showNotification && window.showNotification('Inhoudsopgave', 'Er is al een inhoudsopgave in het document.', 'info');
+            window.showNotification && window.showNotification(SummieI18n.t('Inhoudsopgave'), SummieI18n.t('Er is al een inhoudsopgave in het document.'), 'info');
             return;
         }
 
@@ -518,7 +518,7 @@ window.TocManager = (function () {
                 const mode = btn.dataset.mode;
                 _activeToc.setAttribute('data-toc-mode', mode);
                 const badge = _activeToc.querySelector('.summie-toc-mode-badge');
-                if (badge) badge.textContent = mode === 'auto' ? 'Auto' : 'Handmatig';
+                if (badge) badge.textContent = mode === 'auto' ? SummieI18n.t('Auto') : SummieI18n.t('Handmatig');
                 _syncPanel(_activeToc);
                 window.updateUnsavedIndicator && window.updateUnsavedIndicator();
             });
@@ -535,7 +535,7 @@ window.TocManager = (function () {
         panel.querySelector('#tocTitleInput').addEventListener('input', e => {
             if (!_activeToc) return;
             const titleEl = _activeToc.querySelector('.summie-toc-title');
-            if (titleEl) titleEl.textContent = e.target.value || 'Inhoudsopgave';
+            if (titleEl) titleEl.textContent = e.target.value || SummieI18n.t('Inhoudsopgave');
             _activeToc.setAttribute('data-toc-title', e.target.value);
             window.updateUnsavedIndicator && window.updateUnsavedIndicator();
         });
@@ -552,7 +552,7 @@ window.TocManager = (function () {
     function _syncPanel(toc) {
         const style = toc.getAttribute('data-toc-style') || 'klassiek';
         const mode = toc.getAttribute('data-toc-mode') || 'auto';
-        const title = toc.getAttribute('data-toc-title') || 'Inhoudsopgave';
+        const title = toc.getAttribute('data-toc-title') || SummieI18n.t('Inhoudsopgave');
 
         document.querySelectorAll('.toc-style-btn').forEach(btn =>
             btn.classList.toggle('active', btn.dataset.style === style)

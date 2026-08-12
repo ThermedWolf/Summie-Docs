@@ -64,8 +64,8 @@ function updateInhoudList() {
     });
 
     if (headings.length === 0) {
-        inhoudList.innerHTML = '<p class="empty-state">Geen koppen gevonden. Gebruik de stijlopties om koppen toe te voegen.</p>';
-        return;
+inhoudList.innerHTML = '<p class="empty-state">' + SummieI18n.t('Geen koppen gevonden. Gebruik de stijlopties om koppen toe te voegen.') + '</p>';
+    return;
     }
 
     // Stamp stable ids
@@ -145,7 +145,7 @@ function updateInhoudList() {
     _applyAllCollapsed();
 
     if (inhoudList.children.length === 0) {
-        inhoudList.innerHTML = '<p class="empty-state">Geen koppen gevonden. Gebruik de stijlopties om koppen toe te voegen.</p>';
+        inhoudList.innerHTML = '<p class="empty-state">' + SummieI18n.t('Geen koppen gevonden. Gebruik de stijlopties om koppen toe te voegen.') + '</p>';
         return;
     }
 

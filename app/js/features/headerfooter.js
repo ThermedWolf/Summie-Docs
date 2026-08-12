@@ -21,7 +21,7 @@
         zone.dataset.pageIndex = pageIndex;
         zone.contentEditable = 'true';
         zone.spellcheck = false;
-        zone.setAttribute('placeholder', type === 'header' ? 'Koptekst...' : 'Voettekst...');
+        zone.setAttribute('placeholder', type === 'header' ? SummieI18n.t('Koptekst...') : SummieI18n.t('Voettekst...'));
 
         // Inhoud laden
         zone.innerHTML = getZoneContent(type, pageIndex) || '';

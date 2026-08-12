@@ -75,12 +75,12 @@ function openBegripModal(begrip) {
     state.currentEditingBegrip = begrip || null;
 
     if (begrip) {
-        document.getElementById('modalTitle').textContent = 'Begrip Bewerken';
+        document.getElementById('modalTitle').textContent = SummieI18n.t('Begrip Bewerken');
         document.getElementById('begripKeyword').value = begrip.keyword;
         document.getElementById('begripDescription').value = begrip.description;
         document.getElementById('begripAliases').value = begrip.aliases ? begrip.aliases.join(', ') : '';
     } else {
-        document.getElementById('modalTitle').textContent = 'Begrip Toevoegen';
+        document.getElementById('modalTitle').textContent = SummieI18n.t('Begrip Toevoegen');
         document.getElementById('begripKeyword').value = '';
         document.getElementById('begripDescription').value = '';
         document.getElementById('begripAliases').value = '';
@@ -103,7 +103,7 @@ function saveBegrip() {
     const aliasesInput = document.getElementById('begripAliases').value.trim();
 
     if (!keyword || !description) {
-        window.showNotification && window.showNotification('Fout', 'Vul beide velden in.', 'error');
+        window.showNotification && window.showNotification(SummieI18n.t('Fout'), SummieI18n.t('Vul beide velden in.'), 'error');
         return;
     }
 
@@ -120,10 +120,10 @@ function saveBegrip() {
         state.currentEditingBegrip.keyword = safeKeyword;
         state.currentEditingBegrip.description = safeDescription;
         state.currentEditingBegrip.aliases = aliases;
-        window.showNotification && window.showNotification('Begrip bijgewerkt', `"${safeKeyword}" is succesvol bijgewerkt.`, 'success');
+        window.showNotification && window.showNotification(SummieI18n.t('Begrip bijgewerkt'), SummieI18n.t(`"${safeKeyword}" is succesvol bijgewerkt.`), 'success');
     } else {
         state.begrippen.push({ keyword: safeKeyword, description: safeDescription, aliases, id: Date.now() });
-        window.showNotification && window.showNotification('Begrip toegevoegd', `"${safeKeyword}" is toegevoegd aan je begrippen.`, 'success');
+        window.showNotification && window.showNotification(SummieI18n.t('Begrip toegevoegd'), SummieI18n.t(`"${safeKeyword}" is toegevoegd aan je begrippen.`), 'success');
     }
 
     updateBegrippenList();
@@ -139,10 +139,10 @@ async function deleteBegrip(id) {
     const begrip = state.begrippen.find(b => b.id === id);
     if (!begrip) return;
 
-    const ok = await window.SummieDialogs.confirm(`Weet je zeker dat je "${begrip.keyword}" wilt verwijderen?`, {
-        title: 'Begrip verwijderen',
-        confirmText: 'Verwijderen',
-        cancelText: 'Annuleren',
+    const ok = await window.SummieDialogs.confirm(SummieI18n.t(`Weet je zeker dat je "${begrip.keyword}" wilt verwijderen?`), {
+        title: SummieI18n.t('Begrip verwijderen'),
+        confirmText: SummieI18n.t('Verwijderen'),
+        cancelText: SummieI18n.t('Annuleren'),
         danger: true
     });
     if (ok) {
@@ -152,7 +152,7 @@ async function deleteBegrip(id) {
         window.saveToLocalStorage && window.saveToLocalStorage();
         window.updateUnsavedIndicator && window.updateUnsavedIndicator();
         window.updateBegrippenCounter && window.updateBegrippenCounter();
-        window.showNotification && window.showNotification('Begrip verwijderd', `"${begrip.keyword}" is verwijderd.`, 'success');
+        window.showNotification && window.showNotification(SummieI18n.t('Begrip verwijderd'), `"${begrip.keyword}" is verwijderd.`, 'success');
     }
 }
 
@@ -161,7 +161,7 @@ function updateBegrippenList() {
     begrippenList.innerHTML = '';
 
     if (begrippen.length === 0) {
-        begrippenList.innerHTML = '<p class="empty-state">Nog geen begrippen toegevoegd.</p>';
+        begrippenList.innerHTML = '<p class="empty-state">' + SummieI18n.t('Nog geen begrippen toegevoegd.') + '</p>';
         return;
     }
 

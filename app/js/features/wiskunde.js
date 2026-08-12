@@ -118,7 +118,7 @@
         overlay.innerHTML = `
             <div class="wiskunde-modal" style="width:320px">
                 <div class="wiskunde-modal-header">
-                    <h3>${isEdit ? 'Breuk bewerken' : 'Breuk invoegen'}</h3>
+                    <h3>${isEdit ? SummieI18n.t('Breuk bewerken') : SummieI18n.t('Breuk invoegen')}</h3>
                     <button class="wiskunde-modal-close">✕</button>
                 </div>
                 <div class="wiskunde-modal-body">
@@ -142,7 +142,7 @@
                 </div>
                 <div class="wiskunde-modal-footer">
                     <button class="btn" id="wmBreukCancel">Annuleren</button>
-                    <button class="btn btn-primary" id="wmBreukInsert">${isEdit ? 'Opslaan' : 'Invoegen'}</button>
+                    <button class="btn btn-primary" id="wmBreukInsert">${isEdit ? SummieI18n.t('Opslaan') : SummieI18n.t('Invoegen')}</button>
                 </div>
             </div>
         `;
@@ -195,10 +195,10 @@
     }
 
     const GRAFIEK_TYPES = [
-        { id: 'lijn', label: 'Lijn (formule)', icon: '📈' },
-        { id: 'data', label: 'Lijn (data)', icon: '📊' },
-        { id: 'staaf', label: 'Staafdiagram', icon: '▮▮▮' },
-        { id: 'taart', label: 'Taartdiagram', icon: '◔' },
+        { id: 'lijn', label: SummieI18n.t('Lijn (formule)'), icon: '📈' },
+        { id: 'data', label: SummieI18n.t('Lijn (data)'), icon: '📊' },
+        { id: 'staaf', label: SummieI18n.t('Staafdiagram'), icon: '▮▮▮' },
+        { id: 'taart', label: SummieI18n.t('Taartdiagram'), icon: '◔' },
     ];
 
     const CHART_COLORS = [
@@ -376,7 +376,7 @@
         return {
             labels,
             datasets: [{
-                label: 'Waarde',
+                label: SummieI18n.t('Waarde'),
                 data: values,
                 backgroundColor: grafiekType === 'staaf'
                     ? CHART_COLORS.slice(0, values.length)
@@ -457,7 +457,7 @@
         overlay.innerHTML = `
             <div class="wiskunde-modal">
                 <div class="wiskunde-modal-header">
-                    <h3>${isEdit ? 'Grafiek bewerken' : 'Grafiek invoegen'}</h3>
+                    <h3>${isEdit ? SummieI18n.t('Grafiek bewerken') : SummieI18n.t('Grafiek invoegen')}</h3>
                     <button class="wiskunde-modal-close">✕</button>
                 </div>
                 <div class="wiskunde-modal-body">
@@ -513,7 +513,7 @@
                 </div>
                 <div class="wiskunde-modal-footer">
                     <button class="btn" id="wmGrafiekCancel">Annuleren</button>
-                    <button class="btn btn-primary" id="wmGrafiekInsert">${isEdit ? 'Bijwerken' : 'Invoegen'}</button>
+                    <button class="btn btn-primary" id="wmGrafiekInsert">${isEdit ? SummieI18n.t('Bijwerken') : SummieI18n.t('Invoegen')}</button>
                 </div>
             </div>
         `;
@@ -523,9 +523,9 @@
         // ── State inside modal ──
         let currentType = type;
         const dataRows = initData.dataRows || [
-            { label: 'Jan', value: 10 },
-            { label: 'Feb', value: 20 },
-            { label: 'Mar', value: 15 },
+            { label: SummieI18n.t('Jan'), value: 10 },
+            { label: SummieI18n.t('Feb'), value: 20 },
+            { label: SummieI18n.t('Mar'), value: 15 },
         ];
 
         const previewCanvas = overlay.querySelector('#wmPreviewCanvas');
@@ -663,9 +663,9 @@
         // ── Insert / update ──
         overlay.querySelector('#wmGrafiekInsert').addEventListener('click', async () => {
             const config = buildChartConfig();
-            if (!config) { await window.SummieDialogs.alert('Ongeldige invoer — controleer de formule of gegevens.', { title: 'Ongeldige invoer' }); return; }
+            if (!config) { await window.SummieDialogs.alert(SummieI18n.t('Ongeldige invoer — controleer de formule of gegevens.'), { title: SummieI18n.t('Ongeldige invoer') }); return; }
 
-            const title = overlay.querySelector('#wmGrafiekTitle').value.trim() || 'Grafiek';
+            const title = overlay.querySelector('#wmGrafiekTitle').value.trim() || SummieI18n.t('Grafiek');
             const grafiekData = {
                 type: currentType,
                 title,

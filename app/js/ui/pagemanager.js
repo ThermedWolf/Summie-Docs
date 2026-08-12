@@ -430,7 +430,7 @@
         const btn = document.getElementById('togglePaginationBtn');
         const label = document.getElementById('togglePaginationLabel');
         if (!btn || !label) return;
-        label.textContent = paginationEnabled ? 'Paginering uitschakelen' : 'Paginering inschakelen';
+        label.textContent = paginationEnabled ? SummieI18n.t('Paginering uitschakelen') : SummieI18n.t('Paginering inschakelen');
         btn.classList.toggle('btn-file-active', paginationEnabled);
         updatePageBreakButton();
     }
@@ -438,7 +438,7 @@
     function updateSidebarStatus() {
         const statusText = document.getElementById('paginationStatusText');
         if (!statusText) return;
-        if (!paginationEnabled) statusText.textContent = 'Een doorlopende pagina';
+        if (!paginationEnabled) statusText.textContent = SummieI18n.t('Een doorlopende pagina');
         else {
             const count = getAllPages().length;
             statusText.textContent = count + ' pagina' + (count !== 1 ? "'s" : '');

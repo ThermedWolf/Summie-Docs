@@ -36,13 +36,13 @@ async function saveToLocalStorage() {
         if (e.name === 'QuotaExceededError') {
             console.error('LocalStorage quota exceeded!', (dataSize / 1024 / 1024).toFixed(2) + ' MB');
             window.showNotification && window.showNotification(
-                'Opslag limiet bereikt',
+                SummieI18n.t('Opslag limiet bereikt'),
                 `Je document is te groot (${imageCount} afbeeldingen, ${(dataSize / 1024 / 1024).toFixed(1)} MB). Auto-opslaan is uitgeschakeld.`,
                 'error'
             );
         } else {
             console.error('Error saving to localStorage:', e);
-            window.showNotification && window.showNotification('Fout bij opslaan', 'Er ging iets mis bij het opslaan.', 'error');
+            window.showNotification && window.showNotification('Fout bij opslaan', SummieI18n.t('Er ging iets mis bij het opslaan.'), 'error');
         }
     }
 }

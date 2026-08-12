@@ -26,7 +26,7 @@
         const panel = document.createElement('div');
         panel.id = 'findReplacePanel';
         panel.setAttribute('role', 'dialog');
-        panel.setAttribute('aria-label', 'Zoeken en vervangen');
+        panel.setAttribute('aria-label', SummieI18n.t('Zoeken en vervangen'));
 
         panel.innerHTML = `
             <div class="fr-header">
@@ -191,7 +191,7 @@
         const title = _panel.querySelector('.fr-title');
         section.classList.toggle('open', open);
         toggleBtn.classList.toggle('replace-open', open);
-        title.textContent = open ? 'Zoeken & Vervangen' : 'Zoeken';
+        title.textContent = open ? SummieI18n.t('Zoeken & Vervangen') : SummieI18n.t('Zoeken');
         if (open) _replaceInput.focus();
     }
 
@@ -318,7 +318,7 @@
     function _updateCounter() {
         if (!_counter) return;
         if (_matches.length === 0) {
-            _counter.textContent = _lastQuery ? 'Geen' : '';
+            _counter.textContent = _lastQuery ? SummieI18n.t('Geen') : '';
             _counter.classList.toggle('fr-no-match', !!_lastQuery);
         } else {
             _counter.textContent = `${_currentIdx + 1} / ${_matches.length}`;
@@ -387,7 +387,7 @@
         _notifyChange();
 
         // Show brief feedback
-        _counter.textContent = `${count} vervangen`;
+        _counter.textContent = SummieI18n.t(`${count} vervangen`);
         setTimeout(() => _runSearch(), 1200);
     }
 

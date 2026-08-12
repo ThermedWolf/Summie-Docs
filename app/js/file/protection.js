@@ -80,15 +80,15 @@
         const value = await window.SummieDialogs.prompt(message, {
             title,
             password: true,
-            placeholder: options.placeholder || 'Wachtwoord',
-            secondPlaceholder: options.confirm ? 'Herhaal wachtwoord' : null,
-            confirmText: options.confirmText || 'OK'
+            placeholder: options.placeholder || SummieI18n.t('Wachtwoord'),
+            secondPlaceholder: options.confirm ? SummieI18n.t('Herhaal wachtwoord') : null,
+            confirmText: options.confirmText || SummieI18n.t('OK')
         });
         if (value === null) return null;
         if (Array.isArray(value)) {
             const [first, second] = value;
             if (!first) {
-                await window.SummieDialogs.alert('Vul een wachtwoord in.', { title: 'Wachtwoord nodig' });
+                await window.SummieDialogs.alert(SummieI18n.t('Vul een wachtwoord in.'), { title: SummieI18n.t('Wachtwoord nodig') });
                 return requestPassword(title, message, options);
             }
             return first;
@@ -100,9 +100,9 @@
         if (!currentProtected) return data;
         if (!currentPassword) {
             currentPassword = await requestPassword(
-                'Document beveiligen',
-                'Kies een wachtwoord voor dit document.',
-                { confirm: true, confirmText: 'Beveiligen' }
+                SummieI18n.t('Document beveiligen'),
+                SummieI18n.t('Kies een wachtwoord voor dit document.'),
+                { confirm: true, confirmText: SummieI18n.t('Beveiligen') }
             );
         }
         if (!currentPassword) return null;
@@ -119,9 +119,9 @@
 
         while (true) {
             const password = await requestPassword(
-                'Beveiligd document',
-                'Dit document is beveiligd. Voer het wachtwoord in om het te openen.',
-                { confirmText: 'Openen' }
+                SummieI18n.t('Beveiligd document'),
+                SummieI18n.t('Dit document is beveiligd. Voer het wachtwoord in om het te openen.'),
+                { confirmText: SummieI18n.t('Openen') }
             );
             if (!password) return null;
             try {
@@ -132,8 +132,8 @@
                 return decrypted;
             } catch (e) {
                 const retry = await window.SummieDialogs.confirm(
-                    'Het wachtwoord klopt niet, of het bestand is beschadigd.',
-                    { title: 'Niet geopend', confirmText: 'Opnieuw proberen', cancelText: 'Annuleren' }
+                    SummieI18n.t('Het wachtwoord klopt niet, of het bestand is beschadigd.'),
+                    { title: SummieI18n.t('Niet geopend'), confirmText: SummieI18n.t('Opnieuw proberen'), cancelText: SummieI18n.t('Annuleren') }
                 );
                 if (!retry) return null;
             }
@@ -143,17 +143,17 @@
     async function toggleProtection() {
         if (currentProtected) {
             const ok = await window.SummieDialogs.confirm(
-                'Wil je de wachtwoordbeveiliging van dit document verwijderen? Sla het document daarna op om dit definitief te maken.',
-                { title: 'Beveiliging verwijderen', confirmText: 'Verwijderen', cancelText: 'Annuleren', danger: true }
+                SummieI18n.t('Wil je de wachtwoordbeveiliging van dit document verwijderen? Sla het document daarna op om dit definitief te maken.'),
+                { title: SummieI18n.t('Beveiliging verwijderen'), confirmText: SummieI18n.t('Verwijderen'), cancelText: SummieI18n.t('Annuleren'), danger: true }
             );
             if (!ok) return;
             currentProtected = false;
             currentPassword = null;
         } else {
             const password = await requestPassword(
-                'Document beveiligen',
-                'Kies een wachtwoord. Zonder dit wachtwoord kan het document later niet worden geopend.',
-                { confirm: true, confirmText: 'Beveiligen' }
+                SummieI18n.t('Document beveiligen'),
+                SummieI18n.t('Kies een wachtwoord. Zonder dit wachtwoord kan het document later niet worden geopend.'),
+                { confirm: true, confirmText: SummieI18n.t('Beveiligen') }
             );
             if (!password) return;
             currentProtected = true;
@@ -175,7 +175,7 @@
         const label = document.getElementById('toggleProtectionLabel');
         if (!btn || !label) return;
         btn.classList.toggle('active', currentProtected);
-        label.textContent = currentProtected ? 'Beveiliging verwijderen' : 'Wachtwoord instellen';
+        label.textContent = currentProtected ? SummieI18n.t('Beveiliging verwijderen') : SummieI18n.t('Wachtwoord instellen');
         btn.title = currentProtected ? 'Dit document wordt beveiligd opgeslagen' : 'Beveilig dit document met een wachtwoord';
     }
 

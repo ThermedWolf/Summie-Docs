@@ -27,7 +27,7 @@ function createChecklist() {
     const ul = document.createElement('ul');
     ul.className = 'checklist';
     const li = document.createElement('li');
-    li.textContent = 'Checklist item';
+    li.textContent = SummieI18n.t('Checklist item');
     ul.appendChild(li);
     range.insertNode(ul);
     range.setStartAfter(ul);

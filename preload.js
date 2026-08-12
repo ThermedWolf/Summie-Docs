@@ -12,6 +12,10 @@ const APP_VERSION = ipcRenderer.sendSync('get-app-version-sync');
 // between pages within the same window.
 const initialTheme = ipcRenderer.sendSync('get-theme-sync');
 
+// Language setting fetched synchronously so translations can be applied before
+// first paint. Falls back to the device default (handled in main.js).
+const initialLanguage = ipcRenderer.sendSync('get-language-sync');
+
 contextBridge.exposeInMainWorld(
     'electron',
     {
@@ -87,6 +91,7 @@ contextBridge.exposeInMainWorld(
         settingsSet: (patch) => ipcRenderer.invoke('settings-set', patch),
         settingsPickDirectory: () => ipcRenderer.invoke('settings-pick-directory'),
         onThemeChanged: (callback) => ipcRenderer.on('theme-changed', (_, theme) => callback(theme)),
+        onLanguageChanged: (callback) => ipcRenderer.on('language-changed', (_, lang) => callback(lang)),
 
         // Platform info
         platform: process.platform,
@@ -116,6 +121,7 @@ contextBridge.exposeInMainWorld(
         version: APP_VERSION,
         name: 'Summie',
         isElectron: true,
-        theme: initialTheme
+        theme: initialTheme,
+        language: initialLanguage
     }
 );

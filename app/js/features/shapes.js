@@ -5,7 +5,7 @@
     'use strict';
 
     const CTX_ID = 'vorm-opmaak';
-    const CTX_LABEL = 'Vormindeling';
+    const CTX_LABEL = SummieI18n.t('Vormindeling');
     const DEFAULT_FILL = '#5B9BD5';
     const DEFAULT_STROKE = '#2F5597';
     const LAYER_Z = {
@@ -15,14 +15,14 @@
     };
 
     const SHAPES = {
-        line: { label: 'Lijn', w: 150, h: 24, path: '<line x1="0" y1="50" x2="100" y2="50" data-line="true"/>' },
-        arrow: { label: 'Pijl', w: 160, h: 34, path: '<path d="M0 50 H92"/><path d="M76 24 L100 50 L76 76"/>' },
-        rect: { label: 'Rechthoek', w: 140, h: 90, path: '<rect x="1" y="1" width="98" height="98"/>' },
-        roundRect: { label: 'Afgeronde rechthoek', w: 150, h: 90, path: '<rect x="1" y="1" width="98" height="98" rx="10" ry="10"/>' },
-        circle: { label: 'Cirkel', w: 110, h: 110, path: '<circle cx="50" cy="50" r="49"/>' },
-        ellipse: { label: 'Ovaal', w: 130, h: 90, path: '<ellipse cx="50" cy="50" rx="49" ry="49"/>' },
-        triangle: { label: 'Driehoek', w: 120, h: 100, path: '<polygon points="50,0 100,100 0,100"/>' },
-        diamond: { label: 'Ruit', w: 120, h: 100, path: '<polygon points="50,0 100,50 50,100 0,50"/>' },
+        line: { label: SummieI18n.t('Lijn'), w: 150, h: 24, path: '<line x1="0" y1="50" x2="100" y2="50" data-line="true"/>' },
+        arrow: { label: SummieI18n.t('Pijl'), w: 160, h: 34, path: '<path d="M0 50 H92"/><path d="M76 24 L100 50 L76 76"/>' },
+        rect: { label: SummieI18n.t('Rechthoek'), w: 140, h: 90, path: '<rect x="1" y="1" width="98" height="98"/>' },
+        roundRect: { label: SummieI18n.t('Afgeronde rechthoek'), w: 150, h: 90, path: '<rect x="1" y="1" width="98" height="98" rx="10" ry="10"/>' },
+        circle: { label: SummieI18n.t('Cirkel'), w: 110, h: 110, path: '<circle cx="50" cy="50" r="49"/>' },
+        ellipse: { label: SummieI18n.t('Ovaal'), w: 130, h: 90, path: '<ellipse cx="50" cy="50" rx="49" ry="49"/>' },
+        triangle: { label: SummieI18n.t('Driehoek'), w: 120, h: 100, path: '<polygon points="50,0 100,100 0,100"/>' },
+        diamond: { label: SummieI18n.t('Ruit'), w: 120, h: 100, path: '<polygon points="50,0 100,50 50,100 0,50"/>' },
     };
 
     let selectedShape = null;

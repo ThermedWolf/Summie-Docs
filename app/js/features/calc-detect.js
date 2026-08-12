@@ -162,7 +162,7 @@
         const thHead = document.createElement('th');
         thHead.colSpan = 2;
         thHead.contentEditable = 'true';
-        thHead.textContent = 'Berekening';
+        thHead.textContent = SummieI18n.t('Berekening');
         thHead.className = 'calc-card-header';
         trHead.appendChild(thHead);
         tbody.appendChild(trHead);
@@ -171,7 +171,7 @@
         const trExpr = document.createElement('tr');
         const tdExprLabel = document.createElement('th');
         tdExprLabel.contentEditable = 'true';
-        tdExprLabel.textContent = 'Uitdrukking';
+        tdExprLabel.textContent = SummieI18n.t('Uitdrukking');
         const tdExprVal = document.createElement('td');
         tdExprVal.contentEditable = 'true';
         tdExprVal.textContent = parsed.display;
@@ -183,7 +183,7 @@
         const trAns = document.createElement('tr');
         const tdAnsLabel = document.createElement('th');
         tdAnsLabel.contentEditable = 'true';
-        tdAnsLabel.textContent = 'Antwoord';
+        tdAnsLabel.textContent = SummieI18n.t('Antwoord');
         const tdAnsVal = document.createElement('td');
         tdAnsVal.contentEditable = 'true';
         tdAnsVal.textContent = resultStr;

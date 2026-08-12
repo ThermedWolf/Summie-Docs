@@ -46,7 +46,7 @@ function setMaximizeIcon(isMaximized) {
     if (!btn) return;
     btn.querySelector('.icon-maximize').style.display = isMaximized ? 'none' : '';
     btn.querySelector('.icon-restore').style.display = isMaximized ? '' : 'none';
-    btn.title = isMaximized ? 'Terugzetten' : 'Maximaliseren';
+    btn.title = isMaximized ? SummieI18n.t('Terugzetten') : SummieI18n.t('Maximaliseren');
 }
 
 // Event Listeners
@@ -84,7 +84,7 @@ function setupEventListeners() {
         if (file && isSupportedFile(file)) {
             loadFile(file);
         } else if (file) {
-            showNotification('Fout', 'Gebruik een .sumd of .json bestand.', 'error');
+            showNotification(SummieI18n.t('Fout'), SummieI18n.t('Gebruik een .sumd of .json bestand.'), 'error');
         }
     });
 
@@ -156,7 +156,7 @@ function handleFileUpload(e) {
     if (file && isSupportedFile(file)) {
         loadFile(file);
     } else if (file) {
-        showNotification('Fout', 'Gebruik een .sumd of .json bestand.', 'error');
+        showNotification(SummieI18n.t('Fout'), SummieI18n.t('Gebruik een .sumd of .json bestand.'), 'error');
     }
 }
 
@@ -174,14 +174,14 @@ function loadFile(file) {
                 : (data.content && Array.isArray(data.content.begrippen)) ? data.content.begrippen
                     : null;
             if (!begrippen || begrippen.length === 0) {
-                showNotification('Fout', 'Dit bestand bevat geen begrippen.', 'error');
+                showNotification(SummieI18n.t('Fout'), SummieI18n.t('Dit bestand bevat geen begrippen.'), 'error');
                 return;
             }
             allBegrippen = begrippen;
             showBegrippenSelection();
-            showNotification('Bestand geladen', `${allBegrippen.length} begrippen gevonden.`, 'success');
+            showNotification(SummieI18n.t('Bestand geladen'), `${allBegrippen.length} begrippen gevonden.`, 'success');
         } catch (error) {
-            showNotification('Fout', 'Kon bestand niet laden. Zorg dat het een geldig .sumd of .json bestand is.', 'error');
+            showNotification(SummieI18n.t('Fout'), SummieI18n.t('Kon bestand niet laden. Zorg dat het een geldig .sumd of .json bestand is.'), 'error');
         }
     };
     reader.readAsText(file);
@@ -256,7 +256,7 @@ function startLearning() {
         .filter(b => b !== null);
 
     if (selectedBegrippen.length === 0) {
-        showNotification('Fout', 'Selecteer minimaal één begrip.', 'error');
+        showNotification(SummieI18n.t('Fout'), SummieI18n.t('Selecteer minimaal één begrip.'), 'error');
         return;
     }
 
@@ -335,7 +335,7 @@ function showPracticeQuestion() {
     const begrip = practiceQueue[currentIndex];
 
     // Update round indicator
-    const roundText = practiceRound === 1 ? 'Ronde 1: Met antwoorden' : 'Ronde 2: Zelf invullen';
+    const roundText = practiceRound === 1 ? SummieI18n.t('Ronde 1: Met antwoorden') : SummieI18n.t('Ronde 2: Zelf invullen');
     document.getElementById('practiceRound').textContent = roundText;
 
     // Show question
