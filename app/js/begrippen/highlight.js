@@ -182,7 +182,7 @@ function showBegripTooltip(element) {
     const begrip = begrippen.find(b => b.keyword.toLowerCase() === keyword.toLowerCase());
     if (!begrip) return;
 
-    begripTooltip.innerHTML = `<strong>${begrip.keyword}</strong><br>${begrip.description}`;
+    begripTooltip.innerHTML = `<strong>${window.escapeHtml(begrip.keyword)}</strong><br>${window.escapeHtml(begrip.description)}`;
 
     // Show off-screen first so we can measure its size
     begripTooltip.style.visibility = 'hidden';

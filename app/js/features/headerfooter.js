@@ -197,12 +197,12 @@
     function loadData(data) {
         if (!data) return;
         headerFooterMode = data.mode || 'off';
-        sharedHeader = data.sharedHeader || '';
-        sharedFooter = data.sharedFooter || '';
+        sharedHeader = window.sanitizeSumdContent(data.sharedHeader || '');
+        sharedFooter = window.sanitizeSumdContent(data.sharedFooter || '');
         perPageHeaders.clear();
         perPageFooters.clear();
-        if (data.perPageHeaders) Object.keys(data.perPageHeaders).forEach(k => perPageHeaders.set(parseInt(k), data.perPageHeaders[k]));
-        if (data.perPageFooters) Object.keys(data.perPageFooters).forEach(k => perPageFooters.set(parseInt(k), data.perPageFooters[k]));
+        if (data.perPageHeaders) Object.keys(data.perPageHeaders).forEach(k => perPageHeaders.set(parseInt(k), window.sanitizeSumdContent(data.perPageHeaders[k])));
+        if (data.perPageFooters) Object.keys(data.perPageFooters).forEach(k => perPageFooters.set(parseInt(k), window.sanitizeSumdContent(data.perPageFooters[k])));
         updateAllPages();
         updateToolbarButton();
     }

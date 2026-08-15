@@ -150,8 +150,8 @@ window.ReferencesManager = {
 
         tooltip.innerHTML = `
             <div class="ref-tooltip-header">
-                <span class="ref-tooltip-name">${ref.name}</span>
-                <button class="ref-tooltip-jump" data-ref-id="${ref.id}" title="Spring naar">
+                <span class="ref-tooltip-name">${window.escapeHtml(ref.name)}</span>
+                <button class="ref-tooltip-jump" data-ref-id="${window.escapeHtml(ref.id)}" title="Spring naar">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="15 10 20 15 15 20"/>
                         <path d="M4 4v7a4 4 0 0 0 4 4h12"/>
@@ -444,15 +444,15 @@ window.ReferencesManager = {
             item.className = 'reference-item';
             item.innerHTML = `
                 <div class="reference-item-header">
-                    <span class="reference-item-name">${ref.name}</span>
+                    <span class="reference-item-name">${window.escapeHtml(ref.name)}</span>
                     <div class="reference-item-actions">
-                        <button class="ref-jump-btn" data-ref-id="${ref.id}" title="Spring naar">
+                        <button class="ref-jump-btn" data-ref-id="${window.escapeHtml(ref.id)}" title="Spring naar">
                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <polyline points="15 10 20 15 15 20"/>
                                 <path d="M4 4v7a4 4 0 0 0 4 4h12"/>
                             </svg>
                         </button>
-                        <button class="ref-delete-btn" data-ref-id="${ref.id}" title="Verwijderen">
+                        <button class="ref-delete-btn" data-ref-id="${window.escapeHtml(ref.id)}" title="Verwijderen">
                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <polyline points="3 6 5 6 21 6"/>
                                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>

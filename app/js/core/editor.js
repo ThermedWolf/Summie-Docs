@@ -163,7 +163,7 @@ function applyLoadedData(data) {
     }
 
     if (!hasPageData) {
-        state.editor.innerHTML = data.content || '';
+        state.editor.innerHTML = window.sanitizeSumdContent(data.content || '');
     }
     setPendingEmptyEditorStyle('normal');
     state.editor.querySelectorAll('.placeholder-text').forEach(el => el.remove());

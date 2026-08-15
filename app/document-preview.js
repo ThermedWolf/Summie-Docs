@@ -114,6 +114,8 @@ class DocumentPreview {
 <html lang="nl">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy"
+    content="default-src 'self'; script-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none';">
 ${cssLinks}
 <style>
     @keyframes docPreviewSpin { to { transform: rotate(360deg); } }
@@ -226,7 +228,7 @@ ${cssLinks}
             .replace(/<p[^>]*class="[^"]*placeholder-text[^"]*"[^>]*>.*?<\/p>/gi, '')
             .trim();
 
-        page.innerHTML = cleaned || '<p style="color:#9ca3af;font-style:italic;">Leeg document</p>';
+        page.innerHTML = window.sanitizeSumdContent(cleaned) || '<p style="color:#9ca3af;font-style:italic;">Leeg document</p>';
 
         // Apply custom styles if any
         if (data.customStyles) {

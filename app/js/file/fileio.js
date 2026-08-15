@@ -301,7 +301,7 @@ async function loadFromFile(e) {
             if (!data) return;
         }
 
-        state.editor.innerHTML = data.content;
+        state.editor.innerHTML = window.sanitizeSumdContent(data.content);
 
         // Strip legacy inline margin-bottom from plain paragraphs (pre-v4.1.0 documents
         // had margin-bottom: 12px baked in; now handled by CSS on .a4-page p)

@@ -66,7 +66,7 @@ async function loadFromLocalStorage() {
 
         if (!data.content || data.content === '<p>Begin hier met typen...</p>') state.editor.innerHTML = '';
         else {
-            state.editor.innerHTML = data.content;
+            state.editor.innerHTML = window.sanitizeSumdContent(data.content);
             state.editor.querySelectorAll('.placeholder-text').forEach(el => el.remove());
         }
         window.updateEditorPlaceholder && window.updateEditorPlaceholder();

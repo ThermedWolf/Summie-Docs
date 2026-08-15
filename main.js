@@ -75,6 +75,82 @@ const knownDocsPath = path.join(app.getPath('userData'), 'known-docs.json');
 const favouritesPath = path.join(app.getPath('userData'), 'favourites.json');
 const knownTagsPath = path.join(app.getPath('userData'), 'known-tags.json');
 
+// ── IPC hardening ────────────────────────────────────────────────────────
+// The preload bridge gives the renderer filesystem reach (read/write/delete,
+// dialogs, shell). Every handler that touches the filesystem or another app
+// channel must first pass through isTrustedSender(), and every renderer-supplied
+// path goes through the path/existence/extension validators below. The renderer
+// is only "trusted" when it is one of our own file:// pages — never about:blank,
+// never a subframe or a remote URL.
+const APP_PAGE_FILENAMES = ['index.html', 'landing.html', 'manage-documents.html'];
+const DOC_EXTENSIONS = ['.sumd', '.json'];
+
+function isTrustedSender(event) {
+    try {
+        const url = event && event.sender ? event.sender.getURL() : '';
+        if (!url || !url.startsWith('file://')) return false;
+        const pathname = decodeURIComponent(new URL(url).pathname);
+        return APP_PAGE_FILENAMES.includes(path.basename(pathname).toLowerCase());
+    } catch {
+        return false;
+    }
+}
+
+// Preload fires sendSync for app version/theme/language during first paint,
+// when webContents.getURL() may still be empty. These channels only return
+// app constants/settings (never user files or paths), so we tolerate the
+// still-loading window while still blocking every other origin.
+function isLaxTrustedSender(event) {
+    try {
+        if (isTrustedSender(event)) return true;
+        const url = event && event.sender ? event.sender.getURL() : '';
+        return url === '' || url === 'about:blank';
+    } catch {
+        return false;
+    }
+}
+
+// Renderer-supplied path → resolved absolute path, or null when unusable.
+function resolvePathArg(value) {
+    if (typeof value !== 'string' || !value.trim()) return null;
+    if (value.includes('\0')) return null;
+    return path.resolve(value);
+}
+
+function isExistingRegularFile(filePath) {
+    try {
+        return fs.statSync(filePath).isFile();
+    } catch {
+        return false;
+    }
+}
+
+function isDocPath(filePath) {
+    return DOC_EXTENSIONS.includes(path.extname(filePath).toLowerCase());
+}
+
+// Handlers only run when the call came from one of our own pages.
+function safeHandle(channel, handler) {
+    ipcMain.handle(channel, async (event, ...args) => {
+        if (!isTrustedSender(event)) return null;
+        return handler(event, ...args);
+    });
+}
+
+function safeOn(channel, handler) {
+    ipcMain.on(channel, (event, ...args) => {
+        if (!isTrustedSender(event)) return;
+        handler(event, ...args);
+    });
+}
+
+function safeOnLax(channel, handler) {
+    ipcMain.on(channel, (event, ...args) => {
+        if (!isLaxTrustedSender(event)) return;
+        handler(event, ...args);
+    });
+}
+
 // ── Recent docs ───────────────────────────────────────────────────────────
 function readRecentDocs() {
     try { return JSON.parse(fs.readFileSync(recentDocsPath, 'utf8')); }
@@ -419,10 +495,19 @@ app.on('open-file', (event, filePath) => {
 
 // ==================== IPC HANDLERS ====================
 
-ipcMain.handle('save-sumd-file', async (event, data, existingPath = null, defaultName = null, defaultDir = null) => {
+safeHandle('save-sumd-file', async (event, data, existingPath = null, defaultName = null, defaultDir = null) => {
     let filePath = existingPath;
 
-    if (!filePath) {
+    if (filePath) {
+        // existingPath comes from the renderer and (on double-saves) is the path
+        // of the currently open document. Only ever re-write an existing .sumd/.json
+        // document — never an arbitrary path supplied by page code.
+        const resolved = resolvePathArg(filePath);
+        if (!resolved || !isExistingRegularFile(resolved) || !isDocPath(resolved)) {
+            return { success: false, error: 'Ongeldig bestandspad' };
+        }
+        filePath = resolved;
+    } else {
         let defaultPath = defaultName ? `${defaultName}.sumd` : `${tMain('samenvatting')}.sumd`;
         if (defaultDir) {
             defaultPath = path.join(defaultDir, defaultPath);
@@ -447,7 +532,7 @@ ipcMain.handle('save-sumd-file', async (event, data, existingPath = null, defaul
     }
 });
 
-ipcMain.handle('open-sumd-file', async () => {
+safeHandle('open-sumd-file', async () => {
     const result = await dialog.showOpenDialog(mainWindow, {
         title: tMain('Document Openen'),
         filters: [
@@ -471,7 +556,7 @@ ipcMain.handle('open-sumd-file', async () => {
     return { success: false, canceled: true };
 });
 
-ipcMain.handle('open-sumd-file-at', async (event, defaultDir) => {
+safeHandle('open-sumd-file-at', async (event, defaultDir) => {
     const opts = {
         title: tMain('Document Openen'),
         filters: [
@@ -504,26 +589,32 @@ ipcMain.handle('open-sumd-file-at', async (event, defaultDir) => {
     return { success: false, canceled: true };
 });
 
-ipcMain.handle('file-exists', async (event, filePath) => {
+safeHandle('file-exists', async (event, filePath) => {
+    const resolved = resolvePathArg(filePath);
+    if (!resolved) return false;
     try {
-        fs.accessSync(filePath, fs.constants.F_OK);
+        fs.accessSync(resolved, fs.constants.F_OK);
         return true;
     } catch {
         return false;
     }
 });
 
-ipcMain.handle('load-specific-file', async (event, filePath) => {
+safeHandle('load-specific-file', async (event, filePath) => {
+    const resolved = resolvePathArg(filePath);
+    if (!resolved || !isExistingRegularFile(resolved) || !isDocPath(resolved)) {
+        return { success: false, error: 'Ongeldig bestandspad' };
+    }
     try {
-        const fileContent = fs.readFileSync(filePath, 'utf8');
+        const fileContent = fs.readFileSync(resolved, 'utf8');
         const data = JSON.parse(fileContent);
-        return { success: true, data: data, path: filePath };
+        return { success: true, data: data, path: resolved };
     } catch (error) {
         return { success: false, error: error.message };
     }
 });
 
-ipcMain.handle('get-initial-sumd-file', async (event) => {
+safeHandle('get-initial-sumd-file', async (event) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (!win || !win.initialSumdFile) return null;
 
@@ -532,16 +623,22 @@ ipcMain.handle('get-initial-sumd-file', async (event) => {
     return file;
 });
 
-ipcMain.handle('rename-file', async (event, oldPath, newPath) => {
+safeHandle('rename-file', async (event, oldPath, newPath) => {
+    const resolvedOld = resolvePathArg(oldPath);
+    const resolvedNew = resolvePathArg(newPath);
+    if (!resolvedOld || !resolvedNew || !isExistingRegularFile(resolvedOld) ||
+        !isDocPath(resolvedOld) || !isDocPath(resolvedNew)) {
+        return { success: false, error: 'Ongeldig bestandspad' };
+    }
     try {
-        fs.renameSync(oldPath, newPath);
-        return { success: true, path: newPath };
+        fs.renameSync(resolvedOld, resolvedNew);
+        return { success: true, path: resolvedNew };
     } catch (error) {
         return { success: false, error: error.message };
     }
 });
 
-ipcMain.handle('print-document', async (event) => {
+safeHandle('print-document', async (event) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     // Hide UI, print, then restore
     await win.webContents.executeJavaScript(`
@@ -557,7 +654,7 @@ ipcMain.handle('print-document', async (event) => {
     });
 });
 
-ipcMain.handle('save-as-pdf', async (event) => {
+safeHandle('save-as-pdf', async (event) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     const result = await dialog.showSaveDialog(win, {
         title: tMain('Opslaan als PDF'),
@@ -589,18 +686,26 @@ ipcMain.handle('save-as-pdf', async (event) => {
     }
 });
 
-ipcMain.handle('delete-file', async (event, filePath) => {
+safeHandle('delete-file', async (event, filePath) => {
+    const resolved = resolvePathArg(filePath);
+    if (!resolved || !isExistingRegularFile(resolved) || !isDocPath(resolved)) {
+        return { success: false, error: 'Ongeldig bestandspad' };
+    }
     try {
-        fs.unlinkSync(filePath);
+        fs.unlinkSync(resolved);
         return { success: true };
     } catch (error) {
         return { success: false, error: error.message };
     }
 });
 
-ipcMain.handle('show-in-explorer', async (event, filePath) => {
+safeHandle('show-in-explorer', async (event, filePath) => {
+    const resolved = resolvePathArg(filePath);
+    if (!resolved || !isExistingRegularFile(resolved)) {
+        return { success: false, error: 'Ongeldig bestandspad' };
+    }
     try {
-        shell.showItemInFolder(filePath);
+        shell.showItemInFolder(resolved);
         return { success: true };
     } catch (error) {
         return { success: false, error: error.message };
@@ -608,8 +713,8 @@ ipcMain.handle('show-in-explorer', async (event, filePath) => {
 });
 
 // Recent docs — file-based storage (replaces localStorage)
-ipcMain.handle('recents-get', () => readRecentDocs());
-ipcMain.handle('recents-add', (event, entry) => {
+safeHandle('recents-get', () => readRecentDocs());
+safeHandle('recents-add', (event, entry) => {
     rememberKnownDoc(entry);
     let docs = readRecentDocs();
     docs = docs.filter(d => d.path !== entry.path && d.id !== entry.id);
@@ -618,12 +723,12 @@ ipcMain.handle('recents-add', (event, entry) => {
     writeRecentDocs(docs);
     return docs;
 });
-ipcMain.handle('recents-remove', (event, id) => {
+safeHandle('recents-remove', (event, id) => {
     const docs = readRecentDocs().filter(d => d.id !== id);
     writeRecentDocs(docs);
     return docs;
 });
-ipcMain.handle('recents-save', (event, docs) => {
+safeHandle('recents-save', (event, docs) => {
     docs.forEach(rememberKnownDoc);
     writeRecentDocs(docs);
     return docs;
@@ -632,13 +737,17 @@ ipcMain.handle('recents-save', (event, docs) => {
 // Update an existing entry's path/name in recents, known-docs and favourites.
 // Used when a document is renamed so the same entry stays in place instead
 // of leaving a stale "old" entry alongside a brand new one.
-ipcMain.handle('update-doc-path', (event, oldPath, newPath, newName) => {
-    if (!oldPath || !newPath) return { success: false, updated: false };
+safeHandle('update-doc-path', (event, oldPath, newPath, newName) => {
+    const resolvedOld = resolvePathArg(oldPath);
+    const resolvedNew = resolvePathArg(newPath);
+    if (!resolvedOld || !resolvedNew || !isExistingRegularFile(resolvedOld) || !isDocPath(resolvedNew)) {
+        return { success: false, updated: false };
+    }
 
     let updated = false;
     const update = (entry) => {
-        if (entry.path === oldPath) {
-            entry.path = newPath;
+        if (entry.path === oldPath || entry.path === resolvedOld) {
+            entry.path = resolvedNew;
             entry.name = newName || entry.name;
             entry.lastOpened = new Date().toISOString();
             updated = true;
@@ -653,29 +762,29 @@ ipcMain.handle('update-doc-path', (event, oldPath, newPath, newName) => {
     return { success: true, updated };
 });
 
-ipcMain.handle('known-docs-get', () => {
+safeHandle('known-docs-get', () => {
     const recentDocs = readRecentDocs();
     recentDocs.forEach(rememberKnownDoc);
     return readKnownDocs();
 });
-ipcMain.handle('known-docs-save', (event, docs) => {
+safeHandle('known-docs-save', (event, docs) => {
     writeKnownDocs(docs);
     return docs;
 });
 
 // Favourites — file-based storage
-ipcMain.handle('favourites-get', () => readFavourites());
-ipcMain.handle('favourites-save', (event, favs) => {
+safeHandle('favourites-get', () => readFavourites());
+safeHandle('favourites-save', (event, favs) => {
     writeFavourites(favs);
     return favs;
 });
 
 // App-wide settings (language, auto-save new files, default directory, etc.)
-ipcMain.on('get-theme-sync', (event) => {
+safeOnLax('get-theme-sync', (event) => {
     event.returnValue = readAppSettings().theme || 'system';
 });
-ipcMain.handle('settings-get', () => readAppSettings());
-ipcMain.handle('settings-set', (event, patch) => {
+safeHandle('settings-get', () => readAppSettings());
+safeHandle('settings-set', (event, patch) => {
     const current = readAppSettings();
     writeAppSettings({ ...current, ...patch });
     const updated = readAppSettings();
@@ -693,8 +802,8 @@ ipcMain.handle('settings-set', (event, patch) => {
     }
     return updated;
 });
-ipcMain.handle('settings-get-number-locale', () => readAppSettings().numberLocale || 'eu');
-ipcMain.handle('settings-pick-directory', async () => {
+safeHandle('settings-get-number-locale', () => readAppSettings().numberLocale || 'eu');
+safeHandle('settings-pick-directory', async () => {
     const current = readAppSettings();
     const result = await dialog.showOpenDialog({
         title: tMain('Kies standaard map voor nieuwe documenten'),
@@ -707,12 +816,16 @@ ipcMain.handle('settings-pick-directory', async () => {
 
 // Auto-save settings — persisted to userData/autosave-settings.json
 // Key = filePath, value = true. Absent = off (default).
-ipcMain.handle('autosave-get', (event, filePath) => {
+safeHandle('autosave-get', (event, filePath) => {
+    const resolved = resolvePathArg(filePath);
+    if (!resolved || !isDocPath(resolved)) return false;
     const settings = readAutoSaveSettings();
     return !!settings[filePath];
 });
 
-ipcMain.handle('autosave-set', (event, filePath, enabled) => {
+safeHandle('autosave-set', (event, filePath, enabled) => {
+    const resolved = resolvePathArg(filePath);
+    if (!resolved || !isDocPath(resolved)) return false;
     const settings = readAutoSaveSettings();
     if (enabled) {
         settings[filePath] = true;
@@ -725,18 +838,18 @@ ipcMain.handle('autosave-set', (event, filePath, enabled) => {
 
 // Sync IPC so preload.js can read the app version at startup without touching
 // the filesystem/require directly (that path breaks once packaged/bundled).
-ipcMain.on('get-app-version-sync', (event) => {
+safeOnLax('get-app-version-sync', (event) => {
     event.returnValue = APP_VERSION;
 });
 
 // Sync IPC for the active language — lets each page resolve translations
 // synchronously before anything is painted or rendered.
-ipcMain.on('get-language-sync', (event) => {
+safeOnLax('get-language-sync', (event) => {
     event.returnValue = readAppSettings().language || detectDefaultLanguage();
 });
 
 // Update the window title to show the current document name
-ipcMain.on('set-window-title', (event, documentName) => {
+safeOn('set-window-title', (event, documentName) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (!win) return;
     const title = documentName ? `${documentName} - Summie` : 'Summie';
@@ -744,7 +857,7 @@ ipcMain.on('set-window-title', (event, documentName) => {
 });
 
 // Open a source code file via dialog and return path + content
-ipcMain.handle('open-code-file', async () => {
+safeHandle('open-code-file', async () => {
     const result = await dialog.showOpenDialog(mainWindow, {
         title: tMain('Bestand Laden in Codeblok'),
         properties: ['openFile']
@@ -761,10 +874,16 @@ ipcMain.handle('open-code-file', async () => {
     return { success: false, canceled: true };
 });
 
-// Re-read a source code file by path (for refresh)
-ipcMain.handle('read-code-file', async (event, filePath) => {
+// Re-read a source code file by path (for refresh). The path originates from
+// the dialog in open-code-file — require an existing regular file so a
+// renderer compromise can't read arbitrary non-existent/special paths.
+safeHandle('read-code-file', async (event, filePath) => {
+    const resolved = resolvePathArg(filePath);
+    if (!resolved || !isExistingRegularFile(resolved)) {
+        return { success: false, error: 'Ongeldig bestandspad' };
+    }
     try {
-        const content = fs.readFileSync(filePath, 'utf8');
+        const content = fs.readFileSync(resolved, 'utf8');
         return { success: true, content };
     } catch (error) {
         return { success: false, error: error.message };
@@ -772,24 +891,36 @@ ipcMain.handle('read-code-file', async (event, filePath) => {
 });
 
 // Updater IPC handlers
-ipcMain.handle('updater-download', async () => {
+safeHandle('updater-download', async () => {
     await updater.downloadUpdate();
     return { success: true };
 });
 
-ipcMain.handle('updater-quit-and-install', async () => {
+safeHandle('updater-quit-and-install', async () => {
     await updater.quitAndInstall();
     return { success: true };
 });
 
-ipcMain.handle('updater-is-downloaded', () => {
+safeHandle('updater-is-downloaded', () => {
     return updater.isUpdateDownloaded();
 });
 
-ipcMain.handle('shell-open-external', async (event, url) => {
+// Only ever open http/https/mailto — never file://, custom URI schemes or
+// local executables hiding behind a crafted URL.
+safeHandle('shell-open-external', async (event, url) => {
     const { shell } = require('electron');
+    let parsed;
     try {
-        await shell.openExternal(url);
+        parsed = new URL(String(url));
+    } catch {
+        return { success: false, error: 'Ongeldige URL' };
+    }
+    const allowed = ['http:', 'https:', 'mailto:'];
+    if (!allowed.includes(parsed.protocol)) {
+        return { success: false, error: 'URL-scheme niet toegestaan' };
+    }
+    try {
+        await shell.openExternal(parsed.href);
         return { success: true };
     } catch (err) {
         return { success: false, error: err.message };
@@ -825,44 +956,50 @@ function getFocusedWin() {
     return BrowserWindow.getFocusedWindow() || mainWindow;
 }
 
-ipcMain.on('window-minimize', () => { const w = getFocusedWin(); if (w) w.minimize(); });
-ipcMain.on('window-maximize', () => {
+safeOn('window-minimize', () => { const w = getFocusedWin(); if (w) w.minimize(); });
+safeOn('window-maximize', () => {
     const w = getFocusedWin();
     if (!w) return;
     if (w.isMaximized()) w.unmaximize();
     else w.maximize();
 });
-ipcMain.on('window-close', () => { const w = getFocusedWin(); if (w) w.close(); });
-ipcMain.on('window-new', () => { createWindow(); });
+safeOn('window-close', () => { const w = getFocusedWin(); if (w) w.close(); });
+safeOn('window-new', () => { createWindow(); });
 
 // Known tags
-ipcMain.handle('known-tags-get', () => {
+safeHandle('known-tags-get', () => {
     try { return JSON.parse(fs.readFileSync(knownTagsPath, 'utf8')); }
     catch { return []; }
 });
-ipcMain.handle('known-tags-save', (event, tags) => {
+safeHandle('known-tags-save', (event, tags) => {
     fs.writeFileSync(knownTagsPath, JSON.stringify(tags, null, 2), 'utf8');
     return true;
 });
 
 // Read/write description+tags metadata from a .sumd file
 // Read raw file content (for preview renderer)
-ipcMain.handle('read-file-content', (event, filePath) => {
-    try { return fs.readFileSync(filePath, 'utf8'); }
+safeHandle('read-file-content', (event, filePath) => {
+    const resolved = resolvePathArg(filePath);
+    if (!resolved || !isExistingRegularFile(resolved) || !isDocPath(resolved)) return null;
+    try { return fs.readFileSync(resolved, 'utf8'); }
     catch { return null; }
 });
 
-ipcMain.handle('open-sumd-file-by-path', (event, filePath) => {
+safeHandle('open-sumd-file-by-path', (event, filePath) => {
+    const resolved = resolvePathArg(filePath);
+    if (!resolved || !isExistingRegularFile(resolved) || !isDocPath(resolved)) return null;
     try {
-        return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+        return JSON.parse(fs.readFileSync(resolved, 'utf8'));
     } catch { return null; }
 });
 
-ipcMain.handle('scan-sumd-elements', (event, filePath) => {
+safeHandle('scan-sumd-elements', (event, filePath) => {
+    const resolved = resolvePathArg(filePath);
+    if (!resolved || !isExistingRegularFile(resolved) || !isDocPath(resolved)) return null;
     try {
-        const raw = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+        const raw = JSON.parse(fs.readFileSync(resolved, 'utf8'));
         if (raw && raw.summieFormat === 'summie-encrypted-v1') {
-            const stat = fs.statSync(filePath);
+            const stat = fs.statSync(resolved);
             return {
                 hasCodeblock: false,
                 hasTable: false,
@@ -872,7 +1009,7 @@ ipcMain.handle('scan-sumd-elements', (event, filePath) => {
             };
         }
         const content = raw.content || '';
-        const stat = fs.statSync(filePath);
+        const stat = fs.statSync(resolved);
         return {
             hasCodeblock: /<div[^>]*code-block/i.test(content),
             hasTable: /<table/i.test(content),
@@ -882,39 +1019,45 @@ ipcMain.handle('scan-sumd-elements', (event, filePath) => {
     } catch { return null; }
 });
 
-ipcMain.handle('get-file-size', (event, filePath) => {
+safeHandle('get-file-size', (event, filePath) => {
+    const resolved = resolvePathArg(filePath);
+    if (!resolved || !isExistingRegularFile(resolved) || !isDocPath(resolved)) return null;
     try {
-        const stat = fs.statSync(filePath);
+        const stat = fs.statSync(resolved);
         return stat.size;
     } catch { return null; }
 });
 
-ipcMain.handle('read-sumd-meta', (event, filePath) => {
+safeHandle('read-sumd-meta', (event, filePath) => {
+    const resolved = resolvePathArg(filePath);
+    if (!resolved || !isExistingRegularFile(resolved) || !isDocPath(resolved)) return null;
     try {
-        const raw = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+        const raw = JSON.parse(fs.readFileSync(resolved, 'utf8'));
         if (raw && raw.summieFormat === 'summie-encrypted-v1') {
             return { description: '', tags: [], protected: true };
         }
         return { description: raw.description || '', tags: raw.tags || [] };
     } catch { return null; }
 });
-ipcMain.handle('write-sumd-meta', (event, filePath, meta) => {
+safeHandle('write-sumd-meta', (event, filePath, meta) => {
+    const resolved = resolvePathArg(filePath);
+    if (!resolved || !isExistingRegularFile(resolved) || !isDocPath(resolved)) return false;
     try {
-        const raw = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+        const raw = JSON.parse(fs.readFileSync(resolved, 'utf8'));
         if (raw && raw.summieFormat === 'summie-encrypted-v1') return false;
         raw.description = meta.description || '';
         raw.tags = meta.tags || [];
-        fs.writeFileSync(filePath, JSON.stringify(raw), 'utf8');
+        fs.writeFileSync(resolved, JSON.stringify(raw), 'utf8');
         return true;
     } catch { return false; }
 });
 
-ipcMain.on('navigate-to-manage', (event) => {
+safeOn('navigate-to-manage', (event) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (win) win.loadFile(path.join(__dirname, 'app', 'manage-documents.html'));
 });
 
-ipcMain.on('navigate-to-landing', async (event) => {
+safeOn('navigate-to-landing', async (event) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (!win) return;
 
@@ -966,7 +1109,7 @@ ipcMain.on('navigate-to-landing', async (event) => {
     }
 });
 
-ipcMain.on('open-leren', (event) => {
+safeOn('open-leren', (event) => {
     const parentWin = BrowserWindow.fromWebContents(event.sender);
     const bounds = parentWin ? parentWin.getBounds() : { x: undefined, y: undefined, width: 1400, height: 900 };
     const lerenWin = new BrowserWindow({
@@ -998,13 +1141,13 @@ ipcMain.on('open-leren', (event) => {
 });
 
 // Query current maximized state (used on load to sync button)
-ipcMain.handle('window-is-maximized', () => { const w = getFocusedWin(); return w ? w.isMaximized() : false; });
+safeHandle('window-is-maximized', () => { const w = getFocusedWin(); return w ? w.isMaximized() : false; });
 
 // Snap layout support: receive the maximize button's bounding rect from the renderer
 // and hook WM_NCHITTEST so Windows reports HTMAXBUTTON over that area.
 // This enables the Windows 11 snap layouts flyout on hover.
 let _maximizeBtnRect = null;
-ipcMain.on('set-maximize-btn-rect', (event, rect) => {
+safeOn('set-maximize-btn-rect', (event, rect) => {
     _maximizeBtnRect = rect;
     // Apply to the window that sent this message
     const win = BrowserWindow.fromWebContents(event.sender);

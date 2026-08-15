@@ -344,7 +344,7 @@ async function loadCurrentDocPreview() {
         if (matchingRecent && matchingRecent.name) docName = matchingRecent.name;
         if (!docName) {
             const tmp = document.createElement('div');
-            tmp.innerHTML = content;
+            tmp.innerHTML = window.sanitizeSumdContent(content);
             const h = tmp.querySelector('.style-title, h1, h2, h3');
             docName = h ? h.textContent.trim() : SummieI18n.t('Naamloos Document');
         }

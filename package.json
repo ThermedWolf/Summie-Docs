@@ -93,6 +93,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "dompurify": "^3.4.13",
     "electron-log": "^5.4.4"
   }
 }
