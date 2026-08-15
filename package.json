@@ -43,8 +43,7 @@
         }
       ],
       "artifactName": "Summie-windows-x64-${version}.${ext}",
-      "icon": "app/icon.png",
-      "sign": null
+      "icon": "app/icon.png"
     },
     "nsis": {
       "oneClick": false,
