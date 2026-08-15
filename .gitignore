@@ -1,4 +1,5 @@
 *.zip
+node_modules/
 backup/
 dist/
 *_example*
