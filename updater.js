@@ -30,6 +30,19 @@ function tUpdater(str) {
     return hit !== undefined && hit !== null ? hit : str;
 }
 
+// Version the user explicitly asked not to be reminded about ("don't ask
+// again for this update"). Stored in app-settings.json so it survives
+// restarts; it only suppresses this exact update version.
+function readDismissedUpdateVersion() {
+    try {
+        const raw = JSON.parse(fs2.readFileSync(appSettingsPath, 'utf8'));
+        const value = raw && raw.dismissedUpdateVersion;
+        return typeof value === 'string' && value ? value : null;
+    } catch (e) {
+        return null;
+    }
+}
+
 let updateCheckInProgress = false;
 let latestReleaseInfo = null;
 
@@ -197,7 +210,13 @@ async function checkForUpdates() {
             log.warn('No installer asset found in release');
             return;
         }
-        
+
+        const dismissedVersion = readDismissedUpdateVersion();
+        if (dismissedVersion && dismissedVersion === latestVersion) {
+            log.info(`Update reminder for v${latestVersion} suppressed (dismissed by user)`);
+            return;
+        }
+
         latestReleaseInfo = {
             version: latestVersion,
             releaseNotes: release.body || tUpdater('Geen release notes beschikbaar.'),

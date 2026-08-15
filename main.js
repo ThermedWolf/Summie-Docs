@@ -205,6 +205,7 @@ const DEFAULT_APP_SETTINGS = {
     closeToHome: true,                  // close button → landing page instead of quitting
     numberLocale: 'eu',                 // 'eu' = komma decimaal | 'us' = punt decimaal
     theme: 'system',                    // 'system' = volg OS | 'dark' | 'light'
+    dismissedUpdateVersion: null,       // update version whose reminder the user dismissed
 };
 
 function readAppSettings() {

@@ -1150,6 +1150,8 @@ function initUpdater() {
     const installBtn = document.getElementById('updateInstallBtn');
     const dismissBtn = document.getElementById('updateDismissBtn');
     const changelogBtn = document.getElementById('updateChangelogBtn');
+    const dismissOption = document.getElementById('updateDismissOption');
+    const dismissCheckbox = document.getElementById('updateDismissCheckbox');
 
     if (!modal) return;
 
@@ -1171,6 +1173,8 @@ function initUpdater() {
         dismissBtn.textContent = t('Later');
         dismissBtn.disabled = false;
         changelogBtn.style.display = 'inline-flex';
+        if (dismissCheckbox) dismissCheckbox.checked = false;
+        if (dismissOption) dismissOption.style.display = '';
         modal.style.display = 'flex';
     }
 
@@ -1179,11 +1183,20 @@ function initUpdater() {
         updateInfo = null;
     }
 
+    // When the "don't ask again for this update" box is ticked, remember the
+    // dismissed version so the updater can skip it on future checks.
+    function persistDismissIfRequested() {
+        if (dismissCheckbox && dismissCheckbox.checked && updateInfo && updateInfo.version) {
+            window.electron.settingsSet({ dismissedUpdateVersion: updateInfo.version }).catch(() => {});
+        }
+    }
+
     // Shows the progress card in place of the version-compare row. These are
     // siblings inside #updateModalContent, so only the version-compare row
     // gets hidden here — the progress card (and its loader bar) stays visible.
     function showProgress(message, indeterminate = false) {
         versionCompare.style.display = 'none';
+        if (dismissOption) dismissOption.style.display = 'none';
         progressContainer.style.display = 'block';
         progressText.textContent = message;
         if (indeterminate) {
@@ -1269,6 +1282,7 @@ function initUpdater() {
 
     dismissBtn.addEventListener('click', () => {
         if (dismissBtn.disabled) return;
+        persistDismissIfRequested();
         hideModal();
     });
 
@@ -1282,11 +1296,15 @@ function initUpdater() {
     });
 
     modal.addEventListener('click', (e) => {
-        if (e.target === modal) hideModal();
+        if (e.target === modal) {
+            persistDismissIfRequested();
+            hideModal();
+        }
     });
 
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && modal.style.display === 'flex') {
+            persistDismissIfRequested();
             hideModal();
         }
     });

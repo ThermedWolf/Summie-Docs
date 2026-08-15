@@ -1605,6 +1605,28 @@ body {
     opacity: 0.5;
 }
 
+.update-dismiss-option {
+    padding: 0 24px 18px;
+}
+
+.update-dismiss-checkbox {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    user-select: none;
+}
+
+.update-dismiss-checkbox input {
+    width: 15px;
+    height: 15px;
+    margin: 0;
+    accent-color: var(--primary);
+    cursor: pointer;
+}
+
 .update-progress {
     padding: 18px 20px;
     background: var(--surface-secondary);

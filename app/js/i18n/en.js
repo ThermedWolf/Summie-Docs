@@ -167,6 +167,7 @@
 
         // ── Landing: updater (renderer, index + landing) ─────────────────────
         'Wijzigingen bekijken': 'View changes',
+        'Niet nogmaals vragen voor deze update': "Don't ask again for this update",
 
         // ── Editor topbar ────────────────────────────────────────────────────
         'Bestand': 'File',
