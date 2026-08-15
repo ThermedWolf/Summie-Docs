@@ -295,7 +295,7 @@
         'Checklist item': 'Checklist item',
 
         // ── Editor: begrippen module ─────────────────────────────────────────
-        'Vul beide velden in.': 'Fill in both fields.',
+        'Vul een begrip in en vul een beschrijving of minimaal één alias in.': 'Fill in a term and provide either a description or at least one alias.',
         '"{kw}" is succesvol bijgewerkt.': '"{kw}" was updated successfully.',
         'Begrip bijgewerkt': 'Term updated',
         '"{kw}" is toegevoegd aan je begrippen.': '"{kw}" has been added to your terms.',

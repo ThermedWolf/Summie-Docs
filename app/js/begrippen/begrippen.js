@@ -102,17 +102,17 @@ function saveBegrip() {
     const description = document.getElementById('begripDescription').value.trim();
     const aliasesInput = document.getElementById('begripAliases').value.trim();
 
-    if (!keyword || !description) {
-        window.showNotification && window.showNotification(SummieI18n.t('Fout'), SummieI18n.t('Vul beide velden in.'), 'error');
-        return;
-    }
-
     // Sanitize all user input to prevent HTML/script injection
     const safeKeyword = _sanitizeBegripText(keyword);
     const safeDescription = _sanitizeBegripText(description);
     const aliases = aliasesInput
         ? aliasesInput.split(',').map(a => _sanitizeBegripText(a.trim())).filter(a => a.length > 0)
         : [];
+
+    if (!safeKeyword || (!safeDescription && aliases.length === 0)) {
+        window.showNotification && window.showNotification(SummieI18n.t('Fout'), SummieI18n.t('Vul een begrip in en vul een beschrijving of minimaal één alias in.'), 'error');
+        return;
+    }
 
     const state = window.AppState;
 
