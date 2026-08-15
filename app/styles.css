@@ -142,6 +142,17 @@ body {
     border-color: var(--secondary-color);
 }
 
+.btn-icon:disabled {
+    opacity: 0.4;
+    cursor: default;
+    pointer-events: none;
+}
+
+.btn-icon:disabled:hover {
+    background: var(--bg-white);
+    border-color: var(--border-color);
+}
+
 .btn-icon.active {
     background: var(--primary-color);
     border-color: var(--primary-color);

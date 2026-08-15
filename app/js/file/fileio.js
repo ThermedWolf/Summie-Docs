@@ -365,6 +365,8 @@ async function loadFromFile(e) {
         state.lastSavedBegrippen = JSON.stringify(state.begrippen);
         state.lastSavedProtection = window.DocumentProtection?.isProtected?.() || false;
         localStorage.setItem('summie_saved_content', state.editor.innerHTML);
+        // Start a fresh undo history, seeded with the loaded document
+        setTimeout(() => window.UndoManager && window.UndoManager.resetBaseline(), 550);
 
         window.showNotification && window.showNotification(
             SummieI18n.t('Document geladen'),
@@ -403,6 +405,8 @@ function newSummary() {
         window.clearDocNameInput && window.clearDocNameInput();
         window.showNotification && window.showNotification(SummieI18n.t('Nieuw document gestart'), '', 'success');
         setTimeout(() => window.focusEditor && window.focusEditor(), 450);
+        // Start a fresh undo history, seeded with the (empty) document
+        setTimeout(() => window.UndoManager && window.UndoManager.resetBaseline(), 550);
     };
 
     const onCancel = () => cleanup();

@@ -113,6 +113,28 @@
         <div class="section-toolbar">
             <!-- Bewerken Section (Default Active) -->
             <div class="toolbar-content active" data-content="bewerken">
+                <div class="toolbar-group animate-item" style="animation-delay: 0s">
+                    <label class="toolbar-label">Ongedaan maken</label>
+                    <div class="toolbar-buttons">
+                        <button class="btn-icon" id="undoBtn" title="Ongedaan maken (Ctrl+Z)" disabled>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M9 14 4 9l5-5" />
+                                <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
+                            </svg>
+                        </button>
+                        <button class="btn-icon" id="redoBtn" title="Opnieuw (Ctrl+Y)" disabled>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M15 14l5-5-5-5" />
+                                <path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="toolbar-separator animate-item" style="animation-delay: 0.02s"></div>
+
                 <div class="toolbar-group animate-item" style="animation-delay: 0.05s">
                     <label class="toolbar-label">Lettertype</label>
                     <div class="toolbar-buttons">
@@ -1659,6 +1681,8 @@ z" />
     <script src="js/lib/docx.umd.min.js"></script>
     <script src="js/file/docx-export.js"></script>
     <script src="js/core/dialogs.js"></script>
+    <!-- Undo/redo (snapshot-based; needs state, editor, pages and managers loaded) -->
+    <script src="js/core/undo.js"></script>
     <script src="js/main.js"></script>
 
     <!-- Global editor focus preservation -->

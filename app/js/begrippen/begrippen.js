@@ -132,6 +132,7 @@ function saveBegrip() {
     window.saveToLocalStorage && window.saveToLocalStorage();
     window.updateUnsavedIndicator && window.updateUnsavedIndicator();
     window.updateBegrippenCounter && window.updateBegrippenCounter();
+    window.UndoManager && window.UndoManager.notifyExternalChange();
 }
 
 async function deleteBegrip(id) {
@@ -152,6 +153,7 @@ async function deleteBegrip(id) {
         window.saveToLocalStorage && window.saveToLocalStorage();
         window.updateUnsavedIndicator && window.updateUnsavedIndicator();
         window.updateBegrippenCounter && window.updateBegrippenCounter();
+        window.UndoManager && window.UndoManager.notifyExternalChange();
         window.showNotification && window.showNotification(SummieI18n.t('Begrip verwijderd'), `"${begrip.keyword}" is verwijderd.`, 'success');
     }
 }

@@ -8,6 +8,11 @@
     const ITERATIONS = 250000;
     let currentPassword = null;
     let currentProtected = false;
+    // True when the document is flagged as protected but no password is known
+    // yet (e.g. restored into a "protected" undo step after the password was
+    // cleared). In that state saves fall back to plaintext until the user sets
+    // a new password, instead of nagging with a password dialog on auto-save.
+    let pendingProtection = false;
 
     function bytesToBase64(bytes) {
         let binary = '';
@@ -99,6 +104,7 @@
     async function prepareForSave(data) {
         if (!currentProtected) return data;
         if (!currentPassword) {
+            if (pendingProtection) return data;
             currentPassword = await requestPassword(
                 SummieI18n.t('Document beveiligen'),
                 SummieI18n.t('Kies een wachtwoord voor dit document.'),
@@ -149,6 +155,7 @@
             if (!ok) return;
             currentProtected = false;
             currentPassword = null;
+            pendingProtection = false;
         } else {
             const password = await requestPassword(
                 SummieI18n.t('Document beveiligen'),
@@ -158,10 +165,26 @@
             if (!password) return;
             currentProtected = true;
             currentPassword = password;
+            pendingProtection = false;
         }
         updateButton();
         window.updateUnsavedIndicator?.();
         window.saveToLocalStorage?.();
+        window.UndoManager && window.UndoManager.notifyExternalChange();
+    }
+
+    // Switch the in-memory protected flag without a password (used by undo/redo
+    // restore). If the snapshot says "protected" but no password is known, the
+    // document stays editable and saves plaintext until a password is set.
+    function setProtected(enabled) {
+        currentProtected = !!enabled;
+        if (!currentProtected) {
+            currentPassword = null;
+            pendingProtection = false;
+        } else if (!currentPassword) {
+            pendingProtection = true;
+        }
+        updateButton();
     }
 
     function reset() {
@@ -190,6 +213,7 @@
         prepareForSave,
         reset,
         updateButton,
+        setProtected,
         isProtected: () => currentProtected
     };
 

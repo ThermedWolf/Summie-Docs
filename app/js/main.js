@@ -105,6 +105,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         state.lastSavedContent = state.editor.innerHTML;
         state.lastSavedBegrippen = JSON.stringify(state.begrippen);
         state.lastSavedProtection = window.DocumentProtection?.isProtected?.() || false;
+        // Seed the undo history with the loaded document as its baseline
+        window.UndoManager && window.UndoManager.resetBaseline();
     }, 500);
 
     // 8. Init References & Tables
@@ -233,6 +235,7 @@ if (window.electron && window.electron.onLoadSumdFile) {
         state.lastSavedBegrippen = JSON.stringify(state.begrippen);
         state.lastSavedProtection = window.DocumentProtection?.isProtected?.() || false;
         localStorage.setItem('summie_saved_content', state.editor.innerHTML);
+        setTimeout(() => window.UndoManager && window.UndoManager.resetBaseline(), 550);
     });
 }
 
