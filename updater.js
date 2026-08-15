@@ -5,6 +5,7 @@ const path = require('path');
 const os = require('os');
 const { execFile } = require('child_process');
 const { promisify } = require('util');
+const crypto = require('crypto');
 const execFileAsync = promisify(execFile);
 
 const REPO_OWNER = 'ThermedWolf';
@@ -203,6 +204,7 @@ async function checkForUpdates() {
             downloadUrl: installer.browser_download_url,
             fileName: installer.name,
             fileSize: installer.size,
+            sha256: installer.digest,
             publishedAt: release.published_at,
             html_url: release.html_url
         };
@@ -219,6 +221,50 @@ async function checkForUpdates() {
 
 let downloadAborted = false;
 let downloadProgress = 0;
+
+function computeSha256Hex(filePath) {
+    return new Promise((resolve, reject) => {
+        const hash = crypto.createHash('sha256');
+        const stream = fs.createReadStream(filePath);
+        stream.on('error', reject);
+        stream.on('data', chunk => hash.update(chunk));
+        stream.on('end', () => resolve(hash.digest('hex')));
+    });
+}
+
+function normalizeExpectedDigest(digest) {
+    let value = String(digest || '').trim().toLowerCase();
+    const prefix = 'sha256:';
+    if (value.startsWith(prefix)) {
+        value = value.slice(prefix.length);
+    }
+    return value;
+}
+
+async function verifyInstallerHash(filePath, expectedDigest) {
+    if (!expectedDigest) {
+        log.warn('No SHA-256 digest available for installer; skipping hash verification');
+        return;
+    }
+
+    const expectedHex = normalizeExpectedDigest(expectedDigest);
+    if (!expectedHex) {
+        log.warn('No SHA-256 digest available for installer; skipping hash verification');
+        return;
+    }
+
+    const computedHex = await computeSha256Hex(filePath);
+
+    if (computedHex !== expectedHex) {
+        try {
+            fs.unlinkSync(filePath);
+        } catch (e) { /* best effort */ }
+        log.error(`Installer hash verification failed: expected ${expectedHex}, got ${computedHex}`);
+        throw new Error(tUpdater('Hash-verificatie mislukt: de gedownloade installer is gewijzigd of beschadigd. Update geannuleerd.'));
+    }
+
+    log.info('Installer SHA-256 hash verified successfully');
+}
 
 async function downloadUpdate() {
     if (!latestReleaseInfo) {
@@ -279,6 +325,8 @@ async function downloadUpdate() {
             fileStream.on('finish', resolve);
             fileStream.on('error', reject);
         });
+        
+        await verifyInstallerHash(filePath, latestReleaseInfo.sha256);
         
         showDownloadProgress({ percent: 100, downloadedSize: totalSize, totalSize });
         showUpdateDownloadedDialog(latestReleaseInfo.version);
