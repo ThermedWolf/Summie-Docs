@@ -562,7 +562,7 @@ function renderSearchResults(docs) {
                     ${tagsHtml ? `<div class="rdi-tags">${tagsHtml}</div>` : ''}
                 </div>
             </div>
-            <button class="recent-doc-menu" title="Opties" data-id="${doc.id}">
+            <button class="recent-doc-menu" title="Opties" data-id="${escapeHtml(doc.id)}">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
             </button>
         `;
@@ -952,7 +952,7 @@ async function renderRecentDocs() {
                     <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
                 </svg>
             </span>` : ''}
-            <button class="recent-doc-menu" title="Opties" data-id="${doc.id}">
+            <button class="recent-doc-menu" title="Opties" data-id="${escapeHtml(doc.id)}">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>
                 </svg>
