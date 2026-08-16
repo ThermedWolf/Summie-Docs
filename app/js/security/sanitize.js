@@ -27,15 +27,10 @@
         if (!html.trim()) return html;
 
         if (!window.DOMPurify || typeof window.DOMPurify.sanitize !== 'function') {
-            // DOMPurify missing (e.g. page loaded without it) — degrade to a
-            // conservative scrub that only keeps known-safe inline formatting.
-            return html
-                .replace(/<script[\s\S]*?<\/script>/gi, '')
-                .replace(/<style[\s\S]*?<\/style>/gi, '')
-                .replace(/\son[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
-                .replace(/javascript\s*:/gi, '')
-                .replace(/<(\/?)\s*(iframe|object|embed|form|input|select|base|meta|link)\b[^>]*>/gi, '<$1noop>')
-                .replace(/\s+(?:id|name)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+            // DOMPurify missing (e.g. page loaded without it) — degrade to fully
+            // escaping the input. Regex-based HTML scrubbing is bypassable and
+            // unsafe, so we never attempt it; escaped text cannot execute.
+            return escapeHtml(html);
         }
 
         return window.DOMPurify.sanitize(html, {
