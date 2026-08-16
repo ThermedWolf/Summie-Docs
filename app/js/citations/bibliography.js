@@ -153,8 +153,9 @@
                 // Also drop any inserted inline entries for that id.
                 var editor = window.AppState && window.AppState.editor;
                 if (editor && typeof id === 'string') {
-                    var sel = '.summie-citation[data-citation-id="' + id.replace(/"/g, '\\"') + '"]';
-                    editor.querySelectorAll(sel).forEach(function (el) { el.remove(); });
+                    editor.querySelectorAll('.summie-citation').forEach(function (el) {
+                        if (el.getAttribute('data-citation-id') === id) el.remove();
+                    });
                 }
                 self._afterChange();
                 window.showNotification && window.showNotification(SummieI18n.t('Bron verwijderd'), SummieI18n.t('De bron is verwijderd.'), 'success');
@@ -171,7 +172,7 @@
 
         // Insert a full reference entry (hanging-indent paragraph) at the cursor.
         insertReferenceAtCursor: function (c) {
-            var html = '<p class="summie-citation" data-citation-id="' + String(c.id || '').replace(/"/g, '\\"') + '">' + formatAPA(c) + '</p>';
+            var html = '<p class="summie-citation" data-citation-id="' + e(c.id) + '">' + formatAPA(c) + '</p>';
             if (!this._insertHtmlAtCursor(html)) {
                 var p = document.createElement('p');
                 p.className = 'summie-citation';
