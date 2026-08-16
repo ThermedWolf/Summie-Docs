@@ -83,6 +83,9 @@
         document.addEventListener('mousedown', function (e) {
             if (e.button !== 0) return;
 
+            // Niet reageren wanneer de klik in een overlay/modal valt
+            if (e.target.closest && e.target.closest('[class*="modal"], .wiskunde-modal-overlay')) return;
+
             // Zoek de dichtstbijzijnde a4-page
             const pages = Array.from(document.querySelectorAll('.a4-page'));
             const page = pages.find(p => {
@@ -108,6 +111,8 @@
 
         // Cursor aanpassen boven de kantlijn
         document.addEventListener('mousemove', function (e) {
+            if (e.target.closest && e.target.closest('[class*="modal"], .wiskunde-modal-overlay')) return;
+
             const pages = Array.from(document.querySelectorAll('.a4-page'));
             const overMargin = pages.some(p => {
                 const rect = p.getBoundingClientRect();
