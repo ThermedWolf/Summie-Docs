@@ -14,6 +14,15 @@ let practiceAnswered = [];
 let drillQueue = [];
 let drillWrongAnswers = [];
 
+function escapeHtml(str) {
+    return String(str === null || str === undefined ? '' : str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 // DOM Elements
 const setupScreen = document.getElementById('setupScreen');
 const flashcardsScreen = document.getElementById('flashcardsScreen');
@@ -485,17 +494,17 @@ function showAnswerComparison(userElementId, correctElementId, userAnswer, corre
     const userHTML = userAnswer.split(/\s+/).map(word => {
         const cleanWord = word.toLowerCase().replace(/[.,;:!?]/g, '');
         if (correctWords.includes(cleanWord)) {
-            return `<span class="match">${word}</span>`;
+            return `<span class="match">${escapeHtml(word)}</span>`;
         }
-        return `<span class="no-match">${word}</span>`;
+        return `<span class="no-match">${escapeHtml(word)}</span>`;
     }).join(' ');
 
     const correctHTML = correctAnswer.split(/\s+/).map(word => {
         const cleanWord = word.toLowerCase().replace(/[.,;:!?]/g, '');
         if (userWords.includes(cleanWord)) {
-            return `<span class="match">${word}</span>`;
+            return `<span class="match">${escapeHtml(word)}</span>`;
         }
-        return word;
+        return escapeHtml(word);
     }).join(' ');
 
     document.getElementById(userElementId).innerHTML = userHTML || '<em>(Geen antwoord gegeven)</em>';
