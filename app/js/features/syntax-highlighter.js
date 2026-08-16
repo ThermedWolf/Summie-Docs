@@ -260,47 +260,57 @@ class SyntaxHighlighter {
         const segments = [];
         let lastIndex = 0;
 
-        // Find script tags
-        const scriptRegex = /(<script[^>]*>)([\s\S]*?)(<\/script>)/gi;
-        let match;
+        // Locate script blocks with indexOf scanning — regex-based tag matching
+        // is unreliable and flagged as a security hazard (js/bad-tag-filter).
+        const lower = code.toLowerCase();
+        const findScriptBlock = (from) => {
+            const openStart = lower.indexOf('<script', from);
+            if (openStart === -1) return null;
+            const openEnd = code.indexOf('>', openStart + 7);
+            if (openEnd === -1) return null;
+            const closeStart = lower.indexOf('</script', openEnd + 1);
+            if (closeStart === -1) return null;
+            const closeEnd = code.indexOf('>', closeStart);
+            if (closeEnd === -1) return null;
+            return { openStart, openEnd, closeStart, closeEnd };
+        };
 
-        while ((match = scriptRegex.exec(code)) !== null) {
-            const start = match.index;
-            const end = start + match[0].length;
-
+        let block = findScriptBlock(0);
+        while (block) {
             // Add HTML before this script block
-            if (start > lastIndex) {
-                const htmlPart = code.substring(lastIndex, start);
+            if (block.openStart > lastIndex) {
+                const htmlPart = code.substring(lastIndex, block.openStart);
                 segments.push({
                     start: lastIndex,
-                    end: start,
+                    end: block.openStart,
                     content: this.highlightSingle(htmlPart, 'html')
                 });
             }
 
             // Add opening script tag (as HTML)
             segments.push({
-                start: start,
-                end: start + match[1].length,
-                content: this.highlightSingle(match[1], 'html')
+                start: block.openStart,
+                end: block.openEnd + 1,
+                content: this.highlightSingle(code.substring(block.openStart, block.openEnd + 1), 'html')
             });
 
             // Add JavaScript code
-            const jsCode = match[2];
+            const jsCode = code.substring(block.openEnd + 1, block.closeStart);
             segments.push({
-                start: start + match[1].length,
-                end: end - match[3].length,
+                start: block.openEnd + 1,
+                end: block.closeStart,
                 content: this.highlightSingle(jsCode, 'javascript')
             });
 
             // Add closing script tag (as HTML)
             segments.push({
-                start: end - match[3].length,
-                end: end,
-                content: this.highlightSingle(match[3], 'html')
+                start: block.closeStart,
+                end: block.closeEnd + 1,
+                content: this.highlightSingle(code.substring(block.closeStart, block.closeEnd + 1), 'html')
             });
 
-            lastIndex = end;
+            lastIndex = block.closeEnd + 1;
+            block = findScriptBlock(lastIndex);
         }
 
         // Add remaining HTML
