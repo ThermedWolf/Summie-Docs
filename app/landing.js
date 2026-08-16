@@ -554,7 +554,7 @@ function renderSearchResults(docs) {
             <div class="rdi-body">
                 <div class="rdi-top">
                     <span class="rdi-name">${escapeHtml(displayName)}</span>
-                    <span class="rdi-date">${formatDate(new Date(doc.lastOpened))}</span>
+                    <span class="rdi-date">${escapeHtml(formatDate(new Date(doc.lastOpened)))}</span>
                 </div>
                 ${doc.description ? `<div class="rdi-desc">${escapeHtml(doc.description)}</div>` : ''}
                 <div class="rdi-bottom">
@@ -939,7 +939,7 @@ async function renderRecentDocs() {
             <div class="rdi-body">
                 <div class="rdi-top">
                     <span class="rdi-name">${escapeHtml(displayName)}</span>
-                    <span class="rdi-date">${formatDate(new Date(doc.lastOpened))}</span>
+                    <span class="rdi-date">${escapeHtml(formatDate(new Date(doc.lastOpened)))}</span>
                 </div>
                 ${description ? `<div class="rdi-desc">${escapeHtml(description)}</div>` : ''}
                 <div class="rdi-bottom">
