@@ -14,6 +14,7 @@ async function saveToLocalStorage() {
         pages: pagesData,
         begrippen,
         references: window.ReferencesManager ? window.ReferencesManager.getSerialised() : [],
+        citations: window.Bibliography ? window.Bibliography.getSerialised() : [],
         images: imagesData,
         codeBlocks: codeBlocksData,
         customStyles: window.StyleManager ? window.StyleManager.getCustomStyles() : {},
@@ -76,6 +77,12 @@ async function loadFromLocalStorage() {
         if (window.ReferencesManager && data.references && data.references.length > 0) {
             window.ReferencesManager.references = data.references;
             window.ReferencesManager.restoreFromEditor();
+        }
+
+        // Restore bibliography
+        if (window.Bibliography && Array.isArray(data.citations)) {
+            window.Bibliography.setCitations(data.citations);
+            window.Bibliography.renderBibliographyBlock();
         }
 
         // Derive pagination mode from the saved draft itself — same logic as applyLoadedData.

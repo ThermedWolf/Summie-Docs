@@ -46,6 +46,9 @@ contextBridge.exposeInMainWorld(
         openCodeFile: () => ipcRenderer.invoke('open-code-file'),
         readCodeFile: (filePath) => ipcRenderer.invoke('read-code-file', filePath),
 
+        // Bibliography: look up citation metadata by DOI, title query or URL
+        citationLookup: (payload) => ipcRenderer.invoke('citation-lookup', payload),
+
         // Window controls (frameless window)
         windowMinimize: () => ipcRenderer.send('window-minimize'),
         windowMaximize: () => ipcRenderer.send('window-maximize'),

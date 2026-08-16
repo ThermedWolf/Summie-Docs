@@ -174,6 +174,17 @@ function applyLoadedData(data) {
     }
     state.begrippen = data.begrippen || [];
 
+    // Restore bibliography citations (the formatted <p class="summie-citation">
+    // entries and any .summie-bibliography block are part of the content HTML;
+    // this restores the sidebar list and re-renders the block if present).
+    if (window.Bibliography && Array.isArray(data.citations)) {
+        window.Bibliography.setCitations(data.citations);
+        setTimeout(function () {
+            window.Bibliography.renderBibliographyBlock();
+            window.Bibliography._updatePanelIfOpen && window.Bibliography._updatePanelIfOpen();
+        }, 100);
+    }
+
     // Load per-document custom styles (must be after innerHTML is set so reapply can find blocks)
     if (window.StyleManager) {
         window.StyleManager.loadCustomStyles(data.customStyles || {});

@@ -928,6 +928,350 @@ safeHandle('shell-open-external', async (event, url) => {
     }
 });
 
+// ==================== CITATION LOOKUP (BIBLIOGRAPHY) ====================
+// Fetches publication metadata from the internet so the renderer can format
+// APA 7 references automatically. Runs in the main process to avoid CORS
+// restrictions on file:// pages. Sources:
+//   - DOI   → Crossref works API (exact match)
+//   - title → Crossref works API (bibliographic query, returns a result list)
+//   - URL   → inline DOI detection first; otherwise the page's own metadata
+//             (OpenGraph / citation_* / schema.org) is parsed, and when the
+//             page declares a DOI (citation_doi) the Crossref record is used.
+//
+// Renderer-supplied URLs are user-driven fetches (the user pastes the URL),
+// so like a browser it is allowed to reach any http(s) host; bounds are still
+// placed on timeout and response size.
+
+const CROSSREF_API = 'https://api.crossref.org';
+const CITATION_FETCH_LIMIT_BYTES = 2 * 1024 * 1024;
+const CITATION_FETCH_TIMEOUT_MS = 15000;
+const CROSSREF_MAILTO = 'summie@example.invalid'; // polite pool; tells Crossref who we are
+
+function citationNormalizeUrl(value) {
+    if (typeof value !== 'string') return null;
+    let url;
+    try { url = new URL(value.trim()); }
+    catch { return null; }
+    if (!['http:', 'https:'].includes(url.protocol)) return null;
+    return url.href;
+}
+
+// Looks for a DOI anywhere inside a string (doi.org links, "doi: 10.x", raw DOI).
+function citationFindDoi(value) {
+    if (typeof value !== 'string') return null;
+    const cleaned = value
+        .replace(/\s/g, '')
+        .replace(/^doi:\s*/i, '')
+        .replace(/^https?:\/\/(?:dx\.)?doi\.org\//i, '');
+    const m = cleaned.match(/^10\.\d{4,9}\/[^\s]+$/i);
+    if (!m) return null;
+    const doi = m[0].replace(/[),.;]+$/, '');
+    return /^10\.\d{4,9}\/\S$/.test(doi) || doi.split('/').length > 1 ? doi : null;
+}
+
+async function citationFetchJson(url) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), CITATION_FETCH_TIMEOUT_MS);
+    try {
+        const res = await fetch(url, {
+            signal: ctrl.signal,
+            redirect: 'follow',
+            headers: {
+                'User-Agent': 'Summie/4.2 CitationLookup (mailto:' + CROSSREF_MAILTO + ')',
+                'Accept': 'application/json'
+            }
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const text = await res.text();
+        if (text.length > CITATION_FETCH_LIMIT_BYTES) throw new Error('Response te groot');
+        return JSON.parse(text);
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
+function citationGivenInitials(given) {
+    if (!given) return '';
+    const parts = String(given).split(/[\s\-]+/).filter(Boolean);
+    return parts.map(p => (p[0] || '').toUpperCase() + '.').join(' ');
+}
+
+function citationFormatAuthor(a) {
+    if (!a) return null;
+    if (a.family && a.given) return a.family.trim() + ', ' + citationGivenInitials(a.given);
+    if (a.family) return a.family.trim();
+    if (a.name) return a.name.trim();
+    return null;
+}
+
+function citationWorkYear(w) {
+    const slots = [w && w.issued, w && w['published-print'], w && w['published-online'], w && w.published];
+    for (const slot of slots) {
+        const dp = slot && slot['date-parts'];
+        if (dp && dp.length && dp[0] && dp[0][0]) return String(dp[0][0]);
+    }
+    if (w && w['published-print']) {
+        const dp = w['published-print']['date-parts'];
+        if (dp && dp.length && dp[0] && dp[0][0]) return String(dp[0][0]);
+    }
+    return '';
+}
+
+function citationWorkMonthDay(w) {
+    const slots = [w && w.issued, w && w['published-print'], w && w['published-online']];
+    for (const slot of slots) {
+        const dp = slot && slot['date-parts'];
+        if (dp && dp.length && dp[0] && dp[0][1]) {
+            const month = String(dp[0][1]).padStart(2, '0');
+            const day = dp[0][2] ? String(dp[0][2]).padStart(2, '0') : '';
+            return { year: String(dp[0][0]), month, day };
+        }
+    }
+    return null;
+}
+
+// Crossref "work" → compact, neutral citation object the renderer formats to APA.
+function citationNormalizeCrossrefWork(w, sourceType, source) {
+    const authors = ((w && w.author) || []).map(citationFormatAuthor).filter(Boolean);
+    const editors = ((w && w.editor) || []).map(citationFormatAuthor).filter(Boolean);
+    const doi = (w && w.DOI) || '';
+    const title = ((w && w.title) && w.title[0]) || ((w && w.subtitle) && w.subtitle[0]) || '';
+    const container = (w && w['container-title'] && w['container-title'][0]) || '';
+    const yearObj = citationWorkMonthDay(w);
+    return {
+        kind: 'single',
+        sourceType,
+        source,
+        crossrefType: (w && w.type) || 'other',
+        title,
+        authors,
+        editors,
+        year: yearObj ? yearObj.year : citationWorkYear(w),
+        publishedDate: yearObj,
+        journal: container,
+        volume: (w && w.volume) || '',
+        issue: (w && w.issue) || '',
+        pages: (w && w.page) || (w && w['article-number']) || '',
+        articleNumber: (w && w['article-number']) || '',
+        publisher: (w && w.publisher) || '',
+        doi,
+        url: doi ? 'https://doi.org/' + doi : (w && w.URL) || '',
+        website: '',
+        issn: ((w && w.ISSN) || [])[0] || ''
+    };
+}
+
+// Decode the common HTML entities found in page metadata (main process has no
+// DOM, so DOMParser is unavailable and we resolve entities by hand).
+function citationDecodeEntities(str) {
+    if (!str) return '';
+    const map = {
+        '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'",
+        '&apos;': "'", '&nbsp;': ' ', '&ndash;': '–', '&mdash;': '—',
+        '&rsquo;': '’', '&lsquo;': '‘', '&ldquo;': '“', '&rdquo;': '”', '&hellip;': '…'
+    };
+    return String(str).replace(/&(#x[0-9a-f]+|#[0-9]+|amp|lt|gt|quot|apos|nbsp|ndash|mdash|rsquo|lsquo|ldquo|rdquo|hellip);/gi, (m) => {
+        const lower = m.toLowerCase();
+        if (lower.startsWith('&#x')) return String.fromCodePoint(parseInt(lower.slice(3, -1), 16)) || m;
+        if (lower.startsWith('&#')) return String.fromCodePoint(parseInt(lower.slice(2, -1), 10)) || m;
+        return map[lower] !== undefined ? map[lower] : m;
+    });
+}
+
+function citationCleanText(str) {
+    return citationDecodeEntities(String(str || ''))
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+// Read a single <meta name/property="..." content="..."> value from raw HTML.
+function citationReadMeta(html, key) {
+    const re = /<meta\b[^>]*>/gi;
+    let m;
+    while ((m = re.exec(html)) !== null) {
+        const tag = m[0];
+        const attr = tag.match(/(?:name|property)\s*=\s*["']([^"']+)["']/i);
+        if (!attr) continue;
+        if (attr[1].trim().toLowerCase() !== key.toLowerCase()) continue;
+        const content = tag.match(/content\s*=\s*["']([^"']*)["']/i) || tag.match(/content\s*=\s*([^\s>'"]+)/i);
+        if (content) return citationCleanText(content[1]);
+    }
+    return null;
+}
+
+function citationReadAllMeta(html, key) {
+    const out = [];
+    const re = /<meta\b[^>]*>/gi;
+    let m;
+    while ((m = re.exec(html)) !== null) {
+        const tag = m[0];
+        const attr = tag.match(/(?:name|property)\s*=\s*["']([^"']+)["']/i);
+        if (!attr) continue;
+        if (attr[1].trim().toLowerCase() !== key.toLowerCase()) continue;
+        const content = tag.match(/content\s*=\s*["']([^"']*)["']/i) || tag.match(/content\s*=\s*([^\s>'"]+)/i);
+        if (content) out.push(citationCleanText(content[1]));
+    }
+    return out;
+}
+
+// Parse an ISO-ish date ("2023-05-04", "2023", "May 4, 2023") into parts.
+function citationParseDate(str) {
+    if (!str) return null;
+    const iso = String(str).match(/^(\d{4})-(\d{1,2})(?:-(\d{1,2}))?/);
+    if (iso) {
+        return { year: iso[1], month: iso[2].padStart(2, '0'), day: iso[3] ? iso[3].padStart(2, '0') : '' };
+    }
+    const m = String(str).match(/(\d{4})/);
+    return m ? { year: m[1], month: '', day: '' } : null;
+}
+
+// Human-friendly host name (no www/leading path) for "Site Name" fallback.
+function citationHostname(url) {
+    try { return new URL(url).hostname.replace(/^www\./i, ''); }
+    catch { return ''; }
+}
+
+// The main handler — accepts { mode: 'doi'|'title'|'url', query }.
+async function citationLookupHandler(payload) {
+    const p = payload || {};
+    const mode = p.mode;
+    const query = typeof p.query === 'string' ? p.query.trim() : '';
+
+    if (mode === 'doi') {
+        const doi = citationFindDoi(query) || query;
+        if (!/^10\.\d{4,9}\/\S+$/.test(doi)) {
+            return { ok: false, error: 'Ongeldige DOI' };
+        }
+        try {
+            const data = await awaitFETCH('works/' + encodeURIComponent(doi));
+            const w = data && data.message;
+            if (!w) return { ok: false, error: 'Niet gevonden' };
+            return { ok: true, result: citationNormalizeCrossrefWork(w, 'doi', query) };
+        } catch (err) {
+            return { ok: false, error: err && err.message ? err.message : 'Ongeldige DOI' };
+        }
+    }
+
+    if (mode === 'title') {
+        try {
+            const data = await awaitFETCH('works?query.bibliographic=' + encodeURIComponent(query) + '&rows=6&select=DOI,title,subtitle,author,editor,type,issued,published-print,published-online,published,container-title,volume,issue,page,article-number,publisher,URL,ISSN');
+            const items = ((data && data.message && data.message.items) || [])
+                .map(w => citationNormalizeCrossrefWork(w, 'title', query))
+                .filter(c => c.title || c.year);
+            return { ok: true, list: items };
+        } catch (err) {
+            return { ok: false, error: err && err.message ? err.message : 'Zoeken mislukt' };
+        }
+    }
+
+    if (mode === 'url') {
+        const url = citationNormalizeUrl(query);
+        if (!url) return { ok: false, error: 'Ongeldige URL' };
+
+        const inlineDoi = citationFindDoi(query);
+        if (inlineDoi) {
+            try {
+                const data = await awaitFETCH('works/' + encodeURIComponent(inlineDoi));
+                const w = data && data.message;
+                if (w) return { ok: true, result: citationNormalizeCrossrefWork(w, 'url', url) };
+            } catch (err) { /* fall through to page fetch */ }
+        }
+
+        try {
+            const html = await fetchText(url);
+            const meta = {
+                title: citationReadMeta(html, 'og:title') || citationReadMeta(html, 'twitter:title') || citationPageTitle(html),
+                site: citationReadMeta(html, 'og:site_name') || citationHostname(url),
+                url: citationReadMeta(html, 'og:url') || url,
+                doi: citationReadMeta(html, 'citation_doi') || citationReadMeta(html, 'dc.identifier') || null,
+                date: citationReadMeta(html, 'citation_publication_date') ||
+                    citationReadMeta(html, 'citation_date') ||
+                    citationReadMeta(html, 'article:published_time') ||
+                    citationReadMeta(html, 'article:modified_time') ||
+                    citationReadMeta(html, 'date') || null,
+                authors: citationReadAllMeta(html, 'citation_author'),
+                author: citationReadMeta(html, 'author') || citationReadMeta(html, 'og:article:author') || null,
+            };
+            if (!meta.authors.length && meta.author) meta.authors = [meta.author];
+
+            // A page that declares a DOI gets the full Crossref record.
+            if (meta.doi) {
+                const d = citationFindDoi(meta.doi);
+                if (d) {
+                    try {
+                        const data = await awaitFETCH('works/' + encodeURIComponent(d));
+                        const w = data && data.message;
+                        if (w) return { ok: true, result: citationNormalizeCrossrefWork(w, 'url', url) };
+                    } catch (err) { /* fall back to page metadata below */ }
+                }
+            }
+
+            const date = citationParseDate(meta.date);
+            return {
+                ok: true,
+                result: {
+                    kind: 'single',
+                    sourceType: 'url',
+                    source: url,
+                    crossrefType: 'webpage',
+                    title: meta.title,
+                    authors: meta.authors,
+                    editors: [],
+                    year: date ? date.year : '',
+                    publishedDate: date,
+                    journal: '',
+                    volume: '',
+                    issue: '',
+                    pages: '',
+                    articleNumber: '',
+                    publisher: '',
+                    doi: meta.doi ? citationFindDoi(meta.doi) || meta.doi : '',
+                    url: meta.url,
+                    website: meta.site,
+                    issn: ''
+                }
+            };
+        } catch (err) {
+            return { ok: false, error: err && err.message ? err.message : 'Kan de pagina niet ophalen' };
+        }
+    }
+
+    return { ok: false, error: 'Onbekende zoekwijze' };
+}
+
+async function awaitFETCH(path) {
+    return citationFetchJson(CROSSREF_API + '/' + path + (CROSSREF_API.indexOf('?') === -1 && path.indexOf('?') === -1 ? '?mailto=' : '&mailto=') + encodeURIComponent(CROSSREF_MAILTO));
+}
+
+function citationPageTitle(html) {
+    const m = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+    return m ? citationCleanText(m[1]) : '';
+}
+
+async function fetchText(url) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), CITATION_FETCH_TIMEOUT_MS);
+    try {
+        const res = await fetch(url, { signal: ctrl.signal, redirect: 'follow', headers: { 'User-Agent': 'Summie/4.2 CitationLookup (mailto:' + CROSSREF_MAILTO + ')' } });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const type = res.headers.get('content-type') || '';
+        if (type.indexOf('text/') === -1 && type.indexOf('html') === -1) {
+            // Non-HTML (PDF etc.) → no metadata to parse
+            return '';
+        }
+        const text = await res.text();
+        if (text.length > CITATION_FETCH_LIMIT_BYTES) throw new Error('Pagina te groot');
+        return text;
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
+safeHandle('citation-lookup', async (event, payload) => {
+    return citationLookupHandler(payload);
+});
+
 app.whenReady().then(() => {
     createWindow(fileToOpen);
 

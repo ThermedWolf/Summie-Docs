@@ -112,6 +112,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 8. Init References & Tables
     setTimeout(() => {
         if (window.ReferencesManager) window.ReferencesManager.init();
+        if (window.Bibliography) window.Bibliography.init();
         if (window.TableManager) window.TableManager.init();
         _initReferenceButton();
         _initViewReferencesBtn();

@@ -119,6 +119,7 @@
             begrippen: deepCopy(state.begrippen),
             protected: !!(window.DocumentProtection && window.DocumentProtection.isProtected()),
             references: window.ReferencesManager ? deepCopy(window.ReferencesManager.getSerialised()) : [],
+            citations: window.Bibliography ? deepCopy(window.Bibliography.getSerialised()) : [],
             images: window.imageManager ? deepCopy(window.imageManager.getImagesData()) : {},
             codeBlocks: window.codeBlockManager ? deepCopy(window.codeBlockManager.getCodeBlocksData()) : [],
             customStyles: window.StyleManager ? deepCopy(window.StyleManager.getCustomStyles()) : {},
@@ -133,8 +134,8 @@
     // an undo step on their own.
     function snapshotsEqual(a, b) {
         if (!a || !b) return false;
-        return JSON.stringify([a.content, a.pages, a.begrippen, a.protected, a.references])
-            === JSON.stringify([b.content, b.pages, b.begrippen, b.protected, b.references]);
+        return JSON.stringify([a.content, a.pages, a.begrippen, a.protected, a.references, a.citations])
+            === JSON.stringify([b.content, b.pages, b.begrippen, b.protected, b.references, b.citations]);
     }
 
     function enforceStackLimit() {
@@ -204,6 +205,7 @@
             pages: snap.pages || null,
             begrippen: deepCopy(snap.begrippen || []),
             references: (snap.references || []).map(r => ({ id: r.id, name: r.name })),
+            citations: deepCopy(snap.citations || []),
             images: snap.images || {},
             codeBlocks: snap.codeBlocks || [],
             customStyles: snap.customStyles || {},

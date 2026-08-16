@@ -179,6 +179,7 @@ async function saveToFile(saveAs = false) {
         pages: window.PageManager ? window.PageManager.getPagesData() : null,
         begrippen,
         references: window.ReferencesManager ? window.ReferencesManager.getSerialised() : [],
+        citations: window.Bibliography ? window.Bibliography.getSerialised() : [],
         images: window.imageManager ? window.imageManager.getImagesData() : {},
         codeBlocks: window.codeBlockManager ? window.codeBlockManager.getCodeBlocksData() : [],
         customStyles: window.StyleManager ? window.StyleManager.getCustomStyles() : {},
@@ -323,6 +324,12 @@ async function loadFromFile(e) {
         if (window.ReferencesManager && data.references && data.references.length > 0) {
             window.ReferencesManager.references = data.references;
             window.ReferencesManager.restoreFromEditor();
+        }
+
+        // Restore bibliography
+        if (window.Bibliography && Array.isArray(data.citations)) {
+            window.Bibliography.setCitations(data.citations);
+            window.Bibliography.renderBibliographyBlock();
         }
 
         // Load per-document custom styles
