@@ -15,6 +15,16 @@ window.TableManager = {
         const picker = document.getElementById('tableDimensionPicker');
         if (!picker) return;
 
+        // The toolbar wraps its groups in a horizontally-scrolling track
+        // (.toolbar-scroll-track, overflow-x: auto). Per CSS that also forces
+        // overflow-y to compute to auto, so the track clips any absolutely
+        // positioned popup that opens below a button inside it — the picker
+        // would be invisible. Move it to <body> and anchor it with fixed
+        // coordinates (same approach as the colour pickers) so it can never
+        // be clipped.
+        document.body.appendChild(picker);
+        picker.style.position = 'fixed';
+
         // Save the editor selection BEFORE the button steals focus
         btn.addEventListener('mousedown', (e) => {
             e.preventDefault(); // prevent focus change
@@ -52,6 +62,8 @@ window.TableManager = {
 
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
+            const wasOpen = picker.classList.contains('active');
+            if (!wasOpen) this._positionPicker(picker, btn);
             picker.classList.toggle('active');
             btn.classList.toggle('active');
         });
@@ -78,6 +90,18 @@ window.TableManager = {
         if (window.topbarManager && window.topbarManager.savedRange) {
             this._savedRange = window.topbarManager.savedRange.cloneRange();
         }
+    },
+
+    // Anchor the (body-level) picker under its trigger button each time it opens
+    _positionPicker(picker, btn) {
+        const width = picker.offsetWidth || 184;
+        const rect = btn.getBoundingClientRect();
+        let left = rect.left;
+        if (left + width > window.innerWidth - 8) {
+            left = Math.max(8, window.innerWidth - width - 8);
+        }
+        picker.style.left = left + 'px';
+        picker.style.top = (rect.bottom + 8) + 'px';
     },
 
     insertTable(rows, cols) {

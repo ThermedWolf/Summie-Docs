@@ -1,10 +1,11 @@
 /* ==================== TABLES CSS ==================== */
 
 /* Table dimension picker */
+/* Positioned via JS (fixed coords from the trigger button's bounding box) since
+   the element is moved to <body> at runtime — see TableManager._setupTableButton()
+   — to escape the toolbar's scroll-track clipping context. */
 .table-dimension-picker {
-    position: absolute;
-    top: calc(100% + 8px);
-    left: 0;
+    position: fixed;
     z-index: 3000;
     background: var(--bg-white);
     border: 1px solid var(--border-color);
