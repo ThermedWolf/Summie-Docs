@@ -97,6 +97,11 @@ function setupPlaceholderBehavior() {
         }
 
         e.preventDefault();
+        // Clear any stale savedRange from FontSizeManager to prevent
+        // applySize from creating spans at old positions
+        if (window.topbarManager) {
+            window.topbarManager.savedRange = null;
+        }
         while (editor.firstChild) editor.removeChild(editor.firstChild);
         const p = document.createElement('p');
         editor.appendChild(p);
@@ -106,10 +111,34 @@ function setupPlaceholderBehavior() {
         }
         setPendingEmptyEditorStyle('normal');
 
+        // Apply current font size to the new paragraph so all characters inherit it
+        // Use window._lastExplicitFontSize which captures the user's choice before
+        // selectionchange resets the input value. Fallback to current input value or default 16.
+        const fontSizeVal = window._lastExplicitFontSize || (fontSizeInput && fontSizeInput.value ? parseInt(fontSizeInput.value) : 16);
+        if (fontSizeVal && fontSizeVal >= 6 && fontSizeVal <= 96 && fontSizeVal !== 16) {
+            p.style.fontSize = fontSizeVal + 'px';
+        }
+
         if (e.key === 'Enter') {
             document.execCommand('insertParagraph', false, null);
         } else if (e.key.length === 1) {
-            document.execCommand('insertText', false, e.key);
+            // Insert character manually to apply auto-capitalize
+            const char = e.key;
+            const textNode = document.createTextNode(char);
+            p.appendChild(textNode);
+
+            // Position cursor after the inserted character
+            const sel = window.getSelection();
+            const range = document.createRange();
+            range.setStart(textNode, 1);
+            range.collapse(true);
+            sel.removeAllRanges();
+            sel.addRange(range);
+
+            // Auto-capitalize: if this is the first char after sentence ending
+            if (window.AutoCapitalize && window.AutoCapitalize._checkAndCapitalize) {
+                window.AutoCapitalize._checkAndCapitalize(textNode, 1);
+            }
         }
         updateEditorPlaceholder();
     }, true);
@@ -265,3 +294,16 @@ window.setEditorPlaceholder = setEditorPlaceholder;
 window.focusEditor = focusEditor;
 window.setupPlaceholderBehavior = setupPlaceholderBehavior;
 window.applyLoadedData = applyLoadedData;
+
+// Track last explicitly-set font size to avoid selectionchange overwriting it
+document.addEventListener('DOMContentLoaded', () => {
+    const fontSizeInput = document.getElementById('fontSizeInput');
+    if (fontSizeInput) {
+        fontSizeInput.addEventListener('input', () => {
+            const val = parseInt(fontSizeInput.value);
+            if (!isNaN(val) && val >= 6 && val <= 96) {
+                window._lastExplicitFontSize = val;
+            }
+        });
+    }
+});

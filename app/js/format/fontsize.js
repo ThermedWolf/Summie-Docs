@@ -16,11 +16,34 @@ class FontSizeManager {
         const dropdown = document.getElementById('fontSizeDropdown');
         if (!input || !decBtn || !incBtn || !dropdown) return;
 
+        // Helper: get the current target block element within #editor
+        const getBlock = (node) => {
+            const editor = document.getElementById('editor');
+            if (!editor || !node) return null;
+            const blockTags = ['P', 'DIV', 'LI', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'BLOCKQUOTE'];
+            let el = node.nodeType === 3 ? node.parentElement : node;
+            while (el && el !== editor) {
+                if (blockTags.includes(el.tagName)) return el;
+                el = el.parentElement;
+            }
+            return null;
+        };
+
         // ── Apply ──────────────────────────────────────────────────────────
         const applySize = (size) => {
             size = Math.max(6, Math.min(96, parseInt(size)));
             if (isNaN(size)) return;
             input.value = size;
+            window._lastExplicitFontSize = size;
+
+            const editor = document.getElementById('editor');
+            if (!editor) return;
+
+            // If editor is completely empty, just track the pending size
+            if (window.isEditorEmpty && window.isEditorEmpty()) {
+                this._markActive(size);
+                return;
+            }
 
             if (!this.tb.savedRange) return;
 
@@ -30,17 +53,108 @@ class FontSizeManager {
             sel.removeAllRanges();
             sel.addRange(this.tb.savedRange.cloneRange());
 
-            const range = sel.getRangeAt(0);
-
-            if (range.collapsed) {
+            if (!sel.rangeCount) {
                 this.tb._suppressSelectionUpdate = false;
-                this._markActive(size);
                 return;
             }
 
-            // Wrap selection in a sized <span> — no execCommand, so the
-            // browser never collapses the selection on its own
+            const range = sel.getRangeAt(0);
+
+            if (range.collapsed) {
+                const container = range.startContainer;
+                const block = getBlock(container);
+
+                // Case 1: Cursor is in an empty paragraph or line (e.g. <p><br></p> or empty text)
+                if (block && (!block.textContent.trim() || block.innerHTML === '<br>')) {
+                    block.style.fontSize = size + 'px';
+                    while (block.firstChild) block.removeChild(block.firstChild);
+                    const br = document.createElement('br');
+                    block.appendChild(br);
+
+                    const newRange = document.createRange();
+                    newRange.setStart(block, 0);
+                    newRange.collapse(true);
+                    sel.removeAllRanges();
+                    sel.addRange(newRange);
+                    this.tb.savedRange = newRange.cloneRange();
+                    this._markActive(size);
+                    requestAnimationFrame(() => {
+                        this.tb._suppressSelectionUpdate = false;
+                    });
+                    window.updateUnsavedIndicator && window.updateUnsavedIndicator();
+                    return;
+                }
+
+                // Case 2: Cursor is inside an existing empty / ZWS font-size span — update size without nesting
+                let parentSpan = container.nodeType === 3 ? container.parentElement : container;
+                if (parentSpan && parentSpan.tagName === 'SPAN' && parentSpan.style.fontSize &&
+                    (parentSpan.textContent === '' || parentSpan.textContent === '\u200B')) {
+                    parentSpan.style.fontSize = size + 'px';
+                    this.tb.savedRange = range.cloneRange();
+                    this._markActive(size);
+                    requestAnimationFrame(() => {
+                        this.tb._suppressSelectionUpdate = false;
+                    });
+                    window.updateUnsavedIndicator && window.updateUnsavedIndicator();
+                    return;
+                }
+
+                // Case 3: Cursor is in non-empty text — create span with a zero-width space so browser types inside it
+                const span = document.createElement('span');
+                span.style.fontSize = size + 'px';
+                span.style.display = 'inline';
+                const zws = document.createTextNode('\u200B');
+                span.appendChild(zws);
+                range.insertNode(span);
+
+                const newRange = document.createRange();
+                newRange.setStart(zws, 1);
+                newRange.collapse(true);
+                sel.removeAllRanges();
+                sel.addRange(newRange);
+                this.tb.savedRange = newRange.cloneRange();
+                this._markActive(size);
+                requestAnimationFrame(() => {
+                    this.tb._suppressSelectionUpdate = false;
+                });
+                window.updateUnsavedIndicator && window.updateUnsavedIndicator();
+                return;
+            }
+
+            // Case 4: Text IS selected (range not collapsed)
+            const startBlock = getBlock(range.startContainer);
+            const endBlock = getBlock(range.endContainer);
+
+            // If whole block is selected, set fontSize on block and clean inner spans
+            if (startBlock && startBlock === endBlock && range.toString().trim() === startBlock.textContent.trim() && startBlock.textContent.trim().length > 0) {
+                startBlock.style.fontSize = size + 'px';
+                startBlock.querySelectorAll('span[style*="font-size"]').forEach(sp => {
+                    sp.style.fontSize = '';
+                    if (!sp.getAttribute('style') || !sp.style.cssText.trim()) {
+                        const text = document.createTextNode(sp.textContent);
+                        sp.replaceWith(text);
+                    }
+                });
+                this._markActive(size);
+                this.tb.savedRange = range.cloneRange();
+                requestAnimationFrame(() => {
+                    this.tb._suppressSelectionUpdate = false;
+                });
+                window.updateUnsavedIndicator && window.updateUnsavedIndicator();
+                return;
+            }
+
+            // Partial selection: wrap selection in a sized <span>, cleaning inner font-size spans
             const fragment = range.extractContents();
+            if (fragment.querySelectorAll) {
+                fragment.querySelectorAll('span[style*="font-size"]').forEach(sp => {
+                    sp.style.fontSize = '';
+                    if (!sp.getAttribute('style') || !sp.style.cssText.trim()) {
+                        const text = document.createTextNode(sp.textContent);
+                        sp.replaceWith(text);
+                    }
+                });
+            }
             const span = document.createElement('span');
             span.style.fontSize = size + 'px';
             span.appendChild(fragment);
@@ -52,14 +166,13 @@ class FontSizeManager {
             sel.removeAllRanges();
             sel.addRange(newRange);
 
-            // Save for consecutive clicks
             this.tb.savedRange = newRange.cloneRange();
-
             this._markActive(size);
 
             requestAnimationFrame(() => {
                 this.tb._suppressSelectionUpdate = false;
             });
+            window.updateUnsavedIndicator && window.updateUnsavedIndicator();
         };
 
         // ── A- / A+ buttons ───────────────────────────────────────────────
@@ -81,9 +194,10 @@ class FontSizeManager {
             dropdown.classList.add('active');
         });
         input.addEventListener('blur', () => {
+            const valToApply = input.value;
             setTimeout(() => {
                 dropdown.classList.remove('active');
-                applySize(input.value);
+                applySize(valToApply);
             }, 150);
         });
         input.addEventListener('keydown', (e) => {

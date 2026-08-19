@@ -20,6 +20,17 @@ function getCleanEditorContent(editor) {
     clone.querySelectorAll('mark.fr-highlight').forEach(mark => {
         mark.replaceWith(document.createTextNode(mark.textContent));
     });
+    // Clean up empty spans and zero-width space spans left by font-size operations
+    clone.querySelectorAll('span').forEach(span => {
+        if (!span.textContent && !span.children.length) {
+            span.remove();
+        } else if (span.textContent === '\u200B') {
+            span.remove();
+        } else if (span.textContent === '' && span.children.length === 0 && !span.getAttribute('style') && !span.className) {
+            // Completely empty span with no attributes
+            span.remove();
+        }
+    });
     return clone.innerHTML;
 }
 window.getCleanEditorContent = getCleanEditorContent;
@@ -180,6 +191,7 @@ async function saveToFile(saveAs = false) {
         begrippen,
         references: window.ReferencesManager ? window.ReferencesManager.getSerialised() : [],
         citations: window.Bibliography ? window.Bibliography.getSerialised() : [],
+        citationStyle: window.Bibliography ? window.Bibliography.getCitationStyle() : 'apa',
         images: window.imageManager ? window.imageManager.getImagesData() : {},
         codeBlocks: window.codeBlockManager ? window.codeBlockManager.getCodeBlocksData() : [],
         customStyles: window.StyleManager ? window.StyleManager.getCustomStyles() : {},
@@ -225,6 +237,7 @@ async function saveToFile(saveAs = false) {
                 window.updateDocNameInput && window.updateDocNameInput();
                 window.updateUnsavedIndicator && window.updateUnsavedIndicator();
                 updateWindowTitle(window.currentFilePath);
+                window.AutoSave && window.AutoSave.onFileChanged();
                 return;
             }
         }
@@ -329,6 +342,10 @@ async function loadFromFile(e) {
         // Restore bibliography
         if (window.Bibliography && Array.isArray(data.citations)) {
             window.Bibliography.setCitations(data.citations);
+            // Restore citation style
+            if (data.citationStyle && window.Bibliography.setCitationStyle) {
+                window.Bibliography.setCitationStyle(data.citationStyle);
+            }
             window.Bibliography.renderBibliographyBlock();
         }
 
@@ -403,6 +420,9 @@ function newSummary() {
         window.AutoSave && window.AutoSave.onFileChanged();
         window.clearLocalStorage && window.clearLocalStorage();
         if (window.StyleManager) window.StyleManager.clearCustomStyles();
+        if (window.Bibliography && window.Bibliography.setCitationStyle) {
+            window.Bibliography.setCitationStyle('apa');
+        }
         window.updateBegrippenList && window.updateBegrippenList();
         window.updateInhoudList && window.updateInhoudList();
         window.updateActiveInhoudItem && window.updateActiveInhoudItem();
