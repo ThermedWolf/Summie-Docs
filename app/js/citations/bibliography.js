@@ -436,6 +436,7 @@
     var currentMode = 'url';
     var currentResult = null;    // the neutral object from the lookup
     var pendingCitation = null;  // the editable citation being previewed
+var searchPerformed = false; // whether a search has been done in the current modal session
 
     function buildModal() {
         modal = document.createElement('div');
@@ -523,9 +524,15 @@
         });
 
         modal.querySelector('#citationAddBtn').addEventListener('click', function () {
+            // Auto-search if no citation has been looked up yet
+            if (!pendingCitation && !searchPerformed) {
+                doSearch();
+                return;
+            }
             if (!pendingCitation) return;
             var c = collectEditedCitation();
-            window.Bibliography.addCitation(c, { insert: true });
+            // Add to sidebar only (not insert full reference in document)
+            window.Bibliography.addCitation(c);
             closeCitationModal();
         });
     }
@@ -543,6 +550,7 @@
         previewEl.innerHTML = '';
         currentResult = null;
         pendingCitation = null;
+        searchPerformed = false;
         modal.querySelector('#citationAddBtn').disabled = true;
     }
 
@@ -573,6 +581,7 @@
         clearResults();
         setStatus(SummieI18n.t('Zoeken...'));
         searchBtn.disabled = true;
+        searchPerformed = true;
 
         window.electron.citationLookup({ mode: currentMode, query: q })
             .then(function (res) {
