@@ -492,24 +492,12 @@ class TopbarManager {
             // Update the underline bar indicator
             const indicator = document.getElementById('textColorIndicator');
             if (indicator) indicator.setAttribute('fill', color);
-            // Update the A letter + brush (class fc-color) - set fill directly on SVG paths
-            document.querySelectorAll('.fc-color').forEach(el => {
-                el.setAttribute('fill', color);
-            });
-            // Also set color on the parent SVG for currentColor inheritance
-            document.querySelectorAll('#textColorBtn svg').forEach(svg => {
-                svg.style.color = color;
-            });
+            // Update the A letter + brush paths (class fc-color)
+            document.querySelectorAll('.fc-color').forEach(el => el.setAttribute('fill', color));
         } else if (type === 'highlight') {
             // highlightColorIndicator id no longer exists — update mt-color paths (marker + underline)
             const c = color === 'transparent' ? '#ffffff' : color;
-            document.querySelectorAll('.mt-color').forEach(el => {
-                el.setAttribute('fill', c);
-            });
-            // Also set color on the parent SVG for currentColor inheritance
-            document.querySelectorAll('#highlightBtn svg').forEach(svg => {
-                svg.style.color = c;
-            });
+            document.querySelectorAll('.mt-color').forEach(el => el.setAttribute('fill', c));
         }
     }
 

@@ -41,15 +41,8 @@ function applyStyleToBlock(block, styleKey) {
     [...block.classList].filter(c => c.startsWith('style-')).forEach(c => block.classList.remove(c));
     // Add the class for this style (needed by inhoud tab to find headings)
     if (styleKey !== 'normal') block.classList.add('style-' + styleKey);
-    // Apply inline CSS - ensure fontSize is explicitly set to enforce header sizes
-    MANAGED_PROPS.forEach(prop => { 
-        const value = def[prop] || '';
-        // For fontSize, always set it (even empty string to clear previous sizes)
-        // This ensures headers like "Kop 1" always get their defined size
-        if (prop === 'fontSize' || value !== '') {
-            block.style[prop] = value;
-        }
-    });
+    // Apply inline CSS
+    MANAGED_PROPS.forEach(prop => { block.style[prop] = def[prop] || ''; });
     if (styleKey === 'normal') block.removeAttribute('data-style');
     else block.dataset.style = styleKey;
 }

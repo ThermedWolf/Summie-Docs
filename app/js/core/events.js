@@ -98,51 +98,42 @@ function handleEditorKeydown(e) {
             const _styleDef = isInStyleElement && window.StyleManager ? window.StyleManager.getStyleDef(_detectedStyle) : null;
 
             if (isInBegripWord || isInStyleElement) {
-                // Use requestAnimationFrame to run after browser's default Enter behavior
-                // (new paragraph created, cursor moved). setTimeout(0) can run too early
-                // during fast typing, causing cursor to jump back.
-                requestAnimationFrame(() => {
+                setTimeout(() => {
                     const newSelection = window.getSelection();
-                    if (!newSelection.rangeCount) return;
-                    const newRange = newSelection.getRangeAt(0);
-                    let newElement = newRange.startContainer;
-                    if (newElement.nodeType === 3) newElement = newElement.parentElement;
+                    if (newSelection.rangeCount > 0) {
+                        const newRange = newSelection.getRangeAt(0);
+                        let newElement = newRange.startContainer;
+                        if (newElement.nodeType === 3) newElement = newElement.parentElement;
 
-                    // Walk up to block element
-                    const editorEl = document.getElementById('editor');
-                    const blockTagsNew = ['P', 'DIV', 'LI', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'BLOCKQUOTE'];
-                    let newBlock = newElement;
-                    while (newBlock && newBlock !== editorEl && !blockTagsNew.includes(newBlock.tagName)) {
-                        newBlock = newBlock.parentElement;
-                    }
-                    if (newBlock && newBlock !== editorEl) newElement = newBlock;
-
-                    // Guard: only process if we're in a NEW paragraph (not the original one)
-                    // The original paragraph would have text content; new one should be empty or just <br>
-                    const isNewParagraph = newElement !== styleCheckEl &&
-                        (!newElement.textContent.trim() || newElement.innerHTML === '<br>');
-
-                    if (!isNewParagraph) return;
-
-                    // Clear style using StyleManager, then apply onEnterTo target if set
-                    if (window.StyleManager) {
-                        window.StyleManager.clearStyleFromBlock(newElement);
-                        // If the style has a non-normal onEnterTo, apply that instead
-                        if (_styleDef && _styleDef.onEnterReset && _styleDef.onEnterTo && _styleDef.onEnterTo !== 'normal') {
-                            window.StyleManager.applyStyleToBlock(newElement, _styleDef.onEnterTo);
+                        // Walk up to block element
+                        const editorEl = document.getElementById('editor');
+                        const blockTagsNew = ['P', 'DIV', 'LI', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'BLOCKQUOTE'];
+                        let newBlock = newElement;
+                        while (newBlock && newBlock !== editorEl && !blockTagsNew.includes(newBlock.tagName)) {
+                            newBlock = newBlock.parentElement;
                         }
-                    } else if (window._clearStyleFromBlock) {
-                        window._clearStyleFromBlock(newElement);
-                    }
-                    newElement.classList && newElement.classList.remove('begrip-word');
+                        if (newBlock && newBlock !== editorEl) newElement = newBlock;
 
-                    if (isInBegripWord && newElement.dataset) {
-                        delete newElement.dataset.keyword;
-                    }
+                        // Clear style using StyleManager, then apply onEnterTo target if set
+                        if (window.StyleManager) {
+                            window.StyleManager.clearStyleFromBlock(newElement);
+                            // If the style has a non-normal onEnterTo, apply that instead
+                            if (_styleDef && _styleDef.onEnterReset && _styleDef.onEnterTo && _styleDef.onEnterTo !== 'normal') {
+                                window.StyleManager.applyStyleToBlock(newElement, _styleDef.onEnterTo);
+                            }
+                        } else if (window._clearStyleFromBlock) {
+                            window._clearStyleFromBlock(newElement);
+                        }
+                        newElement.classList && newElement.classList.remove('begrip-word');
 
-                    window.updateInhoudList && window.updateInhoudList();
-                    window.updateActiveInhoudItem && window.updateActiveInhoudItem();
-                });
+                        if (isInBegripWord && newElement.dataset) {
+                            delete newElement.dataset.keyword;
+                        }
+
+                        window.updateInhoudList && window.updateInhoudList();
+                        window.updateActiveInhoudItem && window.updateActiveInhoudItem();
+                    }
+                }, 0);
             }
         }
     }

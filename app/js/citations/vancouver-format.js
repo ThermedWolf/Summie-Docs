@@ -27,19 +27,23 @@
     function joinAuthors(names, maxAuthors) {
         if (!names || names.length === 0) return '';
         var limit = maxAuthors || 6;
-        var toUse = names.slice(0, limit);
-        // Vancouver: Surname Initials (no periods after initials), separated by commas
-        var formatted = toUse.map(function(name) {
-            var parts = name.split(', ');
-            if (parts.length === 2) {
-                // "Surname, Initials" -> "Surname Initials"
-                var initials = parts[1].replace(/\.\s*/g, '').replace(/([A-Z])/g, '$1');
-                return parts[0] + ' ' + initials;
+        
+        // Crossref returns authors as [surname, initials, surname, initials, ...]
+        // Pair them up: "Lima-Martínez M.M., Carrera Boada C., ..."
+        var paired = [];
+        for (var i = 0; i < names.length; i += 2) {
+            var surname = clean(names[i]);
+            var initials = clean(names[i + 1] || '');
+            if (surname) {
+                // Remove periods from initials: "M. M." -> "MM"
+                initials = initials.replace(/\.\s*/g, '');
+                paired.push(surname + ' ' + initials);
             }
-            return name;
-        });
-        var result = formatted.join(', ');
-        if (names.length > limit) result += ' et al.';
+        }
+        
+        var toUse = paired.slice(0, limit);
+        var result = toUse.join(', ');
+        if (paired.length > limit) result += ' et al.';
         return result;
     }
 
@@ -92,10 +96,10 @@
             if (year) out += '. ' + e(year) + ';';
             var vol = clean(c.volume);
             var issue = clean(c.issue);
-            if (vol) out += ' ' + e(vol);
+            if (vol) out += e(vol);
             if (issue) out += '(' + e(issue) + ')';
             var pages = clean(c.pages);
-            if (pages) out += ': ' + e(pages);
+            if (pages) out += ':' + e(pages);
             if (link) out += ' Available from: ' + e(link);
             return out;
         }
