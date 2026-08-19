@@ -472,7 +472,7 @@ var searchPerformed = false; // whether a search has been done in the current mo
             '</div>' +
             '<div class="modal-footer">' +
             '<button class="btn" id="cancelCitationModal">' + e(SummieI18n.t('Annuleren')) + '</button>' +
-            '<button class="btn btn-primary" id="citationAddBtn">' + e(SummieI18n.t('Voeg toe aan document')) + '</button>' +
+            '<button class="btn btn-primary" id="citationAddBtn">' + e(SummieI18n.t('Toevoegen aan bronnen')) + '</button>' +
             '</div>' +
             '</div>';
         document.body.appendChild(modal);

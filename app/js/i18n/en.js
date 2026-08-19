@@ -943,7 +943,8 @@
         'Pagina’s': 'Pages',
         'Uitgever': 'Publisher',
         'Website': 'Website',
-        'Voeg toe aan document': 'Add to sources',
+        'Voeg toe aan document': 'Add to document',
+        'Toevoegen aan bronnen': 'Add to sources',
         'Invoegen in document': 'Insert in document',
         'In-tekstverwijzing invoegen': 'Insert in-text citation',
         // v4.3.0 additions
