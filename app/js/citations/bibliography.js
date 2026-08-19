@@ -1,11 +1,11 @@
 // ==================== BIBLIOGRAPHY (BRONNEN) ====================
 // Automatically fetches publication metadata from the internet (DOI, title
-// search, or URL) and formats it professionally as an APA 7 reference.
+// search, or URL) and formats it professionally as an APA 7 or Vancouver reference.
 //
 // The fetched metadata comes from the main process IPC channel
 // 'citation-lookup' (see main.js), which talks to Crossref and parses page
 // metadata. This module:
-//   - formats neutral citation objects into APA 7 reference entries
+//   - formats neutral citation objects into reference entries (APA 7 or Vancouver)
 //   - inserts a formatted reference at the cursor
 //   - manages the document's citation list (Bronnen sidebar tab)
 //   - can render a complete reference list ("Bronnenlijst") in the document
@@ -17,7 +17,8 @@
     'use strict';
 
     // ── Small helpers ────────────────────────────────────────────────────
-    // The APA 7 formatter itself lives in apa-format.js (window.ApaFormat).
+    // The APA 7 formatter lives in apa-format.js (window.ApaFormat).
+    // The Vancouver formatter lives in vancouver-format.js (window.VancouverFormat).
 
     function e(str) {
         return window.escapeHtml ? window.escapeHtml(str === null || str === undefined ? '' : str) : String(str);
@@ -27,9 +28,62 @@
         return String(str === null || str === undefined ? '' : str).trim();
     }
 
-    var formatAPA = function (c) { return window.ApaFormat.formatAPA(c); };
-    var inText = function (c) { return window.ApaFormat.inText(c); };
-    var sortKey = function (c) { return window.ApaFormat.sortKey(c); };
+    // Current citation style: 'apa' or 'vancouver'
+    var _citationStyle = 'apa';
+
+    function getCitationStyle() {
+        return _citationStyle;
+    }
+
+    function setCitationStyle(style) {
+        if (style === 'apa' || style === 'vancouver') {
+            _citationStyle = style;
+        }
+    }
+
+    // Get the appropriate formatter for current style
+    function getFormatter() {
+        if (_citationStyle === 'vancouver') {
+            return window.VancouverFormat;
+        }
+        return window.ApaFormat;
+    }
+
+    // Format a reference entry for the bibliography/reference list
+    function formatReference(c, index) {
+        var formatter = getFormatter();
+        if (_citationStyle === 'vancouver') {
+            return formatter.formatVancouver(c, index);
+        }
+        return formatter.formatAPA(c);
+    }
+
+    // Format in-text citation
+    function formatInText(c, index) {
+        var formatter = getFormatter();
+        if (_citationStyle === 'vancouver') {
+            return formatter.inText(c, index);
+        }
+        return formatter.inText(c);
+    }
+
+    // Sort key for APA (alphabetical by author)
+    function sortKeyAPA(c) {
+        return window.ApaFormat.sortKey(c);
+    }
+
+    // For Vancouver, sort by citation order (which is the order in the citations array)
+    function sortKeyVancouver(c, index) {
+        return index;
+    }
+
+    function sortKey(c, index) {
+        if (_citationStyle === 'vancouver') {
+            return sortKeyVancouver(c, index);
+        }
+        return sortKeyAPA(c);
+    }
+
     var sentenceCase = function (str) { return window.ApaFormat.sentenceCase(str); };
 
     // ── Manager ──────────────────────────────────────────────────────────
@@ -37,6 +91,7 @@
     window.Bibliography = {
         citations: [],
         _initialized: false,
+        citationStyle: 'apa', // public property for UI
 
         init: function () {
             if (this._initialized) return;
@@ -55,6 +110,19 @@
             if (tab) tab.addEventListener('click', function () {
                 Bibliography.renderList(document.getElementById('bronnenList'));
             });
+
+            // Sidebar citation style selector
+            var sidebarStyleSelect = document.getElementById('citationStyleSelectSidebar');
+            if (sidebarStyleSelect) {
+                sidebarStyleSelect.value = _citationStyle;
+                sidebarStyleSelect.addEventListener('change', function () {
+                    var newStyle = sidebarStyleSelect.value;
+                    Bibliography.setCitationStyle(newStyle);
+                    // Also update modal selector if open
+                    var modalStyleSelect = document.getElementById('citationStyleSelect');
+                    if (modalStyleSelect) modalStyleSelect.value = newStyle;
+                });
+            }
 
             // Restore after a document has been loaded (applyLoadedData runs too
             // early for module initialisation, so the restore call above in
@@ -172,22 +240,26 @@
 
         // Insert a full reference entry (hanging-indent paragraph) at the cursor.
         insertReferenceAtCursor: function (c) {
-            var html = '<p class="summie-citation" data-citation-id="' + e(c.id) + '">' + formatAPA(c) + '</p>';
+            // Find the index of this citation in the array (for Vancouver numbering)
+            var index = this.citations.indexOf(c) + 1;
+            var html = '<p class="summie-citation" data-citation-id="' + e(c.id) + '">' + formatReference(c, index) + '</p>';
             if (!this._insertHtmlAtCursor(html)) {
                 var p = document.createElement('p');
                 p.className = 'summie-citation';
                 if (c.id) p.setAttribute('data-citation-id', c.id);
-                p.innerHTML = formatAPA(c);
+                p.innerHTML = formatReference(c, index);
                 this._appendToEditor(p);
             }
             this._afterChange();
         },
 
         insertInTextAtCursor: function (c) {
-            var txt = e(inText(c));
+            // Find the index of this citation in the array (for Vancouver numbering)
+            var index = this.citations.indexOf(c) + 1;
+            var txt = e(formatInText(c, index));
             if (!this._insertHtmlAtCursor(txt)) {
                 var p = document.createElement('p');
-                p.appendChild(document.createTextNode(inText(c)));
+                p.appendChild(document.createTextNode(formatInText(c, index)));
                 this._appendToEditor(p);
             }
             this._afterChange();
@@ -262,21 +334,28 @@
             if (!itemsEl) return;
             itemsEl.innerHTML = '';
 
-            var sorted = this.citations.slice().sort(function (a, b) {
-                return sortKey(a).localeCompare(sortKey(b));
-            });
+            // For Vancouver, keep original order (citation order)
+            // For APA, sort alphabetically
+            var sorted = this.citations.slice();
+            if (_citationStyle === 'apa') {
+                sorted.sort(function (a, b) {
+                    return sortKey(a).localeCompare(sortKey(b));
+                });
+            }
 
             if (sorted.length === 0) {
                 itemsEl.innerHTML = '<div class="summie-bib-empty">' + e(SummieI18n.t('Nog geen bronnen toegevoegd.')) + '</div>';
                 return;
             }
-            sorted.forEach(function (c) {
+            sorted.forEach(function (c, idx) {
                 var item = document.createElement('div');
                 item.className = 'summie-bib-item';
                 if (c.id) item.setAttribute('data-citation-id', c.id);
-                item.innerHTML = formatAPA(c);
+                // Use index in sorted array + 1 for Vancouver numbering
+                var index = _citationStyle === 'vancouver' ? idx + 1 : this.citations.indexOf(c) + 1;
+                item.innerHTML = formatReference(c, index);
                 itemsEl.appendChild(item);
-            });
+            }, this);
         },
 
         // ── Sidebar panel ───────────────────────────────────────────────────
@@ -289,14 +368,20 @@
                 return;
             }
             var self = this;
-            var sorted = this.citations.slice().sort(function (a, b) {
-                return sortKey(a).localeCompare(sortKey(b));
-            });
-            sorted.forEach(function (c) {
+            // For Vancouver, keep original order; for APA, sort alphabetically
+            var sorted = this.citations.slice();
+            if (_citationStyle === 'apa') {
+                sorted.sort(function (a, b) {
+                    return sortKey(a).localeCompare(sortKey(b));
+                });
+            }
+            sorted.forEach(function (c, idx) {
                 var item = document.createElement('div');
                 item.className = 'bron-item';
+                // Use index in sorted array + 1 for Vancouver numbering
+                var index = _citationStyle === 'vancouver' ? idx + 1 : this.citations.indexOf(c) + 1;
                 item.innerHTML =
-                    '<div class="bron-item-text">' + formatAPA(c) + '</div>' +
+                    '<div class="bron-item-text">' + formatReference(c, index) + '</div>' +
                     '<div class="bron-item-actions">' +
                     '<button class="bron-btn" data-act="insert" title="' + e(SummieI18n.t('Invoegen in document')) + '">' +
                     '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="5 12 12 19 19 12"/></svg></button>' +
@@ -326,6 +411,20 @@
             if (panel && panel.classList.contains('active')) {
                 this.renderList(document.getElementById('bronnenList'));
             }
+        },
+
+        // Set citation style (APA or Vancouver) and re-render
+        setCitationStyle: function (style) {
+            if (style !== 'apa' && style !== 'vancouver') return;
+            setCitationStyle(style);
+            this.citationStyle = style;
+            this.renderBibliographyBlock();
+            this._updatePanelIfOpen();
+            window.saveToLocalStorage && window.saveToLocalStorage();
+        },
+
+        getCitationStyle: function () {
+            return _citationStyle;
         }
     };
 
@@ -349,7 +448,14 @@
             '<button class="close-btn" id="closeCitationModal">&times;</button>' +
             '</div>' +
             '<div class="modal-body">' +
-            '<p class="citation-hint">' + e(SummieI18n.t('Voer een DOI, titel of URL in en Summie zoekt de brongegevens automatisch op (APA 7).')) + '</p>' +
+            '<p class="citation-hint" id="citationHint">' + e(SummieI18n.t('Voer een DOI, titel of URL in en Summie zoekt de brongegevens automatisch op (APA 7).')) + '</p>' +
+            '<div class="citation-style-selector" style="margin-bottom:12px;">' +
+                '<label style="font-size:12px;color:var(--text-secondary);margin-right:8px;">' + e(SummieI18n.t('Referentiestijl:')) + '</label>' +
+                '<select id="citationStyleSelect" class="citation-style-select" style="padding:4px 8px;border-radius:4px;border:1px solid var(--border-color);background:var(--bg-secondary);color:var(--text-primary);font-size:13px;">' +
+                    '<option value="apa">' + e(SummieI18n.t('APA (Auteur, Jaar)')) + '</option>' +
+                    '<option value="vancouver">' + e(SummieI18n.t('Vancouver (Genummerd)')) + '</option>' +
+                '</select>' +
+            '</div>' +
             '<div class="citation-search-row">' +
             '<select id="citationMode" class="citation-mode-select">' +
             '<option value="url">URL</option>' +
@@ -390,6 +496,26 @@
             queryInput.placeholder = placeholderForMode(currentMode);
             queryInput.focus();
         });
+
+        // Citation style selector in modal
+        var styleSelect = modal.querySelector('#citationStyleSelect');
+        if (styleSelect) {
+            styleSelect.value = _citationStyle;
+            styleSelect.addEventListener('change', function () {
+                var newStyle = styleSelect.value;
+                setCitationStyle(newStyle);
+                window.Bibliography.citationStyle = newStyle;
+                window.Bibliography.renderBibliographyBlock();
+                window.Bibliography._updatePanelIfOpen();
+                // Update hint text
+                var hint = modal.querySelector('#citationHint');
+                if (hint) {
+                    hint.textContent = newStyle === 'vancouver'
+                        ? SummieI18n.t('Voer een DOI, titel of URL in en Summie zoekt de brongegevens automatisch op (Vancouver).')
+                        : SummieI18n.t('Voer een DOI, titel of URL in en Summie zoekt de brongegevens automatisch op (APA 7).');
+                }
+            });
+        }
 
         searchBtn.addEventListener('click', doSearch);
         queryInput.addEventListener('keydown', function (e2) {
@@ -497,10 +623,10 @@
         previewEl.innerHTML = '';
         previewEl.style.display = 'block';
 
-        var card = document.createElement('div');
-        card.className = 'citation-preview-card';
-        card.innerHTML =
-            '<div class="citation-preview-apa">' + formatAPA(pendingCitation) + '</div>' +
+var card = document.createElement('div');
+    card.className = 'citation-preview-card';
+    card.innerHTML =
+        '<div class="citation-preview-apa">' + formatReference(pendingCitation) + '</div>' +
             '<button class="citation-edit-toggle" id="citationEditToggle">' + e(SummieI18n.t('Velden bewerken')) + '</button>' +
             '<div class="citation-edit-fields" id="citationEditFields" style="display:none"></div>';
 
@@ -515,10 +641,10 @@
             this.textContent = show ? SummieI18n.t('Velden verbergen') : SummieI18n.t('Velden bewerken');
         });
 
-        fields.addEventListener('input', function () {
-            pendingCitation = collectEditedCitation();
-            card.querySelector('.citation-preview-apa').innerHTML = formatAPA(pendingCitation);
-        });
+fields.addEventListener('input', function () {
+        pendingCitation = collectEditedCitation();
+        card.querySelector('.citation-preview-apa').innerHTML = formatReference(pendingCitation);
+    });
 
         modal.querySelector('#citationAddBtn').disabled = false;
     }
