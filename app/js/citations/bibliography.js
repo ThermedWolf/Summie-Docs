@@ -403,7 +403,7 @@
                     } else if (act.dataset.act === 'delete') self.removeCitation(c.id);
                 });
                 container.appendChild(item);
-            });
+            }, this);
         },
 
         _updatePanelIfOpen: function () {
