@@ -946,5 +946,14 @@
         'Voeg toe aan document': 'Add to document',
         'Invoegen in document': 'Insert in document',
         'In-tekstverwijzing invoegen': 'Insert in-text citation',
+        // v4.3.0 additions
+        'Referentiestijl:': 'Citation style:',
+        'APA (Auteur, Jaar)': 'APA (Author, Year)',
+        'Vancouver (Genummerd)': 'Vancouver (Numbered)',
+        'Voer een DOI, titel of URL in en Summie zoekt de brongegevens automatisch op (Vancouver).': 'Enter a DOI, title or URL and Summie will look up the source data automatically (Vancouver).',
+        'Automatisch hoofdletters aan begin van zin': 'Auto-capitalize start of sentence',
+        'Automatisch opsommingstekens detecteren': 'Auto-detect bullet lists',
+        'Opsommingsteken': 'Bullet point',
+        'Genummerde lijst': 'Numbered list',
     };
 }));

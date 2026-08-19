@@ -780,6 +780,18 @@ M300.084747,617.442505  C282.208984,622.827942 275.526428,642.487427 284.923309,
 z" />
                             </svg>
                         </button>
+                        <button class="btn-icon" id="numericListBtn" title="Genummerde lijst">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="10" y1="6" x2="10" y2="12" />
+                                <line x1="10" y1="18" x2="10" y2="18.01" />
+                                <line x1="14" y1="6" x2="14" y2="12" />
+                                <line x1="14" y1="18" x2="14" y2="18.01" />
+                                <path d="M4 6h6" />
+                                <path d="M4 12h10" />
+                                <path d="M4 18h6" />
+                            </svg>
+                        </button>
                         <button class="btn-icon" id="checklistBtn" title="Checklist">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1393,6 +1405,13 @@ z" />
                                 </svg>
                                 Bronnenlijst invoegen
                             </button>
+                            <div class="citation-style-toolbar" style="margin-top:8px;display:flex;align-items:center;gap:8px;">
+                                <label style="font-size:12px;color:var(--text-secondary);white-space:nowrap;">Referentiestijl:</label>
+                                <select id="citationStyleSelectSidebar" class="citation-style-select" style="flex:1;padding:4px 8px;border-radius:4px;border:1px solid var(--border-color);background:var(--bg-secondary);color:var(--text-primary);font-size:13px;">
+                                    <option value="apa">APA (Auteur, Jaar)</option>
+                                    <option value="vancouver">Vancouver (Genummerd)</option>
+                                </select>
+                            </div>
                         </div>
                         <div class="bronnen-list" id="bronnenList">
                             <p class="empty-state">Nog geen bronnen toegevoegd.</p>
@@ -1686,10 +1705,13 @@ z" />
     <script src="js/features/images.js"></script>
     <script src="js/features/syntax-highlighter.js"></script>
     <script src="js/features/code-blocks.js"></script>
+    <script src="js/features/lists.js"></script>
+    <script src="js/features/auto-capitalize.js"></script>
 
     <!-- References & Tables -->
     <script src="js/references/references.js"></script>
     <script src="js/citations/apa-format.js"></script>
+    <script src="js/citations/vancouver-format.js"></script>
     <script src="js/citations/bibliography.js"></script>
     <script src="js/features/tables.js"></script>
     <script src="js/features/element-protection.js"></script>
