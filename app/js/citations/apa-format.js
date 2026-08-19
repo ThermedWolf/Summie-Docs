@@ -151,7 +151,7 @@
             if (link) {
                 outW += hasFullDate
                     ? ' ' + e(link)
-                    : ' Retrieved ' + todayFullDate() + ', from ' + e(link);
+                    : ' Geraadpleegd op ' + todayFullDate() + ', van ' + e(link);
             }
             return outW;
         }

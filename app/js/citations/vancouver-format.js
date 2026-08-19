@@ -1,0 +1,193 @@
+// ==================== VANCOUVER FORMATTER ====================
+// Vancouver (numbered) citation formatting: takes a neutral citation object
+// and renders a professional Vancouver reference entry as safe HTML.
+// No DOM access — safe to test in isolation.
+//
+// Citation object shape (same as APA):
+//   { sourceType, source, crossrefType, title, authors[], editors[], year,
+//     publishedDate:{year,month,day} | null, journal, volume, issue, pages,
+//     articleNumber, publisher, doi, url, website, issn, accessedDate }
+
+(function () {
+    'use strict';
+
+    var MONTHS = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+    function e(str) {
+        return window.escapeHtml
+            ? window.escapeHtml(str === null || str === undefined ? '' : str)
+            : String(str);
+    }
+
+    function clean(str) {
+        return String(str === null || str === undefined ? '' : str).trim();
+    }
+
+    function joinAuthors(names, maxAuthors) {
+        if (!names || names.length === 0) return '';
+        var limit = maxAuthors || 6;
+        var toUse = names.slice(0, limit);
+        // Vancouver: Surname Initials (no periods after initials), separated by commas
+        var formatted = toUse.map(function(name) {
+            var parts = name.split(', ');
+            if (parts.length === 2) {
+                // "Surname, Initials" -> "Surname Initials"
+                var initials = parts[1].replace(/\.\s*/g, '').replace(/([A-Z])/g, '$1');
+                return parts[0] + ' ' + initials;
+            }
+            return name;
+        });
+        var result = formatted.join(', ');
+        if (names.length > limit) result += ' et al.';
+        return result;
+    }
+
+    function formatDate(d) {
+        if (!d) return '';
+        var m = parseInt(d.month, 10);
+        var month = MONTHS[m] || '';
+        var day = d.day ? ' ' + d.day : '';
+        return month ? month + day + ' ' + d.year : d.year;
+    }
+
+    function hostname(url) {
+        try { return new URL(url).hostname.replace(/^www\./i, ''); }
+        catch (err) { return url; }
+    }
+
+    function crossrefLow(c) {
+        return (c.crossrefType || '').toLowerCase();
+    }
+
+    function isJournalLike(c) {
+        var t = crossrefLow(c);
+        return t === 'journal-article' || t === 'journal-issue' || clean(c.journal);
+    }
+
+    function isBookLike(c) {
+        var t = crossrefLow(c);
+        return ['book', 'monograph', 'edited-book', 'reference-book', 'report', 'standard'].indexOf(t) !== -1;
+    }
+
+    // Main entry: renders one reference-list entry as safe HTML.
+    // The `index` parameter is the citation number (1-based) in the reference list.
+    function formatVancouver(c, index) {
+        var authorStr = joinAuthors(c.authors);
+        var year = clean(c.year) || '';
+        var title = clean(c.title);
+        var doiUrl = clean(c.doi) ? 'https://doi.org/' + clean(c.doi) : '';
+        var link = doiUrl || clean(c.url);
+
+        var out = '';
+
+        // Number prefix
+        out += '<span class="vancouver-number">' + e(index) + '. </span>';
+
+        // 1. Journal article
+        if (isJournalLike(c)) {
+            if (authorStr) out += e(authorStr) + '. ';
+            if (title) out += e(title) + '. ';
+            out += '<i>' + e(clean(c.journal)) + '</i>';
+            if (year) out += '. ' + e(year) + ';';
+            var vol = clean(c.volume);
+            var issue = clean(c.issue);
+            if (vol) out += ' ' + e(vol);
+            if (issue) out += '(' + e(issue) + ')';
+            var pages = clean(c.pages);
+            if (pages) out += ': ' + e(pages);
+            if (link) out += ' Available from: ' + e(link);
+            return out;
+        }
+
+        // 2. Book / report / monograph
+        if (isBookLike(c) || clean(c.publisher)) {
+            if (authorStr) out += e(authorStr) + '. ';
+            if (title) out += '<i>' + e(title) + '</i>. ';
+            var ed = clean(c.edition);
+            if (ed && ed !== '1') out += e(ed) + ' ed. ';
+            var pub = clean(c.publisher);
+            if (pub) out += e(pub) + '; ';
+            if (year) out += e(year) + '.';
+            if (link) out += ' Available from: ' + e(link);
+            return out;
+        }
+
+        // 3. Book chapter (in edited book)
+        if (crossrefLow(c).indexOf('chapter') !== -1 && c.editors && c.editors.length) {
+            if (authorStr) out += e(authorStr) + '. ';
+            if (title) out += e(title) + '. In: ';
+            var eds = joinAuthors(c.editors);
+            out += e(eds) + ', editors. ';
+            out += '<i>' + e(clean(c.journal) || clean(c.publisher)) + '</i>. ';
+            var pub = clean(c.publisher);
+            if (pub) out += e(pub) + '; ';
+            if (year) out += e(year) + '.';
+            var pages = clean(c.pages);
+            if (pages) out += ' p. ' + e(pages) + '.';
+            if (link) out += ' Available from: ' + e(link);
+            return out;
+        }
+
+        // 4. Webpage / online source
+        if (c.sourceType === 'url' && !doiUrl) {
+            if (authorStr) out += e(authorStr) + '. ';
+            if (title) out += e(title) + ' [Internet]. ';
+            var site = clean(c.website) || clean(c.publisher) || hostname(c.url);
+            if (site) out += e(site) + '; ';
+            var pubDate = c.publishedDate;
+            var dateStr = pubDate ? formatDate(pubDate) : year;
+            // NLM format: [cited YYYY Mon DD]
+            var citedDate = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+            var citedParts = citedDate.split('-');
+            var citedFormatted = citedParts[0] + ' ' + MONTHS[parseInt(citedParts[1], 10)] + ' ' + citedParts[2];
+            out += '[cited ' + e(citedFormatted) + ']';
+            out += '. Available from: ' + e(link);
+            return out;
+        }
+
+        // 5. Generic fallback
+        if (authorStr) out += e(authorStr) + '. ';
+        if (title) out += '<i>' + e(title) + '</i>. ';
+        var org = clean(c.publisher) || clean(c.website);
+        if (org) out += e(org) + '. ';
+        if (year) out += e(year) + '.';
+        if (link) out += ' Available from: ' + e(link);
+        return out;
+    }
+
+    // Short in-text citation for Vancouver: just the number in brackets
+    // e.g., [1], [2], [3-5], [1,3]
+    function inText(c, index) {
+        // Return just the number in brackets for Vancouver
+        return '[' + index + ']';
+    }
+
+    // Generate in-text citation for multiple citations at once
+    // e.g., [1,3,4] or [1-3]
+    function inTextMultiple(indices) {
+        if (!indices || indices.length === 0) return '';
+        if (indices.length === 1) return '[' + indices[0] + ']';
+
+        // Check if consecutive
+        var consecutive = true;
+        for (var i = 1; i < indices.length; i++) {
+            if (indices[i] !== indices[i-1] + 1) {
+                consecutive = false;
+                break;
+            }
+        }
+        if (consecutive) {
+            return '[' + indices[0] + '-' + indices[indices.length - 1] + ']';
+        }
+        return '[' + indices.join(',') + ']';
+    }
+
+    window.VancouverFormat = {
+        formatVancouver: formatVancouver,
+        inText: inText,
+        inTextMultiple: inTextMultiple,
+        joinAuthors: joinAuthors,
+        clean: clean
+    };
+})();
