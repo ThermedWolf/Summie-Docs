@@ -50,6 +50,34 @@ function _ancestorIds(headings, activeIdx) {
     return ancestors;
 }
 
+// Returns the index of the heading currently in focus: the last one whose top
+// has crossed the vertical center of the document viewport, so the highlight
+// matches what the user is actually looking at. At the very top the first
+// heading is always active; at the very bottom the last one.
+function _computeActiveIndex(headings, documentSection) {
+    if (!documentSection || headings.length === 0) return -1;
+
+    const tolerance = 4;
+    if (documentSection.scrollTop <= tolerance) return 0;
+    if (
+        documentSection.scrollTop + documentSection.clientHeight >=
+        documentSection.scrollHeight - tolerance
+    ) {
+        return headings.length - 1;
+    }
+
+    const rect = documentSection.getBoundingClientRect();
+    const focusLine = rect.top + rect.height / 2;
+
+    let activeIndex = -1;
+    headings.forEach((heading, index) => {
+        if (heading.getBoundingClientRect().top <= focusLine) {
+            activeIndex = index;
+        }
+    });
+    return activeIndex;
+}
+
 function updateInhoudList() {
     const { editor, inhoudList } = window.AppState;
     inhoudList.innerHTML = '';
@@ -73,15 +101,9 @@ inhoudList.innerHTML = '<p class="empty-state">' + SummieI18n.t('Geen koppen gev
         heading.dataset.headingId = 'heading-' + index;
     });
 
-    // Determine active heading index
+    // Determine active heading index (shared logic with scroll tracking)
     const documentSection = document.querySelector('.document-section');
-    let activeIndex = -1;
-    if (documentSection) {
-        const midpoint = documentSection.getBoundingClientRect().top + documentSection.getBoundingClientRect().height / 2;
-        headings.forEach((heading, index) => {
-            if (heading.getBoundingClientRect().top <= midpoint) activeIndex = index;
-        });
-    }
+    const activeIndex = _computeActiveIndex(headings, documentSection);
 
     // On first load: collapse ALL parents, then open the path to the active heading
     if (!_collapsedInitialized) {
@@ -203,19 +225,13 @@ function updateActiveInhoudItem() {
     const documentSection = document.querySelector('.document-section');
     if (!documentSection) return;
 
-    // The active heading is the last one whose top has scrolled above the
-    // top edge of the document viewport. This means if you're between headings,
-    // the heading above stays active — there is always one active.
-    const topEdge = documentSection.getBoundingClientRect().top + 8;
+    // The active heading is the last one whose top has passed the vertical
+    // center of the document viewport, so the sidebar matches what you're
+    // actually looking at. Between headings, the heading above stays active —
+    // there is always one active.
+    let activeIndex = _computeActiveIndex(headings, documentSection);
 
-    let activeIndex = -1;
-    headings.forEach((heading, index) => {
-        if (heading.getBoundingClientRect().top <= topEdge) {
-            activeIndex = index;
-        }
-    });
-
-    // If no heading has passed the top yet, use the first one
+    // If no heading has reached the line yet, use the first one
     if (activeIndex === -1 && headings.length > 0) {
         activeIndex = 0;
     }
