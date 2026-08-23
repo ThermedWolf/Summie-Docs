@@ -1,6 +1,6 @@
 // ==================== BEGRIPPEN HIGHLIGHTING ====================
 // highlightBegrippen, getTextOffset, restoreCursorPosition, escapeRegex,
-// showBegripTooltip, hideBegripTooltip.
+// showBegripTooltip, handleBegripHover, hideBegripTooltip.
 
 function escapeRegex(str) {
     return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -219,24 +219,70 @@ function showBegripTooltip(element) {
     begripTooltip.classList.toggle('arrow-above', arrowAbove);
     begripTooltip.classList.toggle('arrow-below', !arrowAbove);
     begripTooltip.style.visibility = '';
-
-    // Close on outside click (registered once per open)
-    setTimeout(() => {
-        document.addEventListener('click', _begripOutsideClickHandler);
-    }, 0);
 }
 
-function _begripOutsideClickHandler(e) {
-    const tooltip = window.AppState.begripTooltip;
-    if (!tooltip.contains(e.target) && !e.target.classList.contains('begrip-word')) {
-        hideBegripTooltip();
-        document.removeEventListener('click', _begripOutsideClickHandler);
+// ---- Hover behaviour ----
+// The tooltip opens on hover instead of on click. A short delay before
+// showing prevents flicker while moving the pointer across text; a grace
+// delay before hiding lets the pointer cross the gap between the word and
+// the tooltip (and onto the tooltip itself) without dismissing it.
+
+const BEGRIP_TOOLTIP_SHOW_DELAY = 150;
+const BEGRIP_TOOLTIP_HIDE_DELAY = 150;
+
+let _begripShowTimer = null;
+let _begripHideTimer = null;
+let _begripHoverEl = null;
+
+function handleBegripHover(e) {
+    const tooltip = window.AppState && window.AppState.begripTooltip;
+    if (!tooltip) return;
+
+    // Hovering a highlighted word: cancel any pending hide, then schedule a
+    // show — also when switching directly from one word to another.
+    const word = e.target.closest ? e.target.closest('.begrip-word') : null;
+    if (word) {
+        clearTimeout(_begripHideTimer);
+        _begripHideTimer = null;
+        if (!tooltip.classList.contains('active') || _begripHoverEl !== word) {
+            clearTimeout(_begripShowTimer);
+            _begripShowTimer = setTimeout(() => {
+                _begripShowTimer = null;
+                showBegripTooltip(word);
+            }, BEGRIP_TOOLTIP_SHOW_DELAY);
+        }
+        _begripHoverEl = word;
+        return;
+    }
+
+    // Moving onto the tooltip itself: keep it open.
+    if (e.target.closest && e.target.closest('.begrip-tooltip')) {
+        clearTimeout(_begripHideTimer);
+        _begripHideTimer = null;
+        return;
+    }
+
+    // Pointer left both word and tooltip: drop any pending show and hide
+    // after the grace period.
+    _begripHoverEl = null;
+    clearTimeout(_begripShowTimer);
+    _begripShowTimer = null;
+    if (tooltip.classList.contains('active')) {
+        clearTimeout(_begripHideTimer);
+        _begripHideTimer = setTimeout(() => {
+            _begripHideTimer = null;
+            hideBegripTooltip();
+        }, BEGRIP_TOOLTIP_HIDE_DELAY);
     }
 }
 
 function hideBegripTooltip() {
+    clearTimeout(_begripShowTimer);
+    clearTimeout(_begripHideTimer);
+    _begripShowTimer = null;
+    _begripHideTimer = null;
+    _begripHoverEl = null;
     window.AppState.begripTooltip.classList.remove('active', 'arrow-above', 'arrow-below');
-    document.removeEventListener('click', _begripOutsideClickHandler);
 }
 
 // Expose
@@ -246,4 +292,5 @@ window.getTextOffset = getTextOffset;
 window.restoreCursorPosition = restoreCursorPosition;
 window.highlightBegrippen = highlightBegrippen;
 window.showBegripTooltip = showBegripTooltip;
+window.handleBegripHover = handleBegripHover;
 window.hideBegripTooltip = hideBegripTooltip;

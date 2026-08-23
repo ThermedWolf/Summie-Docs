@@ -192,12 +192,7 @@ function handleEditorClick(e) {
     if (e.target.closest('.code-block-wrapper')) return;
     // Sluit autocomplete als cursor ergens anders naartoe gaat
     window.hideAutocomplete && window.hideAutocomplete();
-    if (e.target.classList.contains('begrip-word')) {
-        e.preventDefault();
-        e.stopPropagation();
-        window.showBegripTooltip && window.showBegripTooltip(e.target);
-        return;
-    }
+    // Begrip tooltips open on hover (see handleBegripHover), not on click.
     if (e.target.classList.contains('reference-word')) {
         e.preventDefault();
         e.stopPropagation();
@@ -302,14 +297,10 @@ function setupEventListeners() {
     editor.addEventListener('click', handleEditorClick);
     editor.addEventListener('dblclick', handleEditorDoubleClick);
 
-    // Close begrip tooltip when mouse leaves a begrip-word span
+    // Begrip tooltip: open on hover, close when the pointer moves away
+    // (handled centrally in js/begrippen/highlight.js)
     document.addEventListener('mouseover', (e) => {
-        const tooltip = window.AppState && window.AppState.begripTooltip;
-        if (!tooltip || !tooltip.classList.contains('active')) return;
-        // If mouse is now over the tooltip or a begrip-word, keep it open
-        if (e.target.closest && (e.target.closest('.begrip-tooltip') || e.target.classList.contains('begrip-word'))) return;
-        // Otherwise hide
-        window.hideBegripTooltip && window.hideBegripTooltip();
+        window.handleBegripHover && window.handleBegripHover(e);
     });
     // Word counter
     document.addEventListener('selectionchange', () => {

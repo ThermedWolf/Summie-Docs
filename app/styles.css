@@ -699,6 +699,22 @@ body {
     left: var(--arrow-left);
 }
 
+/* Dark mode: --text-primary flips to a light color, so the inverted tooltip
+   would render white-on-white. Use an elevated dark surface instead. */
+[data-theme='dark'] .begrip-tooltip {
+    background: #1d1d3d;
+    color: var(--text-primary);
+    border: 1px solid rgba(147, 110, 255, 0.25);
+}
+
+[data-theme='dark'] .begrip-tooltip.arrow-above::before {
+    border-bottom-color: #1d1d3d;
+}
+
+[data-theme='dark'] .begrip-tooltip.arrow-below::after {
+    border-top-color: #1d1d3d;
+}
+
 /* Sidebar */
 .sidebar {
     width: 380px;
