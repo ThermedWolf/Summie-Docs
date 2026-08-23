@@ -31,6 +31,11 @@
     // Current citation style: 'apa' or 'vancouver'
     var _citationStyle = 'apa';
 
+    // Vancouver in-text notation (only relevant when style = vancouver):
+    // 'brackets' [1] | 'parentheses' (1) | 'superscript' ¹
+    // Chosen once per document; every in-text citation follows it.
+    var _vancouverInTextStyle = 'brackets';
+
     function getCitationStyle() {
         return _citationStyle;
     }
@@ -39,6 +44,16 @@
         if (style === 'apa' || style === 'vancouver') {
             _citationStyle = style;
         }
+    }
+
+    function getVancouverInTextStyle() {
+        return _vancouverInTextStyle;
+    }
+
+    function setVancouverInTextStyle(style) {
+        return window.VancouverFormat && window.VancouverFormat.setInTextStyle(style)
+            ? (_vancouverInTextStyle = style, true)
+            : false;
     }
 
     // Get the appropriate formatter for current style
@@ -58,13 +73,15 @@
         return formatter.formatAPA(c);
     }
 
-    // Format in-text citation
+    // Format in-text citation. Output is always HTML-safe: the Vancouver
+    // notation is generated internally ([1] / (1) / <sup>1</sup>), while the
+    // APA form embeds user-editable fields (authors/title) and is escaped here.
     function formatInText(c, index) {
         var formatter = getFormatter();
         if (_citationStyle === 'vancouver') {
             return formatter.inText(c, index);
         }
-        return formatter.inText(c);
+        return e(formatter.inText(c));
     }
 
     // Sort key for APA (alphabetical by author)
@@ -123,6 +140,15 @@
                     if (modalStyleSelect) modalStyleSelect.value = newStyle;
                 });
             }
+
+            // Sidebar Vancouver in-text notation selector ([1] / (1) / ¹)
+            var sidebarInTextSelect = document.getElementById('vancouverInTextStyleSelectSidebar');
+            if (sidebarInTextSelect) {
+                sidebarInTextSelect.addEventListener('change', function () {
+                    Bibliography.setVancouverInTextStyle(sidebarInTextSelect.value);
+                });
+            }
+            this._syncInTextStyleSelectors();
 
             // Restore after a document has been loaded (applyLoadedData runs too
             // early for module initialisation, so the restore call above in
@@ -218,10 +244,11 @@
             }).then(function (ok) {
                 if (!ok) return;
                 self.citations = self.citations.filter(function (c) { return c.id !== id; });
-                // Also drop any inserted inline entries for that id.
+                // Also drop any inserted entries for that id (full reference
+                // paragraphs and inline citations).
                 var editor = window.AppState && window.AppState.editor;
                 if (editor && typeof id === 'string') {
-                    editor.querySelectorAll('.summie-citation').forEach(function (el) {
+                    editor.querySelectorAll('.summie-citation, .summie-citation-inline').forEach(function (el) {
                         if (el.getAttribute('data-citation-id') === id) el.remove();
                     });
                 }
@@ -253,13 +280,22 @@
             this._afterChange();
         },
 
+        // Insert an in-text citation at the cursor. It is wrapped in a span
+        // tagged with data-citation-id so that changing the style or notation
+        // can re-render every inline citation document-wide (see
+        // _updateInlineCitationSpans). formatInText output is internally
+        // generated (digits/delimiters only), so no escaping is needed there.
         insertInTextAtCursor: function (c) {
             // Find the index of this citation in the array (for Vancouver numbering)
             var index = this.citations.indexOf(c) + 1;
-            var txt = e(formatInText(c, index));
-            if (!this._insertHtmlAtCursor(txt)) {
+            var html = '<span class="summie-citation-inline" data-citation-id="' + e(c.id) + '">' + formatInText(c, index) + '</span>';
+            if (!this._insertHtmlAtCursor(html)) {
                 var p = document.createElement('p');
-                p.appendChild(document.createTextNode(formatInText(c, index)));
+                var span = document.createElement('span');
+                span.className = 'summie-citation-inline';
+                if (c.id) span.setAttribute('data-citation-id', c.id);
+                span.innerHTML = formatInText(c, index);
+                p.appendChild(span);
                 this._appendToEditor(p);
             }
             this._afterChange();
@@ -418,13 +454,82 @@
             if (style !== 'apa' && style !== 'vancouver') return;
             setCitationStyle(style);
             this.citationStyle = style;
+            this._syncInTextStyleSelectors();
             this.renderBibliographyBlock();
+            this._updateInlineCitationSpans();
             this._updatePanelIfOpen();
             window.saveToLocalStorage && window.saveToLocalStorage();
         },
 
         getCitationStyle: function () {
             return _citationStyle;
+        },
+
+        // Set the Vancouver in-text notation ([1] / (1) / ¹). Applies to the
+        // whole document: every existing inline citation span is re-rendered,
+        // so the notation stays consistent without manual rework.
+        setVancouverInTextStyle: function (style) {
+            if (!setVancouverInTextStyle(style)) return;
+            this.citationStyle = _citationStyle;
+            this._syncInTextStyleSelectors();
+            this._updateInlineCitationSpans();
+            window.saveToLocalStorage && window.saveToLocalStorage();
+            window.updateUnsavedIndicator && window.updateUnsavedIndicator();
+            // Collapse the document-wide span rewrite into one undo step
+            if (window.UndoManager && window.UndoManager.notifyExternalChange) window.UndoManager.notifyExternalChange();
+        },
+
+        getVancouverInTextStyle: function () {
+            return _vancouverInTextStyle;
+        },
+
+        // Keep both selects (sidebar + modal) in sync and only show the
+        // notation selector when Vancouver is the active style.
+        _syncInTextStyleSelectors: function () {
+            var show = _citationStyle === 'vancouver';
+            ['vancouverInTextStyleSelectSidebar', 'vancouverInTextStyleSelect'].forEach(function (id) {
+                var sel = document.getElementById(id);
+                if (!sel) return;
+                sel.value = _vancouverInTextStyle;
+                var row = sel.closest('.citation-style-toolbar-row') || sel.parentElement;
+                if (row) row.style.display = show ? '' : 'none';
+            });
+        },
+
+        // Re-render every inline citation in the document with the current
+        // style/notation (used after loading, after changing the notation and
+        // after switching between APA and Vancouver).
+        _updateInlineCitationSpans: function () {
+            if (!window.AppState) return;
+            var self = this;
+            document.querySelectorAll('.summie-citation-inline[data-citation-id]').forEach(function (span) {
+                var c = null;
+                for (var i = 0; i < self.citations.length; i++) {
+                    if (self.citations[i].id === span.getAttribute('data-citation-id')) { c = self.citations[i]; break; }
+                }
+                // Source removed → drop the orphaned inline marker
+                if (!c) { span.remove(); return; }
+                var index = self.citations.indexOf(c) + 1;
+                span.innerHTML = formatInText(c, index);
+            });
+        },
+
+        // Restore per-document settings from a .sumd file / draft payload.
+        // Called from applyLoadedData so a reopened document keeps the exact
+        // style + notation it was saved with.
+        applyDocumentSettings: function (data) {
+            if (!data) return;
+            // Missing fields (legacy files) fall back to the defaults instead
+            // of inheriting whatever a previously opened document used.
+            var style = data.citationStyle === 'vancouver' ? 'vancouver' : 'apa';
+            setVancouverInTextStyle(data.vancouverInTextStyle || 'brackets');
+            setCitationStyle(style);
+            this.citationStyle = _citationStyle;
+            this._syncInTextStyleSelectors();
+            var sidebarStyleSelect = document.getElementById('citationStyleSelectSidebar');
+            if (sidebarStyleSelect) sidebarStyleSelect.value = _citationStyle;
+            var modalStyleSelect = document.getElementById('citationStyleSelect');
+            if (modalStyleSelect) modalStyleSelect.value = _citationStyle;
         }
     };
 
@@ -455,6 +560,14 @@ var searchPerformed = false; // whether a search has been done in the current mo
                 '<select id="citationStyleSelect" class="citation-style-select" style="padding:4px 8px;border-radius:4px;border:1px solid var(--border-color);background:var(--bg-secondary);color:var(--text-primary);font-size:13px;">' +
                     '<option value="apa">' + e(SummieI18n.t('APA (Auteur, Jaar)')) + '</option>' +
                     '<option value="vancouver">' + e(SummieI18n.t('Vancouver (Genummerd)')) + '</option>' +
+                '</select>' +
+            '</div>' +
+            '<div class="citation-style-selector citation-style-toolbar-row" style="margin:-4px 0 12px;">' +
+                '<label style="font-size:12px;color:var(--text-secondary);margin-right:8px;">' + e(SummieI18n.t('In-tekstnotatie:')) + '</label>' +
+                '<select id="vancouverInTextStyleSelect" class="citation-style-select" style="padding:4px 8px;border-radius:4px;border:1px solid var(--border-color);background:var(--bg-secondary);color:var(--text-primary);font-size:13px;">' +
+                    '<option value="brackets">' + e(SummieI18n.t('Vierkante haakjes [1]')) + '</option>' +
+                    '<option value="parentheses">' + e(SummieI18n.t('Ronde haakjes (1)')) + '</option>' +
+                    '<option value="superscript">' + e(SummieI18n.t('Superscript')) + '</option>' +
                 '</select>' +
             '</div>' +
             '<div class="citation-search-row">' +
@@ -506,7 +619,9 @@ var searchPerformed = false; // whether a search has been done in the current mo
                 var newStyle = styleSelect.value;
                 setCitationStyle(newStyle);
                 window.Bibliography.citationStyle = newStyle;
+                window.Bibliography._syncInTextStyleSelectors();
                 window.Bibliography.renderBibliographyBlock();
+                window.Bibliography._updateInlineCitationSpans();
                 window.Bibliography._updatePanelIfOpen();
                 // Update hint text
                 var hint = modal.querySelector('#citationHint');
@@ -515,6 +630,14 @@ var searchPerformed = false; // whether a search has been done in the current mo
                         ? SummieI18n.t('Voer een DOI, titel of URL in en Summie zoekt de brongegevens automatisch op (Vancouver).')
                         : SummieI18n.t('Voer een DOI, titel of URL in en Summie zoekt de brongegevens automatisch op (APA 7).');
                 }
+            });
+        }
+
+        // Vancouver in-text notation selector in modal
+        var inTextSelect = modal.querySelector('#vancouverInTextStyleSelect');
+        if (inTextSelect) {
+            inTextSelect.addEventListener('change', function () {
+                window.Bibliography.setVancouverInTextStyle(inTextSelect.value);
             });
         }
 
@@ -724,6 +847,11 @@ fields.addEventListener('input', function () {
     function openCitationModal() {
         if (!modal) buildModal();
         modal.classList.add('active');
+        // Keep style + notation selectors in sync with the document's current
+        // settings (they may have changed since the modal was built).
+        var styleSelectEl = modal.querySelector('#citationStyleSelect');
+        if (styleSelectEl) styleSelectEl.value = _citationStyle;
+        window.Bibliography._syncInTextStyleSelectors();
         currentMode = 'url';
         modeSelect.value = 'url';
         queryInput.value = '';

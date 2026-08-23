@@ -113,6 +113,8 @@
                 color: inheritedProps.color || undefined,
                 size: inheritedProps.size || undefined,
                 highlight: inheritedProps.highlight ? 'yellow' : undefined,
+                superScript: inheritedProps.superScript || undefined,
+                subScript: inheritedProps.subScript || undefined,
                 font: 'Arial',
             }));
             return runs;
@@ -146,6 +148,9 @@
         if (tag === 'b' || tag === 'strong') props.bold = true;
         if (tag === 'i' || tag === 'em') props.italic = true;
         if (tag === 'u') props.underline = true;
+        // Superscript/subscript (e.g. Vancouver superscript citations ¹)
+        if (tag === 'sup') props.superScript = true;
+        if (tag === 'sub') props.subScript = true;
         if (node.classList.contains('highlight')) props.highlight = true;
 
         // begrip-word → italic indigo
@@ -395,6 +400,8 @@
                         underline: props.underline ? {} : undefined,
                         color: props.color || undefined,
                         size: props.size || undefined,
+                        superScript: props.superScript || undefined,
+                        subScript: props.subScript || undefined,
                         font: 'Arial',
                     }));
                 }
@@ -414,6 +421,8 @@
             if (tag === 'b' || tag === 'strong') props2.bold = true;
             if (tag === 'i' || tag === 'em') props2.italic = true;
             if (tag === 'u') props2.underline = true;
+            if (tag === 'sup') props2.superScript = true;
+            if (tag === 'sub') props2.subScript = true;
             if (node.classList && node.classList.contains('begrip-word')) props2.color = '6366F1';
             if (node.classList && node.classList.contains('reference-word')) { props2.color = '7C3AED'; props2.underline = true; }
 

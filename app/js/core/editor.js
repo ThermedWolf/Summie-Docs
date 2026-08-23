@@ -237,6 +237,12 @@ function applyLoadedData(data) {
         }, 100);
     }
 
+    // Restore per-document citation settings (style + Vancouver in-text
+    // notation) so a reopened document keeps exactly what it was saved with.
+    if (window.Bibliography && window.Bibliography.applyDocumentSettings) {
+        window.Bibliography.applyDocumentSettings(data);
+    }
+
     // Load per-document custom styles (must be after innerHTML is set so reapply can find blocks)
     if (window.StyleManager) {
         window.StyleManager.loadCustomStyles(data.customStyles || {});

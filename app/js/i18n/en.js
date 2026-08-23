@@ -967,5 +967,10 @@
         'Automatisch opsommingstekens detecteren': 'Auto-detect bullet lists',
         'Opsommingsteken': 'Bullet point',
         'Genummerde lijst': 'Numbered list',
+        // Vancouver in-text notation
+        'In-tekstnotatie:': 'In-text notation:',
+        'Vierkante haakjes [1]': 'Square brackets [1]',
+        'Ronde haakjes (1)': 'Round brackets (1)',
+        'Superscript': 'Superscript',
     };
 }));

@@ -60,6 +60,22 @@
         catch (err) { return url; }
     }
 
+    // ── In-text citation notation (document-wide setting) ───────────────
+    // Vancouver offers three in-text notations: [1], (1) or superscript ¹.
+    // One is chosen per document and applied to every in-text citation.
+    var VALID_IN_TEXT_STYLES = ['brackets', 'parentheses', 'superscript'];
+    var _inTextStyle = 'brackets'; // classic Vancouver default
+
+    function getInTextStyle() {
+        return _inTextStyle;
+    }
+
+    function setInTextStyle(style) {
+        if (VALID_IN_TEXT_STYLES.indexOf(style) === -1) return false;
+        _inTextStyle = style;
+        return true;
+    }
+
     function crossrefLow(c) {
         return (c.crossrefType || '').toLowerCase();
     }
@@ -160,18 +176,26 @@
         return out;
     }
 
-    // Short in-text citation for Vancouver: just the number in brackets
-    // e.g., [1], [2], [3-5], [1,3]
+    // Wrap a number group ("1", "1-3", "1,3") in the document's notation.
+    // brackets → [1] · parentheses → (1) · superscript → <sup>1</sup>
+    // Output is HTML-safe: only internally generated digits/delimiters flow in.
+    function wrapNumberGroup(numbers) {
+        if (_inTextStyle === 'parentheses') return '(' + numbers + ')';
+        if (_inTextStyle === 'superscript') return '<sup>' + numbers + '</sup>';
+        return '[' + numbers + ']';
+    }
+
+    // Short in-text citation for Vancouver: the number in the chosen notation
+    // e.g., [1] / (1) / ¹
     function inText(c, index) {
-        // Return just the number in brackets for Vancouver
-        return '[' + index + ']';
+        return wrapNumberGroup(String(index));
     }
 
     // Generate in-text citation for multiple citations at once
     // e.g., [1,3,4] or [1-3]
     function inTextMultiple(indices) {
         if (!indices || indices.length === 0) return '';
-        if (indices.length === 1) return '[' + indices[0] + ']';
+        if (indices.length === 1) return wrapNumberGroup(String(indices[0]));
 
         // Check if consecutive
         var consecutive = true;
@@ -182,15 +206,17 @@
             }
         }
         if (consecutive) {
-            return '[' + indices[0] + '-' + indices[indices.length - 1] + ']';
+            return wrapNumberGroup(indices[0] + '-' + indices[indices.length - 1]);
         }
-        return '[' + indices.join(',') + ']';
+        return wrapNumberGroup(indices.join(','));
     }
 
     window.VancouverFormat = {
         formatVancouver: formatVancouver,
         inText: inText,
         inTextMultiple: inTextMultiple,
+        getInTextStyle: getInTextStyle,
+        setInTextStyle: setInTextStyle,
         joinAuthors: joinAuthors,
         clean: clean
     };
