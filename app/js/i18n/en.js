@@ -381,6 +381,7 @@
         'Automatisch opslaan is uitgeschakeld - klik om in te schakelen': 'Auto-save is disabled - click to enable',
         'Opgeslagen!': 'Saved!',
         'Niet-opslaan wijzigingen': 'Unsaved changes',
+        'Geen wijzigingen': 'No changes',
         'Kon niet hernoemen: {err}': 'Could not rename: {err}',
         '1 min geleden': '1 min ago',
         '{n} min geleden': '{n} min ago',

@@ -268,8 +268,10 @@ function updateLastSavedText() {
         const diffMs = new Date() - _saveStatusLastSavedTime;
         const timeStr = _formatSavedAgo(Math.floor(diffMs / 60000));
         _setStatusTextTime(area, SummieI18n.t(`Laatst opgeslagen ${timeStr}`));
+    } else {
+        // No prior save and no unsaved changes
+        _setStatusText(area, 'save-status-text save-last-saved', SummieI18n.t('Geen wijzigingen'));
     }
-    // If no prior save and no unsaved changes, show nothing
 }
 
 function updateUnsavedIndicator() {
@@ -293,12 +295,8 @@ function updateUnsavedIndicator() {
         const timeStr = _formatSavedAgo(Math.floor(diffMs / 60000));
         _setStatusTextTime(area, SummieI18n.t(`Laatst opgeslagen ${timeStr}`));
     } else {
-        // No prior save and no unsaved changes — clear the area
-        const current = area.querySelector('.save-status-text');
-        if (current) {
-            current.classList.remove('visible');
-            setTimeout(() => { area.innerHTML = ''; }, 350);
-        }
+        // No prior save and no unsaved changes — same text as updateLastSavedText
+        _setStatusText(area, 'save-status-text save-last-saved', SummieI18n.t('Geen wijzigingen'));
     }
 }
 
