@@ -44,11 +44,9 @@ function _setStatusTextTime(area, newText) {
         const oldText = current.dataset.fullText || current.textContent;
         current.dataset.fullText = newText;
 
-        // Split into prefix (non-digit) and animated portion
-        // e.g. "Laatst opgeslagen zojuist" → no digits, just swap
-        // "Laatst opgeslagen 1 min geleden" → animate the number
-        current.innerHTML = '';
-
+        // NOTE: no innerHTML wipe here — _renderTimeText reconciles against the
+        // existing child nodes and only animates when the structure matches,
+        // so clearing the container would silently disable the odometer.
         // If transitioning from "zojuist" to "N min geleden", briefly show "0 min geleden" first
         const oldHasDigit = /\d/.test(oldText);
         const newHasDigit = /\d/.test(newText);
