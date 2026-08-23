@@ -234,6 +234,28 @@ function showSaveStatusSuccess() {
     }, 5000);
 }
 
+// Rounds a duration to whole units at the half mark: 74 min → "1 uur geleden",
+// but from 1.5 h on it reads "meer dan 1 uur geleden" (same for 2/3/… and days).
+function _roundedAgo(value, singular, plural) {
+    const n = Math.floor(value);
+    const unit = n === 1 ? singular : plural;
+    const over = (value - n) >= 0.5;
+    return SummieI18n.t(over ? `meer dan ${n} ${unit} geleden` : `${n} ${unit} geleden`);
+}
+
+// Formats elapsed minutes for "Laatst opgeslagen …":
+//   < 1 min → "zojuist", < 60 min → "N min geleden",
+//   < 24 h  → whole hours (rounded at the half mark),
+//   ≥ 24 h  → same rounding scheme in whole days.
+function _formatSavedAgo(diffMin) {
+    if (diffMin < 1) return SummieI18n.t('zojuist');
+    if (diffMin < 60) return SummieI18n.t(diffMin === 1 ? '1 min geleden' : `${diffMin} min geleden`);
+
+    const hours = diffMin / 60;
+    if (hours < 24) return _roundedAgo(hours, 'uur', 'uur');
+    return _roundedAgo(hours / 24, 'dag', 'dagen');
+}
+
 function updateLastSavedText() {
     const area = document.getElementById('saveStatusArea');
     if (!area) return;
@@ -244,8 +266,7 @@ function updateLastSavedText() {
         _setStatusText(area, 'save-status-text save-unsaved', SummieI18n.t('Niet opgeslagen wijzigingen'));
     } else if (_saveStatusLastSavedTime) {
         const diffMs = new Date() - _saveStatusLastSavedTime;
-        const diffMin = Math.floor(diffMs / 60000);
-        const timeStr = diffMin < 1 ? SummieI18n.t('zojuist') : diffMin === 1 ? SummieI18n.t('1 min geleden') : SummieI18n.t(`${diffMin} min geleden`);
+        const timeStr = _formatSavedAgo(Math.floor(diffMs / 60000));
         _setStatusTextTime(area, SummieI18n.t(`Laatst opgeslagen ${timeStr}`));
     }
     // If no prior save and no unsaved changes, show nothing
@@ -269,8 +290,7 @@ function updateUnsavedIndicator() {
         _setStatusText(area, 'save-status-text save-unsaved', SummieI18n.t('Niet opgeslagen wijzigingen'));
     } else if (_saveStatusLastSavedTime) {
         const diffMs = new Date() - _saveStatusLastSavedTime;
-        const diffMin = Math.floor(diffMs / 60000);
-        const timeStr = diffMin < 1 ? SummieI18n.t('zojuist') : diffMin === 1 ? SummieI18n.t('1 min geleden') : SummieI18n.t(`${diffMin} min geleden`);
+        const timeStr = _formatSavedAgo(Math.floor(diffMs / 60000));
         _setStatusTextTime(area, SummieI18n.t(`Laatst opgeslagen ${timeStr}`));
     } else {
         // No prior save and no unsaved changes — clear the area

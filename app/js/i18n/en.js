@@ -127,7 +127,7 @@
         // ── Landing: relative dates ──────────────────────────────────────────
         'Zojuist': 'Just now',
         '{n} min geleden': '{n} min ago',
-        '{n} uur geleden': '{n} hr ago',
+        '{n} uur geleden': '{n} hours ago',
         'Gisteren': 'Yesterday',
         '{n} dagen geleden': '{n} days ago',
         '{n} resultaat in document': '{n} result in document',
@@ -384,6 +384,12 @@
         'Kon niet hernoemen: {err}': 'Could not rename: {err}',
         '1 min geleden': '1 min ago',
         '{n} min geleden': '{n} min ago',
+        '1 uur geleden': '1 hour ago',
+        'meer dan 1 uur geleden': 'over 1 hour ago',
+        'meer dan {n} uur geleden': 'over {n} hours ago',
+        '1 dag geleden': '1 day ago',
+        'meer dan 1 dag geleden': 'over 1 day ago',
+        'meer dan {n} dagen geleden': 'over {n} days ago',
 
         // ── Editor: protection ───────────────────────────────────────────────
         'Vul een wachtwoord in.': 'Enter a password.',
@@ -742,7 +748,7 @@
         'Hernoemen mislukt. Controleer of het bestand niet in gebruik is.': 'Rename failed. Check that the file is not in use.',
         'Kon bestand niet openen:': 'Could not open file:',
         '{n} min geleden': '{n} min ago',
-        '{n} uur geleden': '{n} hr ago',
+        '{n} uur geleden': '{n} hours ago',
         '{n} dagen geleden': '{n} days ago',
         'Bewerken': 'Edit',
 
