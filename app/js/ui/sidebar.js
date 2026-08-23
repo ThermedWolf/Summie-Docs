@@ -185,6 +185,9 @@ function _toggleCollapse(id, item) {
     }
     _saveCollapsed();
     _applyAllCollapsed();
+    // Re-measure the progress line right away; items above/below moved, so
+    // the stale height would otherwise linger until the next document scroll.
+    updateActiveInhoudItem({ syncCollapsed: false });
 }
 
 function _applyAllCollapsed() {
@@ -214,7 +217,35 @@ function _applyAllCollapsed() {
     });
 }
 
-function updateActiveInhoudItem() {
+// Anchor for the progress line: the active item, unless it is hidden inside a
+// collapsed group (display:none reports offsetTop 0) — then walk up to the
+// nearest visible item.
+function _visibleAnchor(inhoudItems, activeIndex) {
+    for (let i = Math.min(activeIndex, inhoudItems.length - 1); i >= 0; i--) {
+        if (inhoudItems[i].style.display !== 'none') return inhoudItems[i];
+    }
+    return null;
+}
+
+function _applyProgressLine(inhoudItems, activeIndex) {
+    const { inhoudList } = window.AppState;
+    const anchor = _visibleAnchor(inhoudItems, activeIndex);
+    if (!anchor) return;
+
+    inhoudList.style.setProperty('--progress-height',
+        (anchor.offsetTop + anchor.offsetHeight / 2) + 'px');
+
+    // Always keep the anchor centered in the list
+    const targetScrollTop = anchor.offsetTop - (inhoudList.clientHeight / 2) + (anchor.offsetHeight / 2);
+    const currentScrollTop = inhoudList.scrollTop;
+
+    // Only scroll if it's meaningfully off-center (more than 30px drift)
+    if (Math.abs(currentScrollTop - targetScrollTop) > 30) {
+        inhoudList.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
+    }
+}
+
+function updateActiveInhoudItem(opts = {}) {
     const { editor, inhoudList } = window.AppState;
 
     const headings = Array.from(editor.querySelectorAll('[data-heading-id]'));
@@ -240,54 +271,39 @@ function updateActiveInhoudItem() {
         item.classList.toggle('active', index === activeIndex);
     });
 
-    if (activeIndex === -1) {
-        inhoudList.style.setProperty('--progress-height', '0px');
-        return;
-    }
+    // Sync collapsed state: open ancestors of active, close everything else.
+    // Skipped after a manual collapse/expand so the user's action isn't undone.
+    if (opts.syncCollapsed !== false) {
+        const allParentIds = new Set(
+            Array.from(inhoudList.querySelectorAll('.inhoud-item.has-children'))
+                .map(item => item.dataset.headingId)
+        );
+        const ancestors = _ancestorIds(headings, activeIndex);
+        let changed = false;
 
-    // Sync collapsed state: open ancestors of active, close everything else
-    const allParentIds = new Set(
-        Array.from(inhoudList.querySelectorAll('.inhoud-item.has-children'))
-            .map(item => item.dataset.headingId)
-    );
-    const ancestors = _ancestorIds(headings, activeIndex);
-    let changed = false;
+        allParentIds.forEach(id => {
+            const shouldBeOpen = ancestors.has(id);
+            const isOpen = !_collapsed.has(id);
+            if (shouldBeOpen && !isOpen) {
+                _collapsed.delete(id);
+                const item = inhoudList.querySelector(`[data-heading-id="${id}"]`);
+                if (item) item.classList.remove('is-collapsed');
+                changed = true;
+            } else if (!shouldBeOpen && isOpen) {
+                _collapsed.add(id);
+                const item = inhoudList.querySelector(`[data-heading-id="${id}"]`);
+                if (item) item.classList.add('is-collapsed');
+                changed = true;
+            }
+        });
 
-    allParentIds.forEach(id => {
-        const shouldBeOpen = ancestors.has(id);
-        const isOpen = !_collapsed.has(id);
-        if (shouldBeOpen && !isOpen) {
-            _collapsed.delete(id);
-            const item = inhoudList.querySelector(`[data-heading-id="${id}"]`);
-            if (item) item.classList.remove('is-collapsed');
-            changed = true;
-        } else if (!shouldBeOpen && isOpen) {
-            _collapsed.add(id);
-            const item = inhoudList.querySelector(`[data-heading-id="${id}"]`);
-            if (item) item.classList.add('is-collapsed');
-            changed = true;
-        }
-    });
-
-    if (changed) {
-        _saveCollapsed();
-        _applyAllCollapsed();
-    }
-
-    const activeItem = inhoudItems[activeIndex];
-    if (activeItem) {
-        inhoudList.style.setProperty('--progress-height',
-            (activeItem.offsetTop + activeItem.offsetHeight / 2) + 'px');
-
-        // Always keep active item centered in the list
-        const targetScrollTop = activeItem.offsetTop - (inhoudList.clientHeight / 2) + (activeItem.offsetHeight / 2);
-        const currentScrollTop = inhoudList.scrollTop;
-
-        // Only scroll if it's meaningfully off-center (more than 30px drift)
-        if (Math.abs(currentScrollTop - targetScrollTop) > 30) {
-            inhoudList.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
+        if (changed) {
+            _saveCollapsed();
+            _applyAllCollapsed();
         }
     }
+
+    _applyProgressLine(inhoudItems, activeIndex);
 }
 
 function switchTab(tabName) {
