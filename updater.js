@@ -261,15 +261,13 @@ function normalizeExpectedDigest(digest) {
 }
 
 async function verifyInstallerHash(filePath, expectedDigest) {
-    if (!expectedDigest) {
-        log.warn('No SHA-256 digest available for installer; skipping hash verification');
-        return;
-    }
-
+    // Fail CLOSED: an installer whose integrity cannot be verified must never
+    // run. Digest presence depends on how the release was published — treat a
+    // missing digest as a hard error, not as "skip the check".
     const expectedHex = normalizeExpectedDigest(expectedDigest);
     if (!expectedHex) {
-        log.warn('No SHA-256 digest available for installer; skipping hash verification');
-        return;
+        log.error('No SHA-256 digest available for installer; refusing to install');
+        throw new Error(tUpdater('Hash-verificatie mislukt: de gedownloade installer is gewijzigd of beschadigd. Update geannuleerd.'));
     }
 
     const computedHex = await computeSha256Hex(filePath);

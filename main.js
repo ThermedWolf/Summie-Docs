@@ -34,10 +34,16 @@ function findSumdPath(args) {
 // and loadFileIntoWindow/readFileSync keep working everywhere.
 function normalizeSumdArg(arg) {
     if (typeof arg !== 'string') return null;
-    try {
-        if (arg.startsWith('file://')) return decodeURIComponent(arg.slice(7));
-    } catch {
-        /* malformed URI — fall through and treat as plain path */
+    if (arg.startsWith('file://')) {
+        try {
+            let p = decodeURIComponent(new URL(arg).pathname);
+            // Windows file:///C:/… yields "/C:/…" — drop the leading slash so
+            // the result is a valid drive path instead of "<cwd>:\C:\…".
+            if (/^\/[A-Za-z]:[\\/]/.test(p)) p = p.slice(1);
+            return p;
+        } catch {
+            /* malformed URI — fall through and treat as plain path */
+        }
     }
     return arg;
 }
@@ -355,11 +361,14 @@ function createWindow(filePathToOpen = null) {
             return;
         }
 
-        // Flush any pending auto-save before checking for unsaved changes
+        // Flush any pending auto-save before checking for unsaved changes.
+        // AutoSave.flush() now returns the save promise, so this await waits
+        // until the write actually landed — otherwise the check below races
+        // the flush and "Niet opslaan" could still let it hit disk.
         try {
             await win.webContents.executeJavaScript(`
-                (function() {
-                    if (window.AutoSave) window.AutoSave.flush();
+                (async function() {
+                    if (window.AutoSave) return window.AutoSave.flush();
                 })();
             `);
         } catch (err) { /* ignore */ }
@@ -816,22 +825,25 @@ safeHandle('settings-pick-directory', async () => {
 });
 
 // Auto-save settings — persisted to userData/autosave-settings.json
-// Key = filePath, value = true. Absent = off (default).
+// Key = resolved absolute file path, value = true. Absent = off (default).
 safeHandle('autosave-get', (event, filePath) => {
     const resolved = resolvePathArg(filePath);
     if (!resolved || !isDocPath(resolved)) return false;
     const settings = readAutoSaveSettings();
-    return !!settings[filePath];
+    // Read under both the resolved key and the raw key (pre-normalisation data)
+    return !!(settings[resolved] || settings[filePath]);
 });
 
 safeHandle('autosave-set', (event, filePath, enabled) => {
     const resolved = resolvePathArg(filePath);
     if (!resolved || !isDocPath(resolved)) return false;
     const settings = readAutoSaveSettings();
+    // Always write the resolved key; clear any legacy raw-string duplicate.
+    delete settings[filePath];
     if (enabled) {
-        settings[filePath] = true;
+        settings[resolved] = true;
     } else {
-        delete settings[filePath];
+        delete settings[resolved];
     }
     writeAutoSaveSettings(settings);
     return true;
@@ -857,15 +869,40 @@ safeOn('set-window-title', (event, documentName) => {
     win.setTitle(title);
 });
 
+// Source files loadable into code blocks. The dialog offers these extensions;
+// both handlers enforce the same allowlist + size cap so a compromised
+// renderer can't use them as an arbitrary-file-read primitive.
+const CODE_FILE_EXTENSIONS = [
+    'txt', 'md', 'markdown', 'csv', 'log', 'json', 'xml', 'yml', 'yaml', 'ini',
+    'cfg', 'conf', 'toml', 'js', 'mjs', 'cjs', 'ts', 'tsx', 'jsx', 'css',
+    'html', 'htm', 'svg', 'vue', 'svelte', 'py', 'java', 'c', 'h', 'cpp',
+    'hpp', 'cs', 'php', 'rb', 'go', 'rs', 'swift', 'kt', 'sh', 'bat', 'ps1', 'sql'
+];
+const CODE_FILE_MAX_BYTES = 2 * 1024 * 1024;
+
+function isReadableCodeFile(filePath) {
+    const ext = path.extname(filePath).replace(/^\./, '').toLowerCase();
+    if (!CODE_FILE_EXTENSIONS.includes(ext)) return false;
+    try {
+        return fs.statSync(filePath).size <= CODE_FILE_MAX_BYTES && fs.statSync(filePath).isFile();
+    } catch {
+        return false;
+    }
+}
+
 // Open a source code file via dialog and return path + content
 safeHandle('open-code-file', async () => {
     const result = await dialog.showOpenDialog(mainWindow, {
         title: tMain('Bestand Laden in Codeblok'),
-        properties: ['openFile']
+        properties: ['openFile'],
+        filters: [{ name: tMain('Code bestanden'), extensions: CODE_FILE_EXTENSIONS }]
     });
     if (!result.canceled && result.filePaths.length > 0) {
         try {
             const filePath = result.filePaths[0];
+            if (!isReadableCodeFile(filePath)) {
+                return { success: false, error: tMain('Dit bestand kan niet als code worden geladen.') };
+            }
             const content = fs.readFileSync(filePath, 'utf8');
             return { success: true, path: filePath, content };
         } catch (error) {
@@ -876,11 +913,11 @@ safeHandle('open-code-file', async () => {
 });
 
 // Re-read a source code file by path (for refresh). The path originates from
-// the dialog in open-code-file — require an existing regular file so a
-// renderer compromise can't read arbitrary non-existent/special paths.
+// the dialog in open-code-file — require an existing, allowlisted, size-capped
+// regular file so a renderer compromise can't read arbitrary paths.
 safeHandle('read-code-file', async (event, filePath) => {
     const resolved = resolvePathArg(filePath);
-    if (!resolved || !isExistingRegularFile(resolved)) {
+    if (!resolved || !isExistingRegularFile(resolved) || !isReadableCodeFile(resolved)) {
         return { success: false, error: 'Ongeldig bestandspad' };
     }
     try {
@@ -982,6 +1019,8 @@ async function citationFetchJson(url) {
             }
         });
         if (!res.ok) throw new Error('HTTP ' + res.status);
+        const declaredLen = parseInt(res.headers.get('content-length') || '0', 10);
+        if (declaredLen > CITATION_FETCH_LIMIT_BYTES) throw new Error('Response te groot');
         const text = await res.text();
         if (text.length > CITATION_FETCH_LIMIT_BYTES) throw new Error('Response te groot');
         return JSON.parse(text);
@@ -1260,6 +1299,8 @@ async function fetchText(url) {
             // Non-HTML (PDF etc.) → no metadata to parse
             return '';
         }
+        const declaredLen = parseInt(res.headers.get('content-length') || '0', 10);
+        if (declaredLen > CITATION_FETCH_LIMIT_BYTES) throw new Error('Pagina te groot');
         const text = await res.text();
         if (text.length > CITATION_FETCH_LIMIT_BYTES) throw new Error('Pagina te groot');
         return text;
@@ -1301,14 +1342,20 @@ function getFocusedWin() {
     return BrowserWindow.getFocusedWindow() || mainWindow;
 }
 
-safeOn('window-minimize', () => { const w = getFocusedWin(); if (w) w.minimize(); });
-safeOn('window-maximize', () => {
-    const w = getFocusedWin();
+safeOn('window-minimize', (event) => {
+    const w = BrowserWindow.fromWebContents(event.sender) || getFocusedWin();
+    if (w) w.minimize();
+});
+safeOn('window-maximize', (event) => {
+    const w = BrowserWindow.fromWebContents(event.sender) || getFocusedWin();
     if (!w) return;
     if (w.isMaximized()) w.unmaximize();
     else w.maximize();
 });
-safeOn('window-close', () => { const w = getFocusedWin(); if (w) w.close(); });
+safeOn('window-close', (event) => {
+    const w = BrowserWindow.fromWebContents(event.sender) || getFocusedWin();
+    if (w) w.close();
+});
 safeOn('window-new', () => { createWindow(); });
 
 // Known tags
@@ -1491,12 +1538,12 @@ safeHandle('window-is-maximized', () => { const w = getFocusedWin(); return w ? 
 // Snap layout support: receive the maximize button's bounding rect from the renderer
 // and hook WM_NCHITTEST so Windows reports HTMAXBUTTON over that area.
 // This enables the Windows 11 snap layouts flyout on hover.
-let _maximizeBtnRect = null;
+const _maximizeBtnRects = new WeakMap(); // per-window: a global rect would leak across windows
 safeOn('set-maximize-btn-rect', (event, rect) => {
-    _maximizeBtnRect = rect;
-    // Apply to the window that sent this message
     const win = BrowserWindow.fromWebContents(event.sender);
-    if (win) applyNcHitTestHook(win);
+    if (!win) return;
+    _maximizeBtnRects.set(win, rect);
+    applyNcHitTestHook(win);
 });
 
 function applyNcHitTestHook(win) {
@@ -1505,24 +1552,21 @@ function applyNcHitTestHook(win) {
     const HTMAXBUTTON = 9;
 
     win.hookWindowMessage(WM_NCHITTEST, (wParam, lParam) => {
-        if (!_maximizeBtnRect) {
-            win.setEnabled(false);
-            win.setEnabled(true);
-            return;
-        }
+        // This fires for every mouse move over the window — keep it cheap.
+        // Only when the cursor is actually over the maximize button do we
+        // force a non-client repaint; otherwise return immediately.
+        const r = _maximizeBtnRects.get(win);
+        if (!r) return;
         const x = lParam.readInt16LE(0);
         const y = lParam.readInt16LE(2);
         const bounds = win.getBounds();
         const clientX = x - bounds.x;
         const clientY = y - bounds.y;
-        const r = _maximizeBtnRect;
         if (clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom) {
             win.setEnabled(false);
             win.setEnabled(true);
             return { result: HTMAXBUTTON };
         }
-        win.setEnabled(false);
-        win.setEnabled(true);
     });
 }
 

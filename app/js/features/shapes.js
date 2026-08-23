@@ -47,7 +47,19 @@
         const isLine = type === 'line' || type === 'arrow';
         const svg = wrapper.querySelector('.summie-shape-svg');
         if (!svg) return;
-        svg.innerHTML = `<g fill="${isLine ? 'none' : fill}" stroke="${stroke}" stroke-width="${isLine ? strokeWidth + 2 : strokeWidth}" stroke-linecap="round" stroke-linejoin="round">${def.path}</g>`;
+        // fill/stroke come from data-* attributes in the document (attacker
+        // controllable) — set them via the DOM API instead of string-building
+        // innerHTML, which an attribute breakout could turn into SVG injection.
+        // def.path is a static internal dictionary value and stays as-is.
+        const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        g.setAttribute('fill', isLine ? 'none' : fill);
+        g.setAttribute('stroke', stroke);
+        g.setAttribute('stroke-width', String(isLine ? strokeWidth + 2 : strokeWidth));
+        g.setAttribute('stroke-linecap', 'round');
+        g.setAttribute('stroke-linejoin', 'round');
+        svg.innerHTML = '';
+        svg.appendChild(g);
+        g.innerHTML = def.path;
     }
 
     function getShapeLayer(wrapper) {

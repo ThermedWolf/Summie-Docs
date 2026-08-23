@@ -47,9 +47,12 @@ function showAutocomplete(matches, range) {
         let displayText = begrip.keyword;
         if (begrip.aliases && begrip.aliases.length > 0) displayText += ` (${begrip.aliases.join(', ')})`;
 
+        // Keyword/aliases/description come from the opened .sumd file
+        // (untrusted) — escape before they reach the popup's innerHTML.
+        const esc = window.escapeHtml || (s => String(s));
         item.innerHTML = `
-            <div class="autocomplete-keyword">${displayText}</div>
-            <div class="autocomplete-description">${begrip.description}</div>
+            <div class="autocomplete-keyword">${esc(displayText)}</div>
+            <div class="autocomplete-description">${esc(begrip.description)}</div>
         `;
         item.dataset.keyword = begrip.keyword;
         item.dataset.aliases = begrip.aliases ? JSON.stringify(begrip.aliases) : '[]';

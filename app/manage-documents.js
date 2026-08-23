@@ -17,23 +17,11 @@
     await init();
 
     async function init() {
-        await loadFuseJs();
         await loadKnownTags();
         await loadDocs();
         renderList(_allDocs);
         wireUI();
         wireWindowControls();
-    }
-
-    function loadFuseJs() {
-        return new Promise((resolve) => {
-            if (window.Fuse) return resolve();
-            const s = document.createElement('script');
-            s.src = 'https://cdnjs.cloudflare.com/ajax/libs/fuse.js/7.0.0/fuse.min.js';
-            s.onload = resolve;
-            s.onerror = resolve;
-            document.head.appendChild(s);
-        });
     }
 
     async function loadKnownTags() {
@@ -51,6 +39,9 @@
     }
 
     // Load docs from remembered file paths, then read each .sumd fresh.
+    // Files that no longer exist are hidden from the list but NEVER pruned
+    // from storage here — a temporarily unavailable drive must not delete
+    // remembered documents permanently.
     async function loadDocs() {
         if (!window.electron) return;
         const storedDocs = window.electron.knownDocsGet
@@ -58,7 +49,6 @@
             : await window.electron.recentsGet();
 
         const liveDocs = [];
-        const stillExisting = [];
 
         for (const doc of storedDocs) {
             if (!doc.path) continue;
@@ -90,16 +80,6 @@
             };
 
             liveDocs.push(freshDoc);
-            stillExisting.push({
-                id: freshDoc.id,
-                name: freshDoc.name,
-                path: freshDoc.path,
-                lastOpened: freshDoc.lastOpened
-            });
-        }
-
-        if (window.electron.knownDocsSave) {
-            await window.electron.knownDocsSave(stillExisting);
         }
 
         _allDocs = liveDocs;
@@ -358,34 +338,25 @@
     // ── Rename file ────────────────────────────────────────────────────────
     async function renameDoc(doc, newName) {
         if (!doc.path || !window.electron || !window.electron.renameFile) return false;
-        const dir = doc.path.split(/[\\/]/).slice(0, -1).join('/') ||
-            doc.path.split(/[\\/]/).slice(0, -1).join('\\');
-        const ext = '.' + doc.path.split('.').pop();
-        const newPath = (doc.path.includes('\\') ? '\\' : '/') === '\\'
-            ? dir + '\\' + newName + ext
-            : dir + '/' + newName + ext;
 
         // Use platform separator
         const sep = doc.path.includes('\\') ? '\\' : '/';
         const parts = doc.path.split(sep);
-        parts[parts.length - 1] = newName + ext;
+        parts[parts.length - 1] = newName + '.' + doc.path.split('.').pop();
         const newPathFinal = parts.join(sep);
+
+        if (newPathFinal === doc.path) return doc.path;
 
         const result = await window.electron.renameFile(doc.path, newPathFinal);
         if (result && result.success) {
-            // Update recents
-            const recents = await window.electron.recentsGet();
-            const updated = recents.map(r =>
-                r.path === doc.path ? { ...r, name: newName, path: newPathFinal } : r
-            );
-            await window.electron.recentsSave(updated);
-            if (window.electron.knownDocsGet && window.electron.knownDocsSave) {
-                const knownDocs = await window.electron.knownDocsGet();
-                const updatedKnownDocs = knownDocs.map(r =>
-                    r.path === doc.path ? { ...r, name: newName, path: newPathFinal } : r
-                );
-                await window.electron.knownDocsSave(updatedKnownDocs);
-            }
+            // update-doc-path updates recents, known docs AND favourites in one
+            // atomic main-process step (the hand-rolled rewrites here left
+            // favourites pointing at the old path).
+            try {
+                if (window.electron.updateDocPath) {
+                    await window.electron.updateDocPath(doc.path, newPathFinal, newName);
+                }
+            } catch (e) { /* non-fatal */ }
             return newPathFinal;
         }
         return false;
@@ -597,25 +568,35 @@
     }
 
     function wireWindowControls() {
-        document.getElementById('winMinimize')?.addEventListener('click', () => window.electron?.windowMin?.());
-        document.getElementById('winMaximize')?.addEventListener('click', () => window.electron?.windowMax?.());
+        // Preload exposes windowMinimize/windowMaximize (not windowMin/Max)
+        document.getElementById('winMinimize')?.addEventListener('click', () => window.electron?.windowMinimize?.());
+        document.getElementById('winMaximize')?.addEventListener('click', () => window.electron?.windowMaximize?.());
         document.getElementById('winClose')?.addEventListener('click', () => {
             if (window.electron?.navigateToLanding) window.electron.navigateToLanding();
         });
 
-        if (window.electron?.onWindowState) {
-            window.electron.onWindowState(isMaximized => {
-                document.querySelector('.icon-maximize').style.display = isMaximized ? 'none' : 'block';
-                document.querySelector('.icon-restore').style.display = isMaximized ? 'block' : 'none';
-            });
+        // Preload exposes onWindowStateChanged(state) — query once for the
+        // current state too, so the icon is correct right after opening.
+        if (window.electron?.onWindowStateChanged) {
+            const applyState = (state) => {
+                const isMaximized = !!(state && state.maximized);
+                const maxIcon = document.querySelector('.icon-maximize');
+                const restoreIcon = document.querySelector('.icon-restore');
+                if (maxIcon) maxIcon.style.display = isMaximized ? 'none' : 'block';
+                if (restoreIcon) restoreIcon.style.display = isMaximized ? 'block' : 'none';
+            };
+            window.electron.onWindowStateChanged(applyState);
+            window.electron.windowIsMaximized?.().then(applyState).catch(() => { });
         }
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────
     function escHtml(str) {
+        // textContent→innerHTML escapes & < > but NOT quotes, which broke out
+        // of attribute context (data-tag="…"). Escape quotes explicitly.
         const d = document.createElement('div');
         d.textContent = str;
-        return d.innerHTML;
+        return d.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 
     function formatDate(date) {

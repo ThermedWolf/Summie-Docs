@@ -183,6 +183,13 @@ function _animateTimeDigit(slot, newCh) {
 }
 
 function _hasUnsavedChanges() {
+    // Canonical detector — the document fingerprint in fileio.js, which also
+    // sees code-block/reference/style/header-footer edits that innerHTML-based
+    // comparisons miss entirely. Legacy comparison kept only as a fallback for
+    // the brief window before those modules finish loading.
+    if (typeof window.hasUnsavedChanges === 'function') {
+        return window.hasUnsavedChanges();
+    }
     const { editor, begrippen, lastSavedContent, lastSavedBegrippen } = window.AppState;
     if (!editor) return false;
 
@@ -301,86 +308,71 @@ function setupDocNameInput() {
             return;
         }
 
-        const { editor, begrippen } = window.AppState;
-
         if (!currentPath) {
-            const data = {
-                content: window.getCleanEditorContent ? window.getCleanEditorContent(editor) : editor.innerHTML,
-                begrippen,
-                images: window.imageManager ? window.imageManager.getImagesData() : {},
-                codeBlocks: window.codeBlockManager ? window.codeBlockManager.getCodeBlocksData() : [],
-                timestamp: new Date().toISOString()
-            };
-            const result = await window.electron.saveSumdFile(data, null, newName);
-            if (result.success) {
-                window.currentFilePath = result.path;
-                localStorage.setItem('summie_current_file_path', result.path);
-                localStorage.setItem('summie_saved_content', editor.innerHTML);
-                localStorage.setItem('summie_saved_begrippen', JSON.stringify(begrippen));
-                window.AppState.lastSavedContent = window.getCleanEditorContent ? window.getCleanEditorContent(editor) : editor.innerHTML;
-                window.AppState.lastSavedBegrippen = JSON.stringify(begrippen);
-                const savedName = result.path.split('\\').pop().split('/').pop().replace('.sumd', '');
+            // New document: run the canonical Save As flow with the typed name
+            // pre-filled, so the FULL payload (pages, references, styles,
+            // protection…) is written exactly like Ctrl+S would.
+            const result = await window.saveToFile(true, newName);
+            if (result && result.success) {
+                const savedName = result.path.split('\\').pop().split('/').pop().replace(/\.sumd$/i, '');
                 input.dataset.cleanName = savedName;
                 input.value = savedName;
                 showSaveStatusSuccess();
                 updateUnsavedIndicator();
-                window.trackRecentDocument && window.trackRecentDocument(result.path, savedName);
             } else {
                 input.value = '';
             }
             return;
         }
 
-        // Rename existing file
+        // Rename an existing file on disk. Never re-save content here — a
+        // hand-built payload would drop pages/references/styles and silently
+        // bypass password protection. Flush pending edits through the normal
+        // save path first, then move the file itself.
         const sep = currentPath.includes('\\') ? '\\' : '/';
         const parts = currentPath.split(sep);
         parts[parts.length - 1] = newName + '.sumd';
         const newPath = parts.join(sep);
 
-        const data = {
-            content: window.getCleanEditorContent ? window.getCleanEditorContent(editor) : editor.innerHTML,
-            begrippen,
-            images: window.imageManager ? window.imageManager.getImagesData() : {},
-            codeBlocks: window.codeBlockManager ? window.codeBlockManager.getCodeBlocksData() : [],
-            timestamp: new Date().toISOString()
-        };
+        if (newPath === currentPath) { loadDocName(); return; }
 
-        // Rename: save to new path, then delete old file
-        const result = await window.electron.saveSumdFile(data, newPath);
-        if (result.success) {
-            // Remove the old file only if the path actually changed
-            if (currentPath && currentPath !== newPath) {
-                try {
-                    await window.electron.deleteFile(currentPath);
-                } catch (e) {
-                    // Non-fatal: old file may already be gone
-                    console.warn('Kon oud bestand niet verwijderen:', e);
-                }
+        // Warn before overwriting an existing target
+        try {
+            const targetExists = await window.electron.fileExists(newPath);
+            if (targetExists) {
+                const ok = await window.SummieDialogs.confirm(
+                    SummieI18n.t('Er bestaat al een bestand met deze naam. Overschrijven?'),
+                    { title: SummieI18n.t('Overschrijven'), confirmText: SummieI18n.t('Overschrijven'), cancelText: SummieI18n.t('Annuleren'), danger: true }
+                );
+                if (!ok) { loadDocName(); return; }
             }
-            window.currentFilePath = newPath;
-            localStorage.setItem('summie_current_file_path', newPath);
-            localStorage.setItem('summie_saved_content', editor.innerHTML);
-            localStorage.setItem('summie_saved_begrippen', JSON.stringify(begrippen));
-            window.AppState.lastSavedContent = window.getCleanEditorContent ? window.getCleanEditorContent(editor) : editor.innerHTML;
-            window.AppState.lastSavedBegrippen = JSON.stringify(begrippen);
-            input.dataset.cleanName = newName;
-            input.value = newName;
-            showSaveStatusSuccess();
-            updateUnsavedIndicator();
-            if (window.electron && window.electron.updateDocPath) {
-                const updateResult = await window.electron.updateDocPath(currentPath, newPath, newName);
-                if (!updateResult || !updateResult.updated) {
-                    window.trackRecentDocument && window.trackRecentDocument(newPath, newName);
-                }
-            } else {
-                window.trackRecentDocument && window.trackRecentDocument(newPath, newName);
-            }
-            window.updateWindowTitle && window.updateWindowTitle(newPath);
-            window.AutoSave && window.AutoSave.onFileChanged();
-        } else {
-            window.showNotification && window.showNotification(SummieI18n.t('Fout'), `Kon niet hernoemen: ${result.error || ''}`, 'error');
-            loadDocName();
+        } catch (e) { /* dialog unavailable — proceed without the extra guard */ }
+
+        if (window.hasUnsavedChanges && window.hasUnsavedChanges()) {
+            const saved = await window.saveToFile(false);
+            if (!saved || saved.canceled || saved.missingDialog) { loadDocName(); return; }
         }
+
+        const result = await window.electron.renameFile(currentPath, newPath);
+        if (!result || !result.success) {
+            window.showNotification && window.showNotification(SummieI18n.t('Fout'), `Kon niet hernoemen: ${result && result.error ? result.error : ''}`, 'error');
+            loadDocName();
+            return;
+        }
+
+        // Keep recents, known docs AND favourites pointing at the new path
+        try {
+            await window.electron.updateDocPath(currentPath, newPath, newName);
+        } catch (e) { /* non-fatal */ }
+
+        window.currentFilePath = newPath;
+        localStorage.setItem('summie_current_file_path', newPath);
+        input.dataset.cleanName = newName;
+        input.value = newName;
+        showSaveStatusSuccess();
+        updateUnsavedIndicator();
+        window.updateWindowTitle && window.updateWindowTitle(newPath);
+        window.AutoSave && window.AutoSave.onFileChanged();
     }
 
     input.addEventListener('blur', commitDocName);

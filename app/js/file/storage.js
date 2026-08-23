@@ -1,6 +1,9 @@
 // ==================== LOCAL STORAGE ====================
 // saveToLocalStorage, loadFromLocalStorage, clearLocalStorage, setupAutoSave.
 
+let _lastStoredSummaryData = null;   // serialized payload from the last write
+let _quotaWarned = false;            // quota errors must not re-notify every 2s
+
 async function saveToLocalStorage() {
     const { editor, begrippen } = window.AppState;
     const imagesData = window.imageManager ? window.imageManager.getImagesData() : {};
@@ -24,23 +27,34 @@ async function saveToLocalStorage() {
         timestamp: new Date().toISOString()
     };
 
-    const dataSize = JSON.stringify(data).length;
+    // The 2s session-save interval runs unconditionally — skip the stringify +
+    // write entirely when nothing changed since the last write.
+    const serialized = JSON.stringify(data);
+    if (serialized === _lastStoredSummaryData) return;
+
+    const dataSize = serialized.length;
     const imageCount = Object.keys(imagesData).length;
 
     try {
+        // Silent: this is a background session draft — a protected document
+        // without a known password must skip the write, never prompt.
         const dataToStore = await (window.DocumentProtection
-            ? window.DocumentProtection.prepareForSave(data)
+            ? window.DocumentProtection.prepareForSave(data, { silent: true })
             : data);
         if (!dataToStore) return;
         localStorage.setItem('summaryData', JSON.stringify(dataToStore));
+        _lastStoredSummaryData = serialized;
     } catch (e) {
         if (e.name === 'QuotaExceededError') {
             console.error('LocalStorage quota exceeded!', (dataSize / 1024 / 1024).toFixed(2) + ' MB');
-            window.showNotification && window.showNotification(
-                SummieI18n.t('Opslag limiet bereikt'),
-                `Je document is te groot (${imageCount} afbeeldingen, ${(dataSize / 1024 / 1024).toFixed(1)} MB). Auto-opslaan is uitgeschakeld.`,
-                'error'
-            );
+            if (!_quotaWarned) {
+                _quotaWarned = true;
+                window.showNotification && window.showNotification(
+                    SummieI18n.t('Opslag limiet bereikt'),
+                    `Je document is te groot (${imageCount} afbeeldingen, ${(dataSize / 1024 / 1024).toFixed(1)} MB). Auto-opslaan is uitgeschakeld.`,
+                    'error'
+                );
+            }
         } else {
             console.error('Error saving to localStorage:', e);
             window.showNotification && window.showNotification('Fout bij opslaan', SummieI18n.t('Er ging iets mis bij het opslaan.'), 'error');
@@ -145,6 +159,7 @@ async function loadFromLocalStorage() {
 
 function clearLocalStorage() {
     localStorage.removeItem('summaryData');
+    _lastStoredSummaryData = null;
     if (window.StyleManager) window.StyleManager.clearCustomStyles();
 }
 

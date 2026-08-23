@@ -134,8 +134,13 @@
     // an undo step on their own.
     function snapshotsEqual(a, b) {
         if (!a || !b) return false;
-        return JSON.stringify([a.content, a.pages, a.begrippen, a.protected, a.references, a.citations])
-            === JSON.stringify([b.content, b.pages, b.begrippen, b.protected, b.references, b.citations]);
+        // Every captured field must participate: leaving any out meant edits
+        // to it never created an undo step AND left stale values inside
+        // currentSnapshot — so Ctrl+Z/Ctrl+Y silently resurrected old content.
+        return JSON.stringify([a.content, a.pages, a.begrippen, a.protected, a.references, a.citations,
+            a.images, a.codeBlocks, a.customStyles, a.tabRulerIndents, a.headerFooter])
+            === JSON.stringify([b.content, b.pages, b.begrippen, b.protected, b.references, b.citations,
+                b.images, b.codeBlocks, b.customStyles, b.tabRulerIndents, b.headerFooter]);
     }
 
     function enforceStackLimit() {
@@ -197,6 +202,7 @@
         const prevSavedContent = state.lastSavedContent;
         const prevSavedBegrippen = state.lastSavedBegrippen;
         const prevSavedProtection = state.lastSavedProtection;
+        const prevSavedFingerprint = state.lastSavedFingerprint || null;
 
         if (window.DocumentProtection) window.DocumentProtection.setProtected(!!snap.protected);
 
@@ -228,6 +234,14 @@
             state.lastSavedContent = prevSavedContent;
             state.lastSavedBegrippen = prevSavedBegrippen;
             state.lastSavedProtection = prevSavedProtection;
+            // The fingerprint is what dirty-state detection actually consults;
+            // pin it back so undoing doesn't mark a saved document as modified
+            // (or a modified one as clean). When no baseline existed yet, let
+            // the deferred baseline from applyLoadedData stand.
+            if (prevSavedFingerprint) {
+                state.lastSavedFingerprint = prevSavedFingerprint;
+                try { localStorage.setItem('summie_saved_fingerprint', prevSavedFingerprint); } catch (e) { /* ignore */ }
+            }
             finalizeRestore(snap);
         }, RESTORE_SETTLE);
     }

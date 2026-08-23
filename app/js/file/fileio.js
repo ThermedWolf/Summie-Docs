@@ -35,6 +35,75 @@ function getCleanEditorContent(editor) {
 }
 window.getCleanEditorContent = getCleanEditorContent;
 
+// ==================== DOCUMENT FINGERPRINT ====================
+// Single canonical dirty-state mechanism. The fingerprint captures exactly what
+// saveToFile persists; comparing two fingerprints answers "are there unsaved
+// changes?" identically for the close prompt, autosave gating and the status
+// indicator — always in the same cleaned-vs-cleaned terms, and never blind to
+// code-block/reference/style/header-footer edits the way innerHTML was.
+function computeDocFingerprint() {
+    try {
+        const state = window.AppState;
+        const editor = state && state.editor;
+        if (!editor) return '';
+        return JSON.stringify({
+            content: getCleanEditorContent(editor),
+            pages: window.PageManager ? window.PageManager.getPagesData() : null,
+            begrippen: state.begrippen || [],
+            protectedFlag: window.DocumentProtection ? window.DocumentProtection.isProtected() : false,
+            codeBlocks: window.codeBlockManager ? window.codeBlockManager.getCodeBlocksData() : [],
+            references: window.ReferencesManager ? window.ReferencesManager.getSerialised() : [],
+            citations: window.Bibliography ? window.Bibliography.getSerialised() : [],
+            citationStyle: window.Bibliography ? window.Bibliography.getCitationStyle() : 'apa',
+            images: window.imageManager ? window.imageManager.getImagesData() : {},
+            customStyles: window.StyleManager ? window.StyleManager.getCustomStyles() : {},
+            headerFooter: window.HeaderFooter ? window.HeaderFooter.getData() : null,
+            tabRulerIndents: window.TabRuler && typeof window.TabRuler.getIndentsData === 'function'
+                ? window.TabRuler.getIndentsData() : null
+        });
+    } catch (e) {
+        // A transient fingerprinting failure must not flip the doc to "dirty"
+        // (that would spam prompts/autosave); hold the previous value instead.
+        return (window.AppState && window.AppState.lastSavedFingerprint) || '';
+    }
+}
+
+function setSavedBaseline() {
+    const fp = computeDocFingerprint();
+    const state = window.AppState;
+    if (!state) return;
+    state.lastSavedFingerprint = fp;
+    // Legacy keys stay written for crash-restore compatibility, but dirty-state
+    // detection now relies solely on the fingerprint.
+    try {
+        state.lastSavedContent = state.editor ? state.editor.innerHTML : '';
+        state.lastSavedBegrippen = JSON.stringify(state.begrippen || []);
+        state.lastSavedProtection = window.DocumentProtection ? window.DocumentProtection.isProtected() : false;
+        localStorage.setItem('summie_saved_content', state.lastSavedContent);
+        localStorage.setItem('summie_saved_begrippen', state.lastSavedBegrippen);
+        localStorage.setItem('summie_saved_fingerprint', fp);
+    } catch (e) { /* storage full/unavailable — in-memory baseline still set */ }
+}
+
+function hasUnsavedChanges() {
+    const state = window.AppState;
+    let saved = (state && state.lastSavedFingerprint) || null;
+    if (!saved) {
+        try { saved = localStorage.getItem('summie_saved_fingerprint'); } catch (e) { saved = null; }
+    }
+    if (!saved) {
+        // No baseline yet (fresh session before the first load settles):
+        // fall back to a simple emptiness check so real edits are never missed.
+        if (!state || !state.editor) return false;
+        const clean = getCleanEditorContent(state.editor);
+        return !!clean.trim() && clean !== '<p>Begin hier met typen...</p>';
+    }
+    return computeDocFingerprint() !== saved;
+}
+window.computeDocFingerprint = computeDocFingerprint;
+window.setSavedBaseline = setSavedBaseline;
+window.hasUnsavedChanges = hasUnsavedChanges;
+
 
 function generateDocId() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2);
@@ -127,15 +196,9 @@ function _showFileMissingDialog(data, missingPath) {
         // Recreate at the same path
         const result = await window.electron.saveSumdFile(data, missingPath);
         if (result.success) {
-            const state = window.AppState;
-            const { editor, begrippen } = state;
-            state.lastSavedContent = getCleanEditorContent(editor);
-            state.lastSavedBegrippen = JSON.stringify(begrippen);
-            state.lastSavedProtection = window.DocumentProtection?.isProtected?.() || false;
+            setSavedBaseline();
             trackRecentDocument(missingPath);
             localStorage.setItem('summie_current_file_path', missingPath);
-            localStorage.setItem('summie_saved_content', getCleanEditorContent(editor));
-            localStorage.setItem('summie_saved_begrippen', JSON.stringify(begrippen));
             window.showSaveStatusSuccess && window.showSaveStatusSuccess();
             window.updateDocNameInput && window.updateDocNameInput();
             window.updateUnsavedIndicator && window.updateUnsavedIndicator();
@@ -152,16 +215,10 @@ function _showFileMissingDialog(data, missingPath) {
         const result = await window.electron.saveSumdFile(data, null, null, lastDir);
         if (result.success) {
             window.currentFilePath = result.path;
-            const state = window.AppState;
-            const { editor, begrippen } = state;
-            state.lastSavedContent = getCleanEditorContent(editor);
-            state.lastSavedBegrippen = JSON.stringify(begrippen);
-            state.lastSavedProtection = window.DocumentProtection?.isProtected?.() || false;
+            setSavedBaseline();
             const fileName2 = result.path.split(/[\\/]/).pop();
             trackRecentDocument(result.path, fileName2.replace('.sumd', ''));
             localStorage.setItem('summie_current_file_path', result.path);
-            localStorage.setItem('summie_saved_content', getCleanEditorContent(editor));
-            localStorage.setItem('summie_saved_begrippen', JSON.stringify(begrippen));
             window.showSaveStatusSuccess && window.showSaveStatusSuccess();
             window.updateDocNameInput && window.updateDocNameInput();
             window.updateUnsavedIndicator && window.updateUnsavedIndicator();
@@ -181,10 +238,11 @@ function _escapeHtml(str) {
     return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-async function saveToFile(saveAs = false) {
-    const state = window.AppState;
-    const { editor, begrippen } = state;
-
+// Build the canonical document payload — the exact shape saveToFile persists
+// and every load path restores. Shared so other flows (rename, etc.) can never
+// drift into writing stripped or unencrypted files.
+async function buildPayload() {
+    const { editor, begrippen } = window.AppState;
     const data = {
         content: getCleanEditorContent(editor),
         pages: window.PageManager ? window.PageManager.getPagesData() : null,
@@ -195,6 +253,9 @@ async function saveToFile(saveAs = false) {
         images: window.imageManager ? window.imageManager.getImagesData() : {},
         codeBlocks: window.codeBlockManager ? window.codeBlockManager.getCodeBlocksData() : [],
         customStyles: window.StyleManager ? window.StyleManager.getCustomStyles() : {},
+        headerFooter: window.HeaderFooter ? window.HeaderFooter.getData() : null,
+        tabRulerIndents: window.TabRuler && typeof window.TabRuler.getIndentsData === 'function'
+            ? window.TabRuler.getIndentsData() : null,
         timestamp: new Date().toISOString()
     };
 
@@ -209,60 +270,64 @@ async function saveToFile(saveAs = false) {
             }
         } catch (e) { }
     }
+    return data;
+}
+window.buildDocumentPayload = buildPayload;
 
+async function saveToFile(saveAs = false, suggestedName = null) {
+    const data = await buildPayload();
+
+    // Auto-saves must never pop a password prompt in the background; manual
+    // saves may ask for one when protection is on but no password is known.
+    const autoSaving = !!(window.AutoSave && window.AutoSave._autoSaving);
     const dataToWrite = await (window.DocumentProtection
-        ? window.DocumentProtection.prepareForSave(data)
+        ? window.DocumentProtection.prepareForSave(data, { silent: autoSaving })
         : data);
     if (!dataToWrite) return { canceled: true };
 
     if (window.electron && window.appInfo && window.appInfo.isElectron) {
-        // Quick save
         if (window.currentFilePath && !saveAs) {
             // Check if the file still exists before overwriting
             const exists = await window.electron.fileExists(window.currentFilePath);
             if (!exists) {
                 _showFileMissingDialog(dataToWrite, window.currentFilePath);
-                return;
+                return { missingDialog: true };
             }
             const result = await window.electron.saveSumdFile(dataToWrite, window.currentFilePath);
             if (result.success) {
-                state.lastSavedContent = getCleanEditorContent(editor);
-                state.lastSavedBegrippen = JSON.stringify(begrippen);
-                state.lastSavedProtection = window.DocumentProtection?.isProtected?.() || false;
+                setSavedBaseline();
                 trackRecentDocument(window.currentFilePath);
                 localStorage.setItem('summie_current_file_path', window.currentFilePath);
-                localStorage.setItem('summie_saved_content', getCleanEditorContent(editor));
-                localStorage.setItem('summie_saved_begrippen', JSON.stringify(begrippen));
                 window.showSaveStatusSuccess && window.showSaveStatusSuccess();
                 window.updateDocNameInput && window.updateDocNameInput();
                 window.updateUnsavedIndicator && window.updateUnsavedIndicator();
                 updateWindowTitle(window.currentFilePath);
                 window.AutoSave && window.AutoSave.onFileChanged();
-                return;
+                return { success: true, path: window.currentFilePath };
             }
+            if (result.canceled) return { canceled: true };
+            // Write failed (permissions/disk full?) — say WHY before offering
+            // the Save-As recovery path below, so cancelling it isn't silent.
+            window.showNotification && window.showNotification(SummieI18n.t('Fout'), `Kon niet opslaan: ${result.error}`, 'error');
         }
 
-        // Save As
-        const result = await window.electron.saveSumdFile(dataToWrite, null);
+        // Save As (suggestedName pre-fills the dialog's filename); also the
+        // recovery path when quick-save could not write to the existing file.
+        const result = await window.electron.saveSumdFile(dataToWrite, null, suggestedName);
         if (result.success) {
             window.currentFilePath = result.path;
-            state.lastSavedContent = getCleanEditorContent(editor);
-            state.lastSavedBegrippen = JSON.stringify(begrippen);
-            state.lastSavedProtection = window.DocumentProtection?.isProtected?.() || false;
+            setSavedBaseline();
             const fileName = result.path.split('\\').pop().split('/').pop();
             trackRecentDocument(result.path, fileName.replace('.sumd', ''));
             localStorage.setItem('summie_current_file_path', result.path);
-            localStorage.setItem('summie_saved_content', getCleanEditorContent(editor));
-            localStorage.setItem('summie_saved_begrippen', JSON.stringify(begrippen));
             window.showSaveStatusSuccess && window.showSaveStatusSuccess();
             window.updateDocNameInput && window.updateDocNameInput();
             window.updateUnsavedIndicator && window.updateUnsavedIndicator();
             updateWindowTitle(result.path);
             window.AutoSave && window.AutoSave.onFileChanged();
-        } else if (!result.canceled) {
-            window.showNotification && window.showNotification(SummieI18n.t('Fout'), `Kon niet opslaan: ${result.error}`, 'error');
+            return { success: true, path: result.path };
         }
-        return;
+        return result.canceled ? { canceled: true } : { success: false, error: result.error };
     }
 
     // Browser mode
@@ -270,15 +335,41 @@ async function saveToFile(saveAs = false) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `samenvatting_${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `${suggestedName || ('samenvatting_' + new Date().toISOString().split('T')[0])}.json`;
     a.click();
     URL.revokeObjectURL(url);
     window.showSaveStatusSuccess && window.showSaveStatusSuccess();
+    return { success: true };
 }
 
 async function loadFromFile(e) {
-    const state = window.AppState;
-    let data, fileName;
+    // Guard against destroying unsaved work: opening another document replaces
+    // the editor contents wholesale, so offer to save first (same choice the
+    // close and navigate-to-landing flows give).
+    if (window.hasUnsavedChanges && window.hasUnsavedChanges()) {
+        let choice = 'cancel';
+        try {
+            choice = await window.SummieDialogs.choice(SummieI18n.t('Wil je het huidige document opslaan?'), {
+                title: SummieI18n.t('Niet opgeslagen wijzigingen'),
+                detail: SummieI18n.t('Het huidige document gaat verloren als je een nieuw bestand laadt.'),
+                buttons: [
+                    { label: SummieI18n.t('Opslaan'), value: 'save', primary: true },
+                    { label: SummieI18n.t('Niet opslaan'), value: 'dontsave', danger: true },
+                    { label: SummieI18n.t('Annuleren'), value: 'cancel' }
+                ],
+                escValue: 'cancel'
+            });
+        } catch (err) {
+            choice = 'cancel';
+        }
+        if (choice === 'cancel') return;
+        if (choice === 'save') {
+            const saved = await window.saveToFile(false);
+            if (!saved || saved.canceled || saved.missingDialog) return;
+        }
+    }
+
+    let data, fileName, filePath = null;
 
     if (window.electron && window.appInfo && window.appInfo.isElectron) {
         const result = await window.electron.openSumdFile();
@@ -287,8 +378,8 @@ async function loadFromFile(e) {
             return;
         }
         data = result.data;
-        window.currentFilePath = result.path;
-        fileName = result.path.split('\\').pop().split('/').pop();
+        filePath = result.path;
+        fileName = filePath.split('\\').pop().split('/').pop();
     } else {
         const file = e && e.target && e.target.files && e.target.files[0];
         if (!file) return;
@@ -315,81 +406,22 @@ async function loadFromFile(e) {
             if (!data) return;
         }
 
-        state.editor.innerHTML = window.sanitizeSumdContent(data.content);
+        // Single canonical load path: applyLoadedData handles pagination,
+        // sanitisation, references/styles/images/codeblocks restoration and
+        // sets the saved baseline once the deferred restores have settled.
+        window.applyLoadedData(data);
 
-        // Strip legacy inline margin-bottom from plain paragraphs (pre-v4.1.0 documents
-        // had margin-bottom: 12px baked in; now handled by CSS on .a4-page p)
-        state.editor.querySelectorAll('p, div').forEach(el => {
-            const style = el.getAttribute('data-style');
-            const isNormal = !style || style === 'normal';
-            const hasNoClass = !el.className || el.className.trim() === '' ||
-                !([...el.classList].some(c => c.startsWith('style-')));
-            if (isNormal && hasNoClass) {
-                el.style.marginBottom = '';
-                el.style.marginTop = '';
-                if (el.getAttribute('style') === '') el.removeAttribute('style');
-            }
-        });
-
-        state.begrippen = data.begrippen || [];
-
-        // Restore references
-        if (window.ReferencesManager && data.references && data.references.length > 0) {
-            window.ReferencesManager.references = data.references;
-            window.ReferencesManager.restoreFromEditor();
-        }
-
-        // Restore bibliography
-        if (window.Bibliography && Array.isArray(data.citations)) {
-            window.Bibliography.setCitations(data.citations);
-            // Restore citation style
-            if (data.citationStyle && window.Bibliography.setCitationStyle) {
-                window.Bibliography.setCitationStyle(data.citationStyle);
-            }
-            window.Bibliography.renderBibliographyBlock();
-        }
-
-        // Load per-document custom styles
-        if (window.StyleManager) {
-            window.StyleManager.loadCustomStyles(data.customStyles || {});
-        }
-
-        if (data.images && Object.keys(data.images).length > 0) {
-            const loadImages = () => {
-                if (window.imageManager) {
-                    window.imageManager.loadImagesData(data.images);
-                    setTimeout(() => window.imageManager.restoreImagesInEditor(), 200);
-                } else { setTimeout(loadImages, 50); }
-            };
-            loadImages();
-        }
-
-        if (window.codeBlockManager) {
-            setTimeout(() => {
-                window.codeBlockManager.restoreCodeBlocks();
-                window.codeBlockManager.resetAllCopyButtons();
-                if (data.codeBlocks) window.codeBlockManager.loadCodeBlocksData(data.codeBlocks);
-            }, 100);
-        }
-
-        window.updateBegrippenList && window.updateBegrippenList();
-        window.updateInhoudList && window.updateInhoudList();
-        window.updateActiveInhoudItem && window.updateActiveInhoudItem();
-        window.highlightBegrippen && window.highlightBegrippen();
-        window.saveToLocalStorage && window.saveToLocalStorage();
-
-        if (window.currentFilePath) {
-            trackRecentDocument(window.currentFilePath, fileName ? fileName.replace('.sumd', '') : null);
-            localStorage.setItem('summie_current_file_path', window.currentFilePath);
-            updateWindowTitle(window.currentFilePath);
+        // Arm the path only AFTER the document actually loaded. A failed parse/
+        // decrypt must never leave the old document's content pointing at the
+        // new file, or a later autosave would overwrite it with wrong content.
+        window.currentFilePath = filePath;
+        if (filePath) {
+            trackRecentDocument(filePath, fileName ? fileName.replace('.sumd', '') : null);
+            localStorage.setItem('summie_current_file_path', filePath);
+            updateWindowTitle(filePath);
             window.AutoSave && window.AutoSave.onFileChanged();
             window.updateFileSize && window.updateFileSize();
         }
-        state.lastSavedContent = state.editor.innerHTML;
-        state.lastSavedBegrippen = JSON.stringify(state.begrippen);
-        state.lastSavedProtection = window.DocumentProtection?.isProtected?.() || false;
-        localStorage.setItem('summie_saved_content', state.editor.innerHTML);
-        // Start a fresh undo history, seeded with the loaded document
         setTimeout(() => window.UndoManager && window.UndoManager.resetBaseline(), 550);
 
         window.showNotification && window.showNotification(
@@ -426,9 +458,7 @@ function newSummary() {
         window.updateBegrippenList && window.updateBegrippenList();
         window.updateInhoudList && window.updateInhoudList();
         window.updateActiveInhoudItem && window.updateActiveInhoudItem();
-        state.lastSavedContent = state.editor.innerHTML;
-        state.lastSavedBegrippen = JSON.stringify(state.begrippen);
-        state.lastSavedProtection = window.DocumentProtection?.isProtected?.() || false;
+        setSavedBaseline();
         window.clearDocNameInput && window.clearDocNameInput();
         window.showNotification && window.showNotification(SummieI18n.t('Nieuw document gestart'), '', 'success');
         setTimeout(() => window.focusEditor && window.focusEditor(), 450);

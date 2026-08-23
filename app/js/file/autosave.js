@@ -91,10 +91,14 @@
             await _loadSettingForCurrentFile();
         },
         flush() {
+            // Return the save promise so the close flow in main.js can await
+            // it — fire-and-forget here meant the unsaved-changes check raced
+            // the pending write, and "Niet opslaan" could still land on disk.
             clearTimeout(_timer);
             if (_enabled && window.currentFilePath && window.saveToFile) {
-                window.saveToFile(false);
+                return window.saveToFile(false).catch(() => ({}));
             }
+            return Promise.resolve();
         }
     };
 })();

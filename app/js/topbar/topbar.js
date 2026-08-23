@@ -921,9 +921,10 @@ class TopbarManager {
         const notification = document.createElement('div');
         notification.className = `notification ${type}`;
 
+        // Message text may echo document-controlled strings — escape it.
         notification.innerHTML = `
             <div class="notification-content">
-                <div class="notification-message">${message}</div>
+                <div class="notification-message">${window.escapeHtml ? window.escapeHtml(message) : String(message)}</div>
             </div>
         `;
 

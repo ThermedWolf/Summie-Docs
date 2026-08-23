@@ -391,16 +391,6 @@ async function loadAllDocsForSearch() {
     const docs = await getRecentDocs();
     if (!docs.length) return [];
 
-    // Load Fuse.js if not loaded
-    if (!window.Fuse) {
-        await new Promise(resolve => {
-            const s = document.createElement('script');
-            s.src = 'https://cdnjs.cloudflare.com/ajax/libs/fuse.js/7.0.0/fuse.min.js';
-            s.onload = resolve; s.onerror = resolve;
-            document.head.appendChild(s);
-        });
-    }
-
     // Read metadata from each .sumd file
     const enriched = await Promise.all(docs.map(async doc => {
         let description = '', tags = [], hasCodeblock = false, hasTable = false, hasImage = false, fileSize = 0;
@@ -574,8 +564,9 @@ function renderSearchResults(docs) {
 
         item.querySelector('.recent-doc-menu').addEventListener('click', e => {
             e.stopPropagation();
-            contextTargetId = doc.id;
-            showContextMenu(e.clientX, e.clientY);
+            // showContextMenu expects the event (for positioning) + doc id —
+            // passing raw coordinates here crashed every search-result menu.
+            showContextMenu(e, doc.id);
         });
 
         list.appendChild(item);
@@ -814,17 +805,14 @@ async function renderRecentDocs() {
         if (c.id !== 'emptyRecent') c.remove();
     });
 
-    // In Electron: filter out docs whose file no longer exists on disk
+    // In Electron: hide docs whose file no longer exists on disk — display
+    // only. Never persist the filtered list: a temporarily unavailable drive
+    // (USB/network share) would otherwise delete those recents permanently.
     if (window.electron) {
         const existenceChecks = await Promise.all(
             docs.map(doc => doc.path ? window.electron.fileExists(doc.path) : Promise.resolve(true))
         );
-        const missing = docs.filter((_, i) => !existenceChecks[i]);
-        if (missing.length > 0) {
-            // Remove missing docs from the stored list
-            docs = docs.filter((_, i) => existenceChecks[i]);
-            await saveRecentDocs(docs);
-        }
+        docs = docs.filter((_, i) => existenceChecks[i]);
     }
 
     // Favourite documents should also show up in the recent documents list,
@@ -1085,16 +1073,28 @@ async function showRenameModal(docId) {
             const sep = doc.path.includes('\\') ? '\\' : '/';
             const dir = doc.path.substring(0, doc.path.lastIndexOf(sep) + 1);
             const newPath = dir + newName + ext;
+
+            // Warn before overwriting an existing target
+            try {
+                if (newPath !== doc.path && await window.electron.fileExists(newPath)) {
+                    const ok = await window.SummieDialogs.confirm(
+                        SummieI18n.t('Er bestaat al een bestand met deze naam. Overschrijven?'),
+                        { title: SummieI18n.t('Overschrijven'), confirmText: SummieI18n.t('Overschrijven'), cancelText: SummieI18n.t('Annuleren'), danger: true }
+                    );
+                    if (!ok) { closeRenameModal(); return; }
+                }
+            } catch (e) { /* dialog unavailable — proceed without the extra guard */ }
+
             const result = await window.electron.renameFile(doc.path, newPath);
             if (!result.success) {
-                await window.SummieDialogs.alert('Kon bestand niet hernoemen:\n' + (result.error || SummieI18n.t('Onbekende fout')), { title: SummieI18n.t('Hernoemen mislukt') });
+                await window.SummieDialogs.alert(SummieI18n.t('Kon bestand niet hernoemen:') + '\n' + (result.error || SummieI18n.t('Onbekende fout')), { title: SummieI18n.t('Hernoemen mislukt') });
                 closeRenameModal();
                 return;
             }
-            let allDocs = (await getRecentDocs()).map(d =>
-                d.id === docId ? { ...d, name: newName, path: newPath } : d
-            );
-            await saveRecentDocs(allDocs);
+            // update-doc-path keeps recents, known docs AND favourites in sync
+            // in one atomic step (hand-rolled recents rewriting left stale
+            // favourite chips pointing at the old path).
+            try { await window.electron.updateDocPath(doc.path, newPath, newName); } catch (e) { /* non-fatal */ }
             if (localStorage.getItem('summie_current_file_path') === doc.path) {
                 localStorage.setItem('summie_current_file_path', newPath);
             }

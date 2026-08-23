@@ -15,11 +15,14 @@ function showNotification(title, message, type = 'info') {
         info: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>'
     };
 
+    // Title/message can carry file-controlled strings (begrip keywords,
+    // reference names, paths) — escape before they reach innerHTML.
+    const esc = window.escapeHtml || (s => String(s));
     notification.innerHTML = `
         <div class="notification-icon">${icons[type] || icons.info}</div>
         <div class="notification-content">
-            <div class="notification-title">${title}</div>
-            ${message ? `<div class="notification-message">${message}</div>` : ''}
+            <div class="notification-title">${esc(title)}</div>
+            ${message ? `<div class="notification-message">${esc(message)}</div>` : ''}
         </div>
         <button class="notification-close">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

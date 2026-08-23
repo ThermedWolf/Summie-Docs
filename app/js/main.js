@@ -53,11 +53,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         window.AutoSave && window.AutoSave.onFileChanged();
                         window.updateFileSize && window.updateFileSize();
                     }
-                    const _clean = window.getCleanEditorContent ? window.getCleanEditorContent(state.editor) : state.editor.innerHTML;
-                    state.lastSavedContent = _clean;
-                    state.lastSavedBegrippen = JSON.stringify(state.begrippen);
-                    state.lastSavedProtection = window.DocumentProtection?.isProtected?.() || false;
-                    localStorage.setItem('summie_saved_content', _clean);
+                    window.setSavedBaseline && window.setSavedBaseline();
                     window.updateDocNameInput && window.updateDocNameInput();
                 }, 100);
             }
@@ -102,9 +98,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 7. Baseline for unsaved-changes detection
     setTimeout(() => {
-        state.lastSavedContent = state.editor.innerHTML;
-        state.lastSavedBegrippen = JSON.stringify(state.begrippen);
-        state.lastSavedProtection = window.DocumentProtection?.isProtected?.() || false;
+        window.setSavedBaseline && window.setSavedBaseline();
         // Seed the undo history with the loaded document as its baseline
         window.UndoManager && window.UndoManager.resetBaseline();
     }, 500);
@@ -231,11 +225,7 @@ if (window.electron && window.electron.onLoadSumdFile) {
             window.AutoSave && window.AutoSave.onFileChanged();
             window.updateFileSize && window.updateFileSize();
         }
-        const state = window.AppState;
-        state.lastSavedContent = state.editor.innerHTML;
-        state.lastSavedBegrippen = JSON.stringify(state.begrippen);
-        state.lastSavedProtection = window.DocumentProtection?.isProtected?.() || false;
-        localStorage.setItem('summie_saved_content', state.editor.innerHTML);
+        window.setSavedBaseline && window.setSavedBaseline();
         setTimeout(() => window.UndoManager && window.UndoManager.resetBaseline(), 550);
     });
 }

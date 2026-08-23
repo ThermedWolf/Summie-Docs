@@ -457,8 +457,10 @@ function markDrillAnswer(isCorrect) {
     const begrip = drillQueue[currentIndex];
 
     if (!isCorrect) {
-        // Add to wrong answers if not already there
-        if (!drillWrongAnswers.find(b => b.id === begrip.id)) {
+        // Add to wrong answers if not already queued. Dedupe by object
+        // reference — imported decks may have no `id` at all, and comparing
+        // undefined === undefined collapsed the retry queue to one card.
+        if (!drillWrongAnswers.includes(begrip)) {
             drillWrongAnswers.push(begrip);
         }
     }
@@ -588,11 +590,14 @@ function showNotification(title, message, type = 'info') {
         info: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>'
     };
 
+    // Escape interpolated text — this CSP-less window parses untrusted deck
+    // files, so title/message must never land in innerHTML raw.
+    const esc = window.escapeHtml || (s => String(s));
     notification.innerHTML = `
-        <div class="notification-icon">${icons[type]}</div>
+        <div class="notification-icon">${icons[type] || icons.info}</div>
         <div class="notification-content">
-            <div class="notification-title">${title}</div>
-            ${message ? `<div class="notification-message">${message}</div>` : ''}
+            <div class="notification-title">${esc(title)}</div>
+            ${message ? `<div class="notification-message">${esc(message)}</div>` : ''}
         </div>
         <button class="notification-close">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

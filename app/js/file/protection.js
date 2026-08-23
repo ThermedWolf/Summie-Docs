@@ -101,17 +101,23 @@
         return value || null;
     }
 
-    async function prepareForSave(data) {
+    async function prepareForSave(data, opts = {}) {
         if (!currentProtected) return data;
         if (!currentPassword) {
-            if (pendingProtection) return data;
-            currentPassword = await requestPassword(
+            // Undo can restore a "protected" flag without a known password.
+            // Never fall back to writing plaintext silently: a manual save
+            // asks for the password, an auto-save aborts quietly (no password
+            // dialog popping up in the background every few seconds).
+            if (opts.silent) return null;
+            const password = await requestPassword(
                 SummieI18n.t('Document beveiligen'),
                 SummieI18n.t('Kies een wachtwoord voor dit document.'),
                 { confirm: true, confirmText: SummieI18n.t('Beveiligen') }
             );
+            if (!password) return null;
+            currentPassword = password;
         }
-        if (!currentPassword) return null;
+        pendingProtection = false;
         return encryptData(data, currentPassword);
     }
 

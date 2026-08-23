@@ -15,6 +15,10 @@
 
         // ── General / shared ────────────────────────────────────────────────
         'Annuleren': 'Cancel',
+        'Overschrijven': 'Overwrite',
+        'Er bestaat al een bestand met deze naam. Overschrijven?': 'A file with this name already exists. Overwrite it?',
+        'Code bestanden': 'Code files',
+        'Dit bestand kan niet als code worden geladen.': 'This file cannot be loaded as code.',
         'Opslaan': 'Save',
         'Opslaan als...': 'Save as...',
         'Verwijderen': 'Delete',

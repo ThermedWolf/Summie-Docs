@@ -482,8 +482,14 @@
         if (!pagesArray || !Array.isArray(pagesArray) || pagesArray.length === 0) return;
         paginationEnabled = true;
         getContainer().classList.add('pages-multi');
+        // Pages come verbatim from the .sumd file — untrusted input. Every page
+        // must pass through the same DOMPurify pipeline as single-page content,
+        // otherwise a paginated file would bypass sanitisation entirely.
+        const sanitize = typeof window.sanitizeSumdContent === 'function'
+            ? window.sanitizeSumdContent
+            : (html => html);
         const first = clearPagesKeepFirst();
-        first.innerHTML = pagesArray[0];
+        first.innerHTML = sanitize(String(pagesArray[0] ?? ''));
         for (let i = 1; i < pagesArray.length; i++) {
             const br = document.createElement('div');
             br.className = PAGE_BREAK_CLASS;
@@ -491,7 +497,7 @@
             br.style.display = 'none';
             first.appendChild(br);
             const tmp = document.createElement('div');
-            tmp.innerHTML = pagesArray[i];
+            tmp.innerHTML = sanitize(String(pagesArray[i] ?? ''));
             Array.from(tmp.childNodes).forEach(node => first.appendChild(node));
         }
         reflowNow(false);

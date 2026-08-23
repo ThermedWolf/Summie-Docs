@@ -170,14 +170,30 @@ function setupPlaceholderBehavior() {
     placeholderObserver.observe(editor, { childList: true, subtree: true, characterData: true });
 }
 
+// Strip legacy inline margin-bottom from plain paragraphs (pre-v4.1.0 documents
+// had margin-bottom: 12px baked in; now handled by CSS on .a4-page p).
+function stripLegacyParagraphMargins(rootEl) {
+    rootEl.querySelectorAll('p, div').forEach(el => {
+        const style = el.getAttribute('data-style');
+        const isNormal = !style || style === 'normal';
+        const hasNoClass = !el.className || el.className.trim() === '' ||
+            !([...el.classList].some(c => c.startsWith('style-')));
+        if (isNormal && hasNoClass) {
+            el.style.marginBottom = '';
+            el.style.marginTop = '';
+            if (el.getAttribute('style') === '') el.removeAttribute('style');
+        }
+    });
+}
+
 function applyLoadedData(data) {
     const state = window.AppState;
 
     // Derive pagination mode from the file itself — never rely on localStorage for this.
     // Old docs (v3.2.3 and earlier) have no 'pages' field → always single page mode.
-    const hasPageData = data.pages && data.pages.length > 0;
+    const hasPageData = Array.isArray(data.pages) && data.pages.length > 0;
+    const hasMultiplePages = hasPageData && data.pages.length > 1;
     if (window.PageManager) {
-        const hasMultiplePages = data.pages && data.pages.length > 1;
         if (hasMultiplePages) {
             // File was saved with pagination on
             localStorage.setItem('summie_pagination_mode', '1');
@@ -185,18 +201,25 @@ function applyLoadedData(data) {
             window.PageManager.loadPagesData(data.pages);
             state.editor = document.getElementById('editor');
         } else {
-            // Single-page file (old or new) — force pagination off
+            // Single-page file (old or new, including a paginated file that
+            // contains exactly one page) — force pagination off
             localStorage.setItem('summie_pagination_mode', '0');
             if (window.PageManager.isPaginationEnabled()) window.PageManager.disablePagination();
         }
     }
 
-    if (!hasPageData) {
-        state.editor.innerHTML = window.sanitizeSumdContent(data.content || '');
+    let loadedHtml = '';
+    if (!hasMultiplePages) {
+        // For a one-page paginated file, pages[0] is the authoritative copy of
+        // the content — loading nothing here used to drop the whole document.
+        const rawHtml = hasPageData ? data.pages[0] : (data.content || '');
+        loadedHtml = String(rawHtml || '');
+        state.editor.innerHTML = window.sanitizeSumdContent(loadedHtml);
+        stripLegacyParagraphMargins(state.editor);
     }
     setPendingEmptyEditorStyle('normal');
     state.editor.querySelectorAll('.placeholder-text').forEach(el => el.remove());
-    if (!hasPageData && (!data.content || data.content.trim() === '' || data.content === '<p>Begin hier met typen...</p>')) {
+    if (!hasMultiplePages && (!loadedHtml.trim() || loadedHtml === '<p>Begin hier met typen...</p>')) {
         setEditorPlaceholder();
     } else {
         updateEditorPlaceholder();
@@ -267,14 +290,24 @@ function applyLoadedData(data) {
 
     // Wait for images/codeblocks to finish restoring, then lock in the saved baseline
     setTimeout(() => {
-        localStorage.setItem('summie_saved_content', state.editor.innerHTML);
-        state.lastSavedContent = state.editor.innerHTML;
+        if (typeof window.setSavedBaseline === 'function') {
+            window.setSavedBaseline();
+        } else {
+            // Fingerprint helpers not loaded yet — keep legacy baseline keys
+            state.lastSavedContent = state.editor.innerHTML;
+            try { localStorage.setItem('summie_saved_content', state.editor.innerHTML); } catch (e) { /* ignore */ }
+        }
         window.updateUnsavedIndicator && window.updateUnsavedIndicator();
     }, 400);
 }
 
 // Unsaved changes detection (used by preload/electron close handler)
 window.checkUnsavedChanges = function () {
+    // The canonical detector is the document fingerprint in fileio.js; fall
+    // back to the legacy innerHTML comparison only while modules are loading.
+    if (typeof window.hasUnsavedChanges === 'function') {
+        return { hasChanges: window.hasUnsavedChanges() };
+    }
     const { editor, begrippen, lastSavedContent, lastSavedBegrippen } = window.AppState;
     const hasChanges = (
         editor.innerHTML !== (lastSavedContent || '') ||

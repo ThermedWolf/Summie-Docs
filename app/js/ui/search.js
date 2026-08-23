@@ -147,9 +147,11 @@ function displaySearchResults(begrippen, query) {
     begrippen.forEach(begrip => {
         const item = document.createElement('div');
         item.className = 'search-result-item';
+        // Keyword/description come from the opened .sumd file (untrusted) —
+        // never interpolate them into HTML unescaped.
         item.innerHTML = `
-            <div class="autocomplete-keyword">${begrip.keyword}</div>
-            <div class="autocomplete-description">${begrip.description}</div>
+            <div class="autocomplete-keyword">${window.escapeHtml ? window.escapeHtml(begrip.keyword) : ''}</div>
+            <div class="autocomplete-description">${window.escapeHtml ? window.escapeHtml(begrip.description) : ''}</div>
         `;
         item.addEventListener('click', () => window.highlightBegripInList && window.highlightBegripInList(begrip));
         searchResults.appendChild(item);
