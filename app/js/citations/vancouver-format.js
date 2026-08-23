@@ -92,12 +92,13 @@
 
     // Main entry: renders one reference-list entry as safe HTML.
     // The `index` parameter is the citation number (1-based) in the reference list.
+    // Scholarly sources (journal article, book, chapter, ...) never carry a
+    // DOI/URL — no "Available from:" for them. Per NLM, that phrase is only
+    // used for webpages / online-only sources without a DOI.
     function formatVancouver(c, index) {
         var authorStr = joinAuthors(c.authors);
         var year = clean(c.year) || '';
         var title = clean(c.title);
-        var doiUrl = clean(c.doi) ? 'https://doi.org/' + clean(c.doi) : '';
-        var link = doiUrl || clean(c.url);
 
         var out = '';
 
@@ -116,7 +117,6 @@
             if (issue) out += '(' + e(issue) + ')';
             var pages = clean(c.pages);
             if (pages) out += ':' + e(pages);
-            if (link) out += ' Available from: ' + e(link);
             return out;
         }
 
@@ -129,7 +129,6 @@
             var pub = clean(c.publisher);
             if (pub) out += e(pub) + '; ';
             if (year) out += e(year) + '.';
-            if (link) out += ' Available from: ' + e(link);
             return out;
         }
 
@@ -145,12 +144,11 @@
             if (year) out += e(year) + '.';
             var pages = clean(c.pages);
             if (pages) out += ' p. ' + e(pages) + '.';
-            if (link) out += ' Available from: ' + e(link);
             return out;
         }
 
-        // 4. Webpage / online source
-        if (c.sourceType === 'url' && !doiUrl) {
+        // 4. Webpage / online source — the only source type with "Available from:"
+        if (c.sourceType === 'url' && !clean(c.doi)) {
             if (authorStr) out += e(authorStr) + '. ';
             if (title) out += e(title) + ' [Internet]. ';
             var site = clean(c.website) || clean(c.publisher) || hostname(c.url);
@@ -162,7 +160,8 @@
             var citedParts = citedDate.split('-');
             var citedFormatted = citedParts[0] + ' ' + MONTHS[parseInt(citedParts[1], 10)] + ' ' + citedParts[2];
             out += '[cited ' + e(citedFormatted) + ']';
-            out += '. Available from: ' + e(link);
+            var webLink = clean(c.url);
+            if (webLink) out += '. Available from: ' + e(webLink);
             return out;
         }
 
@@ -172,7 +171,6 @@
         var org = clean(c.publisher) || clean(c.website);
         if (org) out += e(org) + '. ';
         if (year) out += e(year) + '.';
-        if (link) out += ' Available from: ' + e(link);
         return out;
     }
 

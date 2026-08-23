@@ -89,12 +89,13 @@
     }
 
     // Main entry: renders one reference-list entry as safe HTML.
+    // Scholarly sources (journal article, book, chapter, ...) never carry a
+    // DOI/URL in the reference — APA 7 ends database records after the page
+    // range. Only plain webpages (sourceType 'url') show a retrieval line.
     function formatAPA(c) {
         var authorStr = joinAuthors(c.authors);
         var year = clean(c.year) || 'n.d.';
         var title = sentenceCase(c.title);
-        var doiUrl = clean(c.doi) ? 'https://doi.org/' + clean(c.doi) : '';
-        var link = doiUrl || clean(c.url);
 
         // 1. Chapter (book chapter) — check before journal because a chapter's
         //    container-title lives in `journal` and must not trigger the journal rule.
@@ -107,7 +108,6 @@
             if (clean(c.pages)) outC += ' (pp. ' + e(enDash(c.pages)) + ')';
             outC += '.';
             if (clean(c.publisher)) outC += ' ' + e(clean(c.publisher)) + '.';
-            if (link) outC += ' ' + e(link);
             return outC;
         }
 
@@ -125,7 +125,6 @@
             if (pages && !isArticleNumberCompound(c)) outJ += ', ' + e(enDash(pages));
             else if (clean(c.articleNumber) && clean(c.articleNumber) !== pages) outJ += ', ' + e(clean(c.articleNumber));
             outJ += '.';
-            if (link) outJ += ' ' + e(link);
             return outJ;
         }
 
@@ -136,22 +135,22 @@
             if (authorStr && title) outB += ' <i>' + e(title) + '</i>' + '.';
             var pub = clean(c.publisher);
             if (pub) outB += ' ' + e(pub) + '.';
-            if (link) outB += ' ' + e(link);
             return outB;
         }
 
-        // 4. Webpage
-        if (c.sourceType === 'url' && !doiUrl) {
+        // 4. Webpage — the only source type that carries a link
+        if (c.sourceType === 'url' && !clean(c.doi)) {
             var site = clean(c.website) || clean(c.publisher) || hostname(c.url);
             var hasFullDate = c.publishedDate && (c.publishedDate.month || c.publishedDate.day);
             var datePart = hasFullDate ? '(' + e(fullDate(c.publishedDate)) + ').' : '(' + e(year) + ').';
             var outW = authorStr ? e(authorStr) + ' ' + datePart : e(title) + '. ' + datePart;
             if (authorStr && title) outW += ' <i>' + e(title) + '</i>' + '.';
             outW += ' ' + e(site) + '.';
-            if (link) {
+            var webLink = clean(c.url);
+            if (webLink) {
                 outW += hasFullDate
-                    ? ' ' + e(link)
-                    : ' Geraadpleegd op ' + todayFullDate() + ', van ' + e(link);
+                    ? ' ' + e(webLink)
+                    : ' Geraadpleegd op ' + todayFullDate() + ', van ' + e(webLink);
             }
             return outW;
         }
@@ -162,7 +161,6 @@
         if (authorStr && title) outG += ' <i>' + e(title) + '</i>' + '.';
         var org = clean(c.publisher) || clean(c.website);
         if (org) outG += ' ' + e(org) + '.';
-        if (link) outG += ' ' + e(link);
         return outG;
     }
 
