@@ -132,6 +132,33 @@
                 background: #3b82f6;
                 border-color: #3b82f6;
             }
+            /* ==================== DONKERE MODUS ====================
+               Explicit palette (not CSS vars) because this dialog is injected
+               into pages with different variable names (editor vs landing).
+               Matches [data-theme='dark'] in styles.css / landing.css. */
+            [data-theme='dark'] .summie-dlg-box {
+                background: #12122a;
+                box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+            }
+            [data-theme='dark'] .summie-dlg-title {
+                color: #eee8ff;
+            }
+            [data-theme='dark'] .summie-dlg-body {
+                color: #c9c2e8;
+            }
+            [data-theme='dark'] .summie-dlg-btn {
+                background: #12122a;
+                border-color: rgba(147, 110, 255, 0.18);
+                color: #eee8ff;
+            }
+            [data-theme='dark'] .summie-dlg-btn:hover {
+                background: #08081a;
+            }
+            [data-theme='dark'] .summie-dlg-input {
+                border-color: rgba(147, 110, 255, 0.25);
+                color: #eee8ff;
+                background: #08081a;
+            }
             @keyframes summie-dlg-fade-in {
                 from { opacity: 0; }
                 to { opacity: 1; }

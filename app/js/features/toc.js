@@ -156,30 +156,30 @@ window.TocManager = (function () {
 
         function _klassiekPreview() {
             return previewItems.map(it => `
-                <div style="display:flex;align-items:baseline;gap:6px;padding:2px 0;font-size:11px;color:#475569;${it.cls === 'level-title' ? 'font-weight:600;' : ''}${it.cls === 'level-kop1' ? 'padding-left:12px;' : ''}${it.cls === 'level-kop2' ? 'padding-left:22px;font-size:10px;color:#94a3b8;' : ''}">
-                    <span style="color:#94a3b8;min-width:26px;font-size:10px;">${it.num}</span>
+                <div style="display:flex;align-items:baseline;gap:6px;padding:2px 0;font-size:11px;color:var(--text-primary,#475569);${it.cls === 'level-title' ? 'font-weight:600;' : ''}${it.cls === 'level-kop1' ? 'padding-left:12px;' : ''}${it.cls === 'level-kop2' ? 'padding-left:22px;font-size:10px;color:var(--text-secondary,#94a3b8);' : ''}">
+                    <span style="color:var(--text-secondary,#94a3b8);min-width:26px;font-size:10px;">${it.num}</span>
                     <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${it.text}</span>
-                    <span style="flex:1;border-bottom:1.5px dotted #e2e8f0;margin-bottom:2px;"></span>
-                    <span style="color:#94a3b8;font-size:10px;">—</span>
+                    <span style="flex:1;border-bottom:1.5px dotted var(--border-color,#e2e8f0);margin-bottom:2px;"></span>
+                    <span style="color:var(--text-secondary,#94a3b8);font-size:10px;">—</span>
                 </div>`).join('');
         }
 
         function _summiePreview() {
             return previewItems.map(it => `
-                <div style="display:flex;align-items:center;gap:6px;padding:3px 0;font-size:11px;color:#64748b;${it.cls === 'level-title' ? 'font-weight:600;color:#1e293b;' : ''}${it.cls === 'level-kop1' ? 'padding-left:10px;' : ''}${it.cls === 'level-kop2' ? 'padding-left:20px;font-size:10px;color:#94a3b8;' : ''}">
-                    <span style="flex-shrink:0;width:2px;height:12px;border-radius:1px;background:${it.cls === 'level-title' ? '#3b82f6' : it.cls === 'level-kop1' ? '#cbd5e1' : '#e2e8f0'};"></span>
+                <div style="display:flex;align-items:center;gap:6px;padding:3px 0;font-size:11px;color:var(--text-secondary,#64748b);${it.cls === 'level-title' ? "font-weight:600;color:var(--text-primary,#1e293b);" : ''}${it.cls === 'level-kop1' ? 'padding-left:10px;' : ''}${it.cls === 'level-kop2' ? 'padding-left:20px;font-size:10px;color:var(--text-secondary,#94a3b8);' : ''}">
+                    <span style="flex-shrink:0;width:2px;height:12px;border-radius:1px;background:${it.cls === 'level-title' ? '#3b82f6' : it.cls === 'level-kop1' ? 'var(--border-color,#cbd5e1)' : 'var(--border-color,#e2e8f0)'};"></span>
                     <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${it.text}</span>
-                    <span style="color:#94a3b8;font-size:10px;">—</span>
+                    <span style="color:var(--text-secondary,#94a3b8);font-size:10px;">—</span>
                 </div>`).join('');
         }
 
         function _wordPreview() {
             return previewItems.map(it => `
-                <div style="padding:2px 0;font-size:11px;color:#1e293b;${it.cls === 'level-title' ? 'font-weight:700;font-size:12px;' : ''}${it.cls === 'level-kop1' ? 'padding-left:14px;' : ''}${it.cls === 'level-kop2' ? 'padding-left:26px;font-size:10px;' : ''}">
+                <div style="padding:2px 0;font-size:11px;color:var(--text-primary,#1e293b);${it.cls === 'level-title' ? 'font-weight:700;font-size:12px;' : ''}${it.cls === 'level-kop1' ? 'padding-left:14px;' : ''}${it.cls === 'level-kop2' ? 'padding-left:26px;font-size:10px;' : ''}">
                     <span style="display:flex;gap:4px;align-items:baseline;">
                         <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${it.text}</span>
-                        <span style="flex:2;border-bottom:1px dotted #94a3b8;margin-bottom:2px;"></span>
-                        <span style="color:#64748b;font-size:10px;">—</span>
+                        <span style="flex:2;border-bottom:1px dotted var(--text-secondary,#94a3b8);margin-bottom:2px;"></span>
+                        <span style="color:var(--text-secondary,#64748b);font-size:10px;">—</span>
                     </span>
                 </div>`).join('');
         }
@@ -192,35 +192,35 @@ window.TocManager = (function () {
 
         const dialog = document.createElement('div');
         dialog.id = 'tocPickerDialog';
-        dialog.style.cssText = 'background:var(--surface,#fff);border:1px solid var(--border,#e2e8f0);border-radius:16px;width:680px;max-width:calc(100vw - 32px);box-shadow:0 8px 32px rgba(0,0,0,0.12);font-family:inherit;overflow:hidden;';
+        dialog.style.cssText = 'background:var(--bg-white,#fff);border:1px solid var(--border-color,#e2e8f0);border-radius:16px;width:680px;max-width:calc(100vw - 32px);box-shadow:var(--shadow-lg,0 8px 32px rgba(0,0,0,0.12));font-family:inherit;overflow:hidden;';
 
         dialog.innerHTML = `
             <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 24px 16px;">
                 <div>
-                    <div style="font-size:15px;font-weight:650;color:var(--text);letter-spacing:-0.2px;">Stijl kiezen</div>
+                    <div style="font-size:15px;font-weight:650;color:var(--text-primary,#1e293b);letter-spacing:-0.2px;">Stijl kiezen</div>
                     <div style="font-size:13px;color:var(--text-secondary);margin-top:2px;">Kies een opmaak voor de inhoudsopgave</div>
                 </div>
-                <button id="tocPickerClose" style="width:28px;height:28px;border-radius:7px;border:0.5px solid var(--border);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;color:var(--text-secondary);">
+                <button id="tocPickerClose" style="width:28px;height:28px;border-radius:7px;border:0.5px solid var(--border-color,#e2e8f0);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;color:var(--text-secondary);">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
             </div>
-            <div style="height:0.5px;background:var(--border-light,#f1f5f9);"></div>
+            <div style="height:0.5px;background:var(--border-color,#e2e8f0);"></div>
             <div style="display:flex;gap:12px;padding:20px 24px;">
                 ${cards.map(c => `
-                    <div class="toc-picker-card" data-toc-pick="${c.key}" style="flex:1;border:1.5px solid var(--border,#e2e8f0);border-radius:12px;overflow:hidden;background:var(--bg-light,#f8fafc);">
-                        <div style="padding:12px 14px;min-height:120px;background:#fff;border-bottom:1px solid var(--border-light,#f1f5f9);">
+                    <div class="toc-picker-card" data-toc-pick="${c.key}" style="flex:1;border:1.5px solid var(--border-color,#e2e8f0);border-radius:12px;overflow:hidden;background:var(--bg-light,#f8fafc);">
+                        <div style="padding:12px 14px;min-height:120px;background:var(--bg-white,#fff);border-bottom:1px solid var(--border-color,#e2e8f0);">
                             ${c.preview}
                         </div>
                         <div style="padding:10px 14px;">
-                            <div style="font-size:13px;font-weight:600;color:var(--text);">${c.label}</div>
+                            <div style="font-size:13px;font-weight:600;color:var(--text-primary,#1e293b);">${c.label}</div>
                             <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${c.desc}</div>
                         </div>
                     </div>`).join('')}
             </div>
-            <div style="height:0.5px;background:var(--border-light,#f1f5f9);"></div>
+            <div style="height:0.5px;background:var(--border-color,#e2e8f0);"></div>
             <div style="display:flex;justify-content:flex-end;gap:8px;padding:14px 24px;">
-                <button id="tocPickerCancel" style="height:34px;padding:0 16px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-secondary);font-size:13px;cursor:pointer;">Annuleren</button>
-                <button id="tocPickerConfirm" style="height:34px;padding:0 18px;border-radius:8px;border:none;background:var(--primary,#3b82f6);color:#fff;font-size:13px;font-weight:600;cursor:pointer;opacity:0.5;pointer-events:none;">${preSelected ? SummieI18n.t('Toepassen') : SummieI18n.t('Invoegen')}</button>
+                <button id="tocPickerCancel" style="height:34px;padding:0 16px;border-radius:8px;border:1px solid var(--border-color,#e2e8f0);background:transparent;color:var(--text-secondary);font-size:13px;cursor:pointer;">Annuleren</button>
+                <button id="tocPickerConfirm" style="height:34px;padding:0 18px;border-radius:8px;border:none;background:var(--primary-color,#3b82f6);color:#fff;font-size:13px;font-weight:600;cursor:pointer;opacity:0.5;pointer-events:none;">${preSelected ? SummieI18n.t('Toepassen') : SummieI18n.t('Invoegen')}</button>
             </div>
         `;
 
