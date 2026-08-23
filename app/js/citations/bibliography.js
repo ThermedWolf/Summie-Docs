@@ -281,7 +281,9 @@
                 else if (opts.inline) this.insertInTextAtCursor(existing);
                 window.showNotification && window.showNotification(
                     SummieI18n.t('Bron bestaat al'),
-                    SummieI18n.t('Deze bron staat al in de lijst; het bestaande nummer wordt opnieuw gebruikt.'),
+                    SummieI18n.t(opts.inline
+                        ? 'Deze bron staat al in de lijst; het bestaande nummer is op de cursor geplaatst.'
+                        : 'Deze bron staat al in de lijst; het bestaande nummer wordt opnieuw gebruikt.'),
                     'info'
                 );
                 return existing;
@@ -297,7 +299,11 @@
 
             window.showNotification && window.showNotification(
                 SummieI18n.t('Bron toegevoegd'),
-                opts.insert ? SummieI18n.t('De verwijzing is aan het document toegevoegd.') : SummieI18n.t('De bron is aan de lijst toegevoegd.'),
+                opts.insert
+                    ? SummieI18n.t('De verwijzing is aan het document toegevoegd.')
+                    : SummieI18n.t(opts.inline
+                        ? 'De bron is toegevoegd; de verwijzing is op de cursor geplaatst.'
+                        : 'De bron is aan de lijst toegevoegd.'),
                 'success'
             );
         },
@@ -722,8 +728,11 @@ var searchPerformed = false; // whether a search has been done in the current mo
             }
             if (!pendingCitation) return;
             var c = collectEditedCitation();
-            // Add to sidebar only (not insert full reference in document)
-            window.Bibliography.addCitation(c);
+            // Add to the list AND place the in-text citation at the cursor.
+            // A source that already exists keeps its original number and that
+            // number is re-inserted at the cursor instead of a duplicate
+            // being created (see addCitation → findDuplicate).
+            window.Bibliography.addCitation(c, { inline: true });
             closeCitationModal();
         });
     }
