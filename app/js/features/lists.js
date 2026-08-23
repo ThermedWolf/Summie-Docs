@@ -1,5 +1,8 @@
 // ==================== LIST HANDLING ====================
-// Bullet list improvements + numeric list support
+// Bullet list improvements + numeric list support.
+// Typing "- ", "* ", "-> ", "=> " or "→ " at the start of an empty line
+// auto-converts it to a bullet list (single space triggers). Numbered
+// markers ("1. ") are never auto-converted.
 
 window.ListManager = (function () {
     'use strict';
@@ -121,15 +124,28 @@ window.ListManager = (function () {
         window.updateUnsavedIndicator && window.updateUnsavedIndicator();
     }
 
-    // Auto-detect "- " to create bullet list
+    // Markers that convert to a bullet list when followed by a space.
+    // Numbered markers ("1. ", "2. ") are intentionally NOT included:
+    // typing a number must never auto-create a list (ordered lists are
+    // only created via the numericListBtn toolbar button).
+    const BULLET_MARKERS = ['-', '*', '->', '=>', '→'];
+
+    function isBulletMarker(text) {
+        return BULLET_MARKERS.indexOf(text) !== -1;
+    }
+
+    // Auto-detect a bullet marker ("- ", "-> ", etc.) to create a bullet list.
+    // Runs on space keydown: the space itself is not in the DOM yet, so the
+    // text before the cursor must already be exactly the marker.
     function handleAutoBulletList(e) {
         if (!_autoDetectBulletLists) return;
 
         const editor = document.getElementById('editor');
         if (!editor) return;
 
-        // Only trigger on space key after dash
+        // Only trigger on space key; ignore IME composition keystrokes
         if (e.key !== ' ' && e.key !== 'Space') return;
+        if (e.isComposing || e.key === 'Process') return;
 
         const selection = window.getSelection();
         if (!selection.rangeCount) return;
@@ -140,15 +156,20 @@ window.ListManager = (function () {
         const startContainer = range.startContainer;
         const startOffset = range.startOffset;
 
-        // Must be in a text node at the beginning of a paragraph
+        // Must be a plain text node
         if (startContainer.nodeType !== 3) return;
-        if (startOffset < 2) return; // Need at least "- " (2 chars)
 
-        const text = startContainer.textContent;
-        // Check if text starts with "- " (dash + space)
-        if (!text.startsWith('- ')) return;
+        // Skip nested editable regions (textboxes, code blocks, etc.)
+        const nestedEditable = startContainer.parentElement &&
+            startContainer.parentElement.closest('[contenteditable="true"]');
+        if (nestedEditable && nestedEditable !== editor) return;
 
-        // Must be at the start of a block element (p, div, etc.)
+        // Everything before the cursor must be exactly one bullet marker
+        // (cursor right after "-", "->", "*", "=>" or "→")
+        const textBeforeCursor = startContainer.textContent.slice(0, startOffset);
+        if (!isBulletMarker(textBeforeCursor)) return;
+
+        // Must be inside a block element (p, div, etc.)
         let block = startContainer.parentElement;
         const blockTags = ['P', 'DIV', 'LI', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'BLOCKQUOTE'];
         while (block && block !== editor && !blockTags.includes(block.tagName)) {
@@ -159,16 +180,13 @@ window.ListManager = (function () {
         // Don't trigger if already in a list
         if (block.closest('ul, ol')) return;
 
-        // Check if this is the only content in the block
-        const blockText = (block.textContent || '').trim();
-        if (blockText !== '- ') return; // More content than just "- "
+        // Only convert while the line contains nothing but the marker so far
+        if ((block.textContent || '').trim() !== textBeforeCursor) return;
 
         e.preventDefault();
 
-        // Replace the "- " with a bullet list
-        // Remove the "- " text
+        // Remove the marker characters and turn the block into a bullet list
         startContainer.textContent = '';
-        // Create unordered list
         document.execCommand('insertUnorderedList', false, null);
 
         window.updateUnsavedIndicator && window.updateUnsavedIndicator();
