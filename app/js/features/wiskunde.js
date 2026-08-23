@@ -160,7 +160,16 @@
         tellerInput.addEventListener('input', updatePreview);
         noemerInput.addEventListener('input', updatePreview);
 
-        const close = () => overlay.remove();
+        // Escape closes the modal too (listener removed on close to avoid leaks)
+        const onModalKeydown = (e) => {
+            if (e.key === 'Escape') { e.stopPropagation(); close(); }
+        };
+        document.addEventListener('keydown', onModalKeydown);
+
+        const close = () => {
+            document.removeEventListener('keydown', onModalKeydown);
+            overlay.remove();
+        };
 
         overlay.querySelector('.wiskunde-modal-close').addEventListener('click', close);
         overlay.querySelector('#wmBreukCancel').addEventListener('click', close);
@@ -655,7 +664,17 @@
         setTimeout(updatePreview, 80);
 
         // ── Close / cancel ──
-        const close = () => { if (previewChart) previewChart.destroy(); overlay.remove(); };
+        // Escape closes the modal too (listener removed on close to avoid leaks)
+        const onModalKeydown = (e) => {
+            if (e.key === 'Escape') { e.stopPropagation(); close(); }
+        };
+        document.addEventListener('keydown', onModalKeydown);
+
+        const close = () => {
+            document.removeEventListener('keydown', onModalKeydown);
+            if (previewChart) previewChart.destroy();
+            overlay.remove();
+        };
         overlay.querySelector('.wiskunde-modal-close').addEventListener('click', close);
         overlay.querySelector('#wmGrafiekCancel').addEventListener('click', close);
         overlay.addEventListener('click', e => { if (e.target === overlay) close(); });

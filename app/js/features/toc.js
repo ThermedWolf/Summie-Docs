@@ -249,7 +249,16 @@ window.TocManager = (function () {
             });
         });
 
-        const close = () => overlay.remove();
+        // Escape closes the picker too (listener removed on close to avoid leaks)
+        const onPickerKeydown = (e) => {
+            if (e.key === 'Escape') { e.stopPropagation(); close(); }
+        };
+        document.addEventListener('keydown', onPickerKeydown);
+
+        const close = () => {
+            document.removeEventListener('keydown', onPickerKeydown);
+            overlay.remove();
+        };
 
         dialog.querySelector('#tocPickerClose').addEventListener('click', close);
         dialog.querySelector('#tocPickerCancel').addEventListener('click', close);

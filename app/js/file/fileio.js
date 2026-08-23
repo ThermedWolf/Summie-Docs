@@ -471,14 +471,22 @@ function newSummary() {
 
     const onCancel = () => cleanup();
 
+    // Backdrop click (next to the dialog) and Escape cancel too
+    const onBackdropClick = (e) => { if (e.target === modal) cleanup(); };
+    const onModalKeydown = (e) => { if (e.key === 'Escape') cleanup(); };
+
     const cleanup = () => {
         modal.classList.remove('active');
         document.getElementById('confirmNewBtn').removeEventListener('click', onConfirm);
         document.getElementById('cancelNewModal').removeEventListener('click', onCancel);
+        modal.removeEventListener('click', onBackdropClick);
+        document.removeEventListener('keydown', onModalKeydown);
     };
 
     document.getElementById('confirmNewBtn').addEventListener('click', onConfirm);
     document.getElementById('cancelNewModal').addEventListener('click', onCancel);
+    modal.addEventListener('click', onBackdropClick);
+    document.addEventListener('keydown', onModalKeydown);
 }
 
 // Expose

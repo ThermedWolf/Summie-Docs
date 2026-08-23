@@ -568,6 +568,12 @@ function openReferenceModal(existingRef, preselectedTarget) {
         document.getElementById('closeReferenceModal').addEventListener('click', () => closeReferenceModal());
         document.getElementById('cancelReferenceModal').addEventListener('click', () => closeReferenceModal());
 
+        // Clicking the backdrop next to the dialog or pressing Escape closes it too
+        modal.addEventListener('click', (e) => { if (e.target === modal) closeReferenceModal(); });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && modal.classList.contains('active')) closeReferenceModal();
+        });
+
         document.getElementById('refSelectTargetBtn').addEventListener('click', () => {
             const name = document.getElementById('referenceNameInput').value.trim();
             if (!name) {

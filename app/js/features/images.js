@@ -71,6 +71,18 @@ class ImageManager {
             });
         }
 
+        // Clicking the backdrop next to the dialog or pressing Escape closes it too
+        if (imageUrlModal) {
+            imageUrlModal.addEventListener('click', (e) => {
+                if (e.target === imageUrlModal) imageUrlModal.classList.remove('active');
+            });
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && imageUrlModal.classList.contains('active')) {
+                    imageUrlModal.classList.remove('active');
+                }
+            });
+        }
+
         if (insertUrlButton) {
             insertUrlButton.addEventListener('click', () => {
                 const url = imageUrlInput.value.trim();

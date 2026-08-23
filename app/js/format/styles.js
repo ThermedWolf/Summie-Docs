@@ -460,10 +460,13 @@ function initStyleModal() {
         renderPreviewButtons(_getActiveStyleKey());
     });
 
-    // Cancel / backdrop close
+    // Cancel / backdrop / Escape close
     modal.querySelector('#semCancelBtn').addEventListener('click', () => modal.classList.remove('active'));
     modal.querySelector('#semCancelBtn2').addEventListener('click', () => modal.classList.remove('active'));
     modal.addEventListener('click', e => { if (e.target === modal) modal.classList.remove('active'); });
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape' && modal.classList.contains('active')) modal.classList.remove('active');
+    });
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────

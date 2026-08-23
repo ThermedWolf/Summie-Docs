@@ -368,6 +368,18 @@ function setupEventListeners() {
     document.getElementById('cancelModal').addEventListener('click', () => window.closeBegripModal && window.closeBegripModal());
     document.getElementById('saveBegrip').addEventListener('click', () => window.saveBegrip && window.saveBegrip());
 
+    // Begrip modal: clicking the backdrop next to the dialog or pressing
+    // Escape closes it too (same as the X / Annuleren buttons)
+    const begripModalEl = document.getElementById('begripModal');
+    begripModalEl.addEventListener('click', (e) => {
+        if (e.target === begripModalEl) window.closeBegripModal && window.closeBegripModal();
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && begripModalEl.classList.contains('active')) {
+            window.closeBegripModal && window.closeBegripModal();
+        }
+    });
+
     // Search
     searchBegrippen.addEventListener('input', window.handleSearch);
     searchBegrippen.addEventListener('keydown', window.handleSearchKeydown);

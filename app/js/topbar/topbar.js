@@ -685,6 +685,25 @@ class TopbarManager {
     // ==================== FILE SIDEBAR ====================
 
     initFileSidebar() {
+        // Close the Bestand sidebar when clicking anywhere outside it.
+        // Clicks on the topbar are ignored so the section tabs keep working,
+        // and clicks on the "Opslaan als..." menu are ignored because that
+        // dropdown is reparented to <body> and lives visually inside the menu.
+        document.addEventListener('click', (e) => {
+            if (this.currentSection !== 'bestand') return;
+            if (e.target.closest('#fileSidebar')) return;
+            if (e.target.closest('.topbar')) return;
+            if (e.target.closest('#saveDropdownMenu')) return;
+            this.closeFileSidebar();
+        });
+
+        // Escape also closes it, unless a modal is active (that handles Esc first)
+        document.addEventListener('keydown', (e) => {
+            if (e.key !== 'Escape' || this.currentSection !== 'bestand') return;
+            if (document.querySelector('.modal.active')) return;
+            this.closeFileSidebar();
+        });
+
         // Dropdown toggle for save menu
         const saveDropdownBtn = document.getElementById('saveDropdownBtn');
         const saveDropdownMenu = document.getElementById('saveDropdownMenu');
