@@ -930,6 +930,8 @@
         'Bron toegevoegd': 'Source added',
         'De verwijzing is aan het document toegevoegd.': 'The reference has been added to the document.',
         'De bron is aan de lijst toegevoegd.': 'The source has been added to the list.',
+        'Bron bestaat al': 'Source already exists',
+        'Deze bron staat al in de lijst; het bestaande nummer wordt opnieuw gebruikt.': 'This source is already in the list; its existing number will be reused.',
         'Voer een DOI, titel of URL in en Summie zoekt de brongegevens automatisch op (APA 7).': 'Enter a DOI, title or URL and Summie will look up the source data automatically (APA 7).',
         'Zoeken': 'Search',
         'Zoeken...': 'Searching...',

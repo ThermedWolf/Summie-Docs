@@ -28,6 +28,23 @@
         return String(str === null || str === undefined ? '' : str).trim();
     }
 
+    // ── Duplicate detection helpers ──────────────────────────────────────
+    // A re-used source must keep its original Vancouver number, so adding a
+    // citation that matches an earlier entry resolves to that entry instead
+    // of appending a second one (which would get its own number).
+
+    function normalizeDoi(doi) {
+        return clean(doi).toLowerCase()
+            .replace(/^https?:\/\/(dx\.)?doi\.org\//i, '')
+            .replace(/^doi:\s*/i, '');
+    }
+
+    function normalizeUrl(url) {
+        return clean(url).toLowerCase()
+            .replace(/^https?:\/\//i, '')
+            .replace(/\/+$/, '');
+    }
+
     // Current citation style: 'apa' or 'vancouver'
     var _citationStyle = 'apa';
 
@@ -216,8 +233,59 @@
             });
         },
 
+        // Find an existing citation that is the same source as `c`:
+        // 1. same DOI (normalised), else
+        // 2. same URL (also compared against the raw lookup source for
+        //    url-type entries), else
+        // 3. same title + year — only for entries without DOI/URL (manual).
+        // Returns the earlier citation or null.
+        findDuplicate: function (c) {
+            if (!c) return null;
+            var doi = normalizeDoi(c.doi);
+            var urls = [];
+            var u = normalizeUrl(c.url);
+            if (u) urls.push(u);
+            if (c.sourceType === 'url') {
+                u = normalizeUrl(c.source);
+                if (u && urls.indexOf(u) === -1) urls.push(u);
+            }
+            var title = clean(c.title).toLowerCase();
+            var year = clean(c.year);
+
+            for (var i = 0; i < this.citations.length; i++) {
+                var x = this.citations[i];
+                if (doi && normalizeDoi(x.doi) === doi) return x;
+                if (urls.length) {
+                    var xUrls = [normalizeUrl(x.url)];
+                    if (x.sourceType === 'url') xUrls.push(normalizeUrl(x.source));
+                    for (var j = 0; j < urls.length; j++) {
+                        if (xUrls.indexOf(urls[j]) !== -1) return x;
+                    }
+                }
+                if (!doi && !urls.length && title &&
+                    clean(x.title).toLowerCase() === title &&
+                    clean(x.year) === year) {
+                    return x;
+                }
+            }
+            return null;
+        },
+
         addCitation: function (c, opts) {
             opts = opts || {};
+            // Re-adding a source that already exists keeps its original
+            // number: resolve to the earlier entry instead of appending.
+            var existing = this.findDuplicate(c);
+            if (existing) {
+                if (opts.insert) this.insertReferenceAtCursor(existing);
+                else if (opts.inline) this.insertInTextAtCursor(existing);
+                window.showNotification && window.showNotification(
+                    SummieI18n.t('Bron bestaat al'),
+                    SummieI18n.t('Deze bron staat al in de lijst; het bestaande nummer wordt opnieuw gebruikt.'),
+                    'info'
+                );
+                return existing;
+            }
             if (!c.id) c.id = this.genId();
             this.citations.push(c);
             this._afterChange();
