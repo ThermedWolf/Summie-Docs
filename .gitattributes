@@ -1,0 +1,18 @@
+# Normalize line endings across systems: every text file is stored as LF
+# and checked out as LF, regardless of OS or core.autocrlf settings.
+* text=auto eol=lf
+
+# Explicit source/config types (robustness against misdetection)
+*.js    text eol=lf
+*.css   text eol=lf
+*.html  text eol=lf
+*.md    text eol=lf
+*.json  text eol=lf
+*.yml   text eol=lf
+*.svg   text eol=lf
+*.plist text eol=lf
+*.nsh   text eol=lf
+
+# Binaries — never convert, merge, or diff these
+*.png binary
+*.ico binary
