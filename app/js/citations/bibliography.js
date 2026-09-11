@@ -569,7 +569,8 @@
         },
 
         // Keep both selects (sidebar + modal) in sync and only show the
-        // notation selector when Vancouver is the active style.
+        // notation selector when Vancouver is active. APA always uses
+        // ronde haakjes (Auteur, Jaar) and therefore never shows a choice.
         _syncInTextStyleSelectors: function () {
             var show = _citationStyle === 'vancouver';
             ['vancouverInTextStyleSelectSidebar', 'vancouverInTextStyleSelect'].forEach(function (id) {
@@ -647,7 +648,7 @@ var searchPerformed = false; // whether a search has been done in the current mo
                     '<option value="vancouver">' + e(SummieI18n.t('Vancouver (Genummerd)')) + '</option>' +
                 '</select>' +
             '</div>' +
-            '<div class="citation-style-selector citation-style-toolbar-row" style="margin:-4px 0 12px;">' +
+            '<div class="citation-style-selector citation-style-toolbar-row" style="margin:-4px 0 12px;display:none;">' +
                 '<label style="font-size:12px;color:var(--text-secondary);margin-right:8px;">' + e(SummieI18n.t('In-tekstnotatie:')) + '</label>' +
                 '<select id="vancouverInTextStyleSelect" class="citation-style-select" style="padding:4px 8px;border-radius:4px;border:1px solid var(--border-color);background:var(--bg-secondary);color:var(--text-primary);font-size:13px;">' +
                     '<option value="brackets">' + e(SummieI18n.t('Vierkante haakjes [1]')) + '</option>' +
