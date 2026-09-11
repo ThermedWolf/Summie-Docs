@@ -352,29 +352,54 @@ class ImageManager {
         const selectionInEditor = !!(selectionNode && editor.contains(selectionNode));
         const selectionInImage = !!(selectionNode && selectionNode.closest && selectionNode.closest('.editable-image-wrapper'));
 
-        const br = document.createElement('br');
+        const spacer = document.createElement('p');
+        spacer.innerHTML = '<br>';
+        spacer.setAttribute('data-image-spacer', '1');
 
         if (selectionInEditor && !selectionInImage && range) {
             range.insertNode(wrapper);
             range.setStartAfter(wrapper);
             range.collapse(true);
-            range.insertNode(br);
-            range.setStartAfter(br);
-            range.collapse(true);
-            selection.removeAllRanges();
-            selection.addRange(range);
+            range.insertNode(spacer);
+            // Place caret inside the spacer paragraph so typing continues below
+            {
+                const r2 = document.createRange();
+                r2.setStart(spacer, 0);
+                r2.collapse(true);
+                selection.removeAllRanges();
+                selection.addRange(r2);
+            }
+            // Ensure invariant for any edge where spacer was not inserted as nextSibling (e.g. wrapped)
+            this._ensureCursorSpaceAfter(wrapper);
             return;
         }
 
         if (selectedWrapper && editor.contains(selectedWrapper)) {
-            selectedWrapper.after(wrapper, br);
-            this.setCursorAfterNode(br);
+            selectedWrapper.after(wrapper, spacer);
+            // Caret inside spacer
+            {
+                const sel = window.getSelection();
+                const r2 = document.createRange();
+                r2.setStart(spacer, 0);
+                r2.collapse(true);
+                sel.removeAllRanges();
+                sel.addRange(r2);
+            }
+            this._ensureCursorSpaceAfter(wrapper);
             return;
         }
 
         editor.appendChild(wrapper);
-        editor.appendChild(br);
-        this.setCursorAfterNode(br);
+        editor.appendChild(spacer);
+        {
+            const sel = window.getSelection();
+            const r2 = document.createRange();
+            r2.setStart(spacer, 0);
+            r2.collapse(true);
+            sel.removeAllRanges();
+            sel.addRange(r2);
+        }
+        this._ensureCursorSpaceAfter(wrapper);
     }
 
     setCursorAfterNode(node) {
@@ -385,6 +410,68 @@ class ImageManager {
         range.collapse(true);
         selection.removeAllRanges();
         selection.addRange(range);
+    }
+
+    // — In-flow images (inline / square / top-bottom) need a caret-reachable
+    //   block right after the wrapper (which is contentEditable="false" → atomic).
+    //   Mirrors TextboxManager._ensureCursorSpaceAfter.
+    _isInFlowLayout(wrapper) {
+        const layout = wrapper?.dataset.layout || wrapper?.dataset?.layout || 'inline';
+        return layout === 'inline' || layout === 'square' || layout === 'top-bottom';
+    }
+
+    _ensureCursorSpaceAfter(wrapper) {
+        if (!wrapper || !wrapper.parentNode) return;
+        if (!this._isInFlowLayout(wrapper)) return;
+        const next = wrapper.nextSibling;
+        // Bare <br> is NOT usable — replace with proper p spacer
+        const nextIsBareBr = next && next.nodeType === Node.ELEMENT_NODE && next.nodeName === 'BR';
+        const isUsable = next && !nextIsBareBr && (
+            next.nodeType === Node.TEXT_NODE ||
+            (next.nodeType === Node.ELEMENT_NODE && !next.hasAttribute('data-image-id') && !next.classList.contains('editable-image-wrapper'))
+        );
+        // If next is a usable paragraph/text node, keep it (but strip stale marker if user typed in it)
+        if (isUsable) {
+            if (next.nodeType === Node.ELEMENT_NODE && next.getAttribute('data-image-spacer') === '1' && next.textContent.trim() !== '') {
+                next.removeAttribute('data-image-spacer');
+            }
+            return;
+        }
+        // Remove stale bare <br> immediately before adding proper spacer
+        if (nextIsBareBr) next.remove();
+        const p = document.createElement('p');
+        p.innerHTML = '<br>';
+        p.setAttribute('data-image-spacer', '1');
+        wrapper.parentNode.insertBefore(p, wrapper.nextSibling);
+    }
+
+    _removeCursorSpaceAfter(wrapper) {
+        if (!wrapper || !wrapper.parentNode) return;
+        const next = wrapper.nextSibling;
+        if (next && next.nodeType === Node.ELEMENT_NODE && next.getAttribute('data-image-spacer') === '1') {
+            if (next.textContent.trim() === '' && !next.querySelector('[data-image-id], .editable-image-wrapper')) {
+                next.remove();
+            } else {
+                next.removeAttribute('data-image-spacer');
+            }
+        }
+    }
+
+    repairInlineImages(root) {
+        const editor = root || document.getElementById('editor');
+        if (!editor) return;
+        // Clean up stale bare <br> that old versions inserted after images (now replaced by p spacer)
+        editor.querySelectorAll('.editable-image-wrapper').forEach(wrapper => {
+            const nxt = wrapper.nextSibling;
+            if (nxt && nxt.nodeName === 'BR' && !nxt.hasAttribute('data-image-spacer')) {
+                // Only remove if there's no proper spacer already; will be re-added below
+                nxt.remove();
+            }
+        });
+        editor.querySelectorAll('.editable-image-wrapper').forEach(wrapper => {
+            if (this._isInFlowLayout(wrapper)) this._ensureCursorSpaceAfter(wrapper);
+            else this._removeCursorSpaceAfter(wrapper);
+        });
     }
 
     setupImageDrag(wrapper, imageId) {
@@ -672,11 +759,20 @@ class ImageManager {
     finishImageDrag() {
         if (this.dropPlaceholder && this.dropPlaceholder.parentNode) {
             this.dropPlaceholder.replaceWith(this.draggedWrapper);
+        } else if (this.draggedWrapper && !this.draggedWrapper.parentNode) {
+            const editor = document.getElementById('editor');
+            if (editor) editor.appendChild(this.draggedWrapper);
         }
 
         this.draggedWrapper.classList.remove('dragging');
         this.draggedWrapper.style.transform = '';
         document.body.classList.remove('image-drag-active');
+
+        // Ensure caret-reachable paragraph after in-flow images (drag may have made wrapper last child)
+        if (this.draggedWrapper) {
+            if (this._isInFlowLayout(this.draggedWrapper)) this._ensureCursorSpaceAfter(this.draggedWrapper);
+            else this._removeCursorSpaceAfter(this.draggedWrapper);
+        }
 
         this.selectImage(this.draggedWrapper.dataset.imageId);
         this.dropPlaceholder = null;
@@ -745,6 +841,13 @@ class ImageManager {
             wrapper.style.left = '';
             wrapper.style.top = '';
             wrapper.style.zIndex = '';
+        }
+
+        // In-flow layouts need a spacer paragraph; free-floating layouts do not
+        if (nextLayout === 'inline' || nextLayout === 'square' || nextLayout === 'top-bottom') {
+            this._ensureCursorSpaceAfter(wrapper);
+        } else {
+            this._removeCursorSpaceAfter(wrapper);
         }
 
         if (editor) editor.dispatchEvent(new Event('input', { bubbles: true }));
@@ -1179,6 +1282,9 @@ class ImageManager {
                 handles.forEach(handle => wrapper.appendChild(handle));
             }
         });
+
+        // After restoring all wrappers, ensure caret-reachable spacers for in-flow images
+        this.repairInlineImages(editor);
     }
 
     setImageLayoutForWrapper(wrapper, imageData) {

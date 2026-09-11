@@ -78,6 +78,7 @@ window.ElementProtection = (function () {
             if (n.nodeName === 'TABLE' && editor.contains(n)) return true;
             if (n.classList.contains('code-block-wrapper') && editor.contains(n)) return true;
             if (n.classList.contains('summie-shape-wrapper') && editor.contains(n)) return true;
+            if (n.classList.contains('editable-image-wrapper') && editor.contains(n)) return true;
             return false;
         }
 

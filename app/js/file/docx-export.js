@@ -243,6 +243,17 @@
             if (tag === 'ul' || tag === 'ol') { blocks.push({ type: 'list', el: node }); return; }
 
             if (isBlockTag(node)) {
+                // Skip our caret-reachable spacer paragraphs — they are editor-only helpers, not content
+                const isImageSpacer = node.getAttribute && node.getAttribute('data-image-spacer') === '1';
+                const isTextboxSpacer = node.getAttribute && node.getAttribute('data-textbox-spacer') === '1';
+                if ((isImageSpacer || isTextboxSpacer)) {
+                    const inlineNodes = Array.from(node.childNodes);
+                    const allEmpty = inlineNodes.every(n =>
+                        (n.nodeType === Node.TEXT_NODE && n.textContent.replace(/\u00a0/g, ' ').trim() === '') ||
+                        (n.nodeType === Node.ELEMENT_NODE && n.tagName === 'BR')
+                    );
+                    if (allEmpty) return;
+                }
                 // Does this block contain block-level children? The editor can
                 // produce invalid-but-browser-tolerated HTML where spans inside a
                 // paragraph contain more paragraphs, so look past direct children.

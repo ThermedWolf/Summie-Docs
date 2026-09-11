@@ -2240,6 +2240,12 @@ ol li {
     outline-offset: 2px;
 }
 
+/* Caret-reachable spacer after in-flow images — must exist so cursor can land "behind" an image */
+p[data-image-spacer] {
+    min-height: 1em;
+    margin-bottom: 8px;
+}
+
 .editable-image-wrapper.dragging {
     opacity: 0.72;
     z-index: 20;

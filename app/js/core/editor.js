@@ -279,6 +279,15 @@ function applyLoadedData(data) {
         console.error('highlightBegrippen failed, continuing with the rest of the load:', e);
     }
     window.TextboxManager && window.TextboxManager.repairInlineTextboxes && window.TextboxManager.repairInlineTextboxes(state.editor);
+    // Image inline wrappers also need a caret-reachable paragraph right after them. Old files
+    // may have been saved with a bare <br> or with no trailing node at all.
+    (function repairImages() {
+        if (window.imageManager && window.imageManager.repairInlineImages) {
+            window.imageManager.repairInlineImages(state.editor);
+        } else {
+            setTimeout(repairImages, 100);
+        }
+    })();
     window.saveToLocalStorage && window.saveToLocalStorage();
     window.updateWordCounter && window.updateWordCounter();
     window.updateBegrippenCounter && window.updateBegrippenCounter();
