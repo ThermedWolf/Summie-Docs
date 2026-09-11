@@ -72,6 +72,7 @@ function _restoreEditorCursor() {
 function openBegripModal(begrip) {
     const state = window.AppState;
     _saveEditorCursor();
+    if (window.SummieSelection) window.SummieSelection.save();
     state.currentEditingBegrip = begrip || null;
 
     if (begrip) {
@@ -95,6 +96,7 @@ function closeBegripModal() {
     state.begripModal.classList.remove('active');
     state.currentEditingBegrip = null;
     _restoreEditorCursor();
+    if (window.SummieSelection) window.SummieSelection.clear();
 }
 
 function saveBegrip() {

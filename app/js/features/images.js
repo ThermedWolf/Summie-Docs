@@ -53,6 +53,7 @@ class ImageManager {
 
         if (insertUrlBtn) {
             insertUrlBtn.addEventListener('click', () => {
+                if (window.SummieSelection) window.SummieSelection.save();
                 imageUrlModal.classList.add('active');
                 imageUrlInput.value = '';
                 imageUrlInput.focus();
@@ -62,23 +63,29 @@ class ImageManager {
         if (closeUrlModal) {
             closeUrlModal.addEventListener('click', () => {
                 imageUrlModal.classList.remove('active');
+                if (window.SummieSelection) window.SummieSelection.restore();
             });
         }
 
         if (cancelUrlModal) {
             cancelUrlModal.addEventListener('click', () => {
                 imageUrlModal.classList.remove('active');
+                if (window.SummieSelection) window.SummieSelection.restore();
             });
         }
 
         // Clicking the backdrop next to the dialog or pressing Escape closes it too
         if (imageUrlModal) {
             imageUrlModal.addEventListener('click', (e) => {
-                if (e.target === imageUrlModal) imageUrlModal.classList.remove('active');
+                if (e.target === imageUrlModal) {
+                    imageUrlModal.classList.remove('active');
+                    if (window.SummieSelection) window.SummieSelection.restore();
+                }
             });
             document.addEventListener('keydown', (e) => {
                 if (e.key === 'Escape' && imageUrlModal.classList.contains('active')) {
                     imageUrlModal.classList.remove('active');
+                    if (window.SummieSelection) window.SummieSelection.restore();
                 }
             });
         }
@@ -87,6 +94,7 @@ class ImageManager {
             insertUrlButton.addEventListener('click', () => {
                 const url = imageUrlInput.value.trim();
                 if (url) {
+                    if (window.SummieSelection) window.SummieSelection.restore({ force: true });
                     this.insertImageFromUrl(url);
                     imageUrlModal.classList.remove('active');
                 }
@@ -99,6 +107,7 @@ class ImageManager {
                 if (e.key === 'Enter') {
                     const url = imageUrlInput.value.trim();
                     if (url) {
+                        if (window.SummieSelection) window.SummieSelection.restore({ force: true });
                         this.insertImageFromUrl(url);
                         imageUrlModal.classList.remove('active');
                     }
@@ -345,6 +354,13 @@ class ImageManager {
         const selectedWrapper = this.selectedImage
             ? document.querySelector(`[data-image-id="${this.selectedImage}"]`)
             : null;
+
+        // If focus is still in a modal input, restore the caret saved on open
+        if (window.SummieSelection) {
+            const sel = window.getSelection();
+            const hasValid = sel && sel.rangeCount > 0 && editor.contains(sel.getRangeAt(0).commonAncestorContainer);
+            if (!hasValid) window.SummieSelection.restore({ force: true });
+        }
 
         const selection = window.getSelection();
         const range = selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null;

@@ -528,6 +528,7 @@ window.ReferencesManager = {
 // ---- Modal ----
 
 function openReferenceModal(existingRef, preselectedTarget) {
+    if (window.SummieSelection) window.SummieSelection.save();
     let modal = document.getElementById('referenceModal');
     if (!modal) {
         modal = document.createElement('div');
@@ -631,6 +632,7 @@ function closeReferenceModal(keepSelectionMode) {
         window.ReferencesManager._awaitingSelection = false;
         window.ReferencesManager._floatingSelectBtn.style.display = 'none';
         document.body.classList.remove('ref-selecting');
+        if (window.SummieSelection) window.SummieSelection.restore();
     }
 }
 

@@ -380,10 +380,21 @@
         _insertHtmlAtCursor: function (html) {
             var editor = window.AppState && window.AppState.editor;
             if (!editor) return false;
-            editor.focus();
+            // If the modal moved focus away, restore the caret that was saved
+            // when the modal opened so the insert lands at the original cursor.
+            if (window.SummieSelection) window.SummieSelection.restore({ force: true });
+            editor.focus({ preventScroll: true });
             var sel = window.getSelection();
             if (!sel || !sel.rangeCount) return false;
-            if (!editor.contains(sel.anchorNode)) return false;
+            if (!editor.contains(sel.anchorNode)) {
+                if (window.SummieSelection && window.SummieSelection.savedRange) {
+                    window.SummieSelection.restore({ force: true });
+                    sel = window.getSelection();
+                    if (!sel || !sel.rangeCount || !editor.contains(sel.anchorNode)) return false;
+                } else {
+                    return false;
+                }
+            }
             document.execCommand('insertHTML', false, html);
             return true;
         },
@@ -922,6 +933,7 @@ fields.addEventListener('input', function () {
     }
 
     function openCitationModal() {
+        if (window.SummieSelection) window.SummieSelection.save();
         if (!modal) buildModal();
         modal.classList.add('active');
         // Keep style + notation selectors in sync with the document's current
@@ -951,6 +963,9 @@ fields.addEventListener('input', function () {
         if (modal) modal.classList.remove('active');
         currentResult = null;
         pendingCitation = null;
+        // Return focus/caret to where it was before the modal opened (cancel
+        // path or after a successful insert the caret is already correct).
+        if (window.SummieSelection) window.SummieSelection.restore();
     }
 
     window.openCitationModal = openCitationModal;

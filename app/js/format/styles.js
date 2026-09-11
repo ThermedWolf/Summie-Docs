@@ -278,6 +278,7 @@ function _defToPreviewBtnStyle(def) {
 
 // ── Style modal ───────────────────────────────────────────────────────────────
 function openStyleModal(keyOrNull) {
+    if (window.SummieSelection) window.SummieSelection.save();
     _editingKey = keyOrNull;
     const isNew = keyOrNull === null;
     const def = isNew ? { label: '', fontSize: '13pt', fontWeight: '', fontStyle: '', textDecoration: '', color: '', marginTop: '', marginBottom: '', lineHeight: '', onEnterReset: true, onEnterTo: 'normal' }
@@ -454,6 +455,7 @@ function initStyleModal() {
         }
 
         modal.classList.remove('active');
+        if (window.SummieSelection) window.SummieSelection.restore();
         reapplyStyleToAllBlocks(affectedKey);
         if (window.updateInhoudList) window.updateInhoudList();
         renderStyleDropdown();
@@ -461,11 +463,12 @@ function initStyleModal() {
     });
 
     // Cancel / backdrop / Escape close
-    modal.querySelector('#semCancelBtn').addEventListener('click', () => modal.classList.remove('active'));
-    modal.querySelector('#semCancelBtn2').addEventListener('click', () => modal.classList.remove('active'));
-    modal.addEventListener('click', e => { if (e.target === modal) modal.classList.remove('active'); });
+    const restoreOnClose = () => { if (window.SummieSelection) window.SummieSelection.restore(); };
+    modal.querySelector('#semCancelBtn').addEventListener('click', () => { modal.classList.remove('active'); restoreOnClose(); });
+    modal.querySelector('#semCancelBtn2').addEventListener('click', () => { modal.classList.remove('active'); restoreOnClose(); });
+    modal.addEventListener('click', e => { if (e.target === modal) { modal.classList.remove('active'); restoreOnClose(); } });
     document.addEventListener('keydown', e => {
-        if (e.key === 'Escape' && modal.classList.contains('active')) modal.classList.remove('active');
+        if (e.key === 'Escape' && modal.classList.contains('active')) { modal.classList.remove('active'); restoreOnClose(); }
     });
 }
 
