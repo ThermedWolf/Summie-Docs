@@ -15,6 +15,24 @@ const APP_VERSION = app.getVersion();
 app.commandLine.appendSwitch('disable-gpu-shader-disk-cache');
 app.commandLine.appendSwitch('disable-http-cache');
 
+// Fix Wayland+Vulkan + GPU zygote bug on Linux (Electron 41-43 / Chromium 146):
+// Hyprland/Omarchy sets ELECTRON_OZONE_PLATFORM_HINT=wayland -> Chromium
+// auto-selects '--ozone-platform=wayland' but the GPU zygote is spawned
+// without ozone flags, causing (a) the cosmetic error
+//   "'--ozone-platform=wayland' is not compatible with Vulkan"
+// and (b) a 5x CPU overhead + GPU segfaults (exit_code=139) on Intel Arc.
+// Native Wayland fix (electron#50455/#50462): disable the zygote so the
+// GPU process is spawned fresh with the full flag set, plus disable Vulkan
+// (still incompatible with Wayland ozone). The Vulkan ERROR will still log
+// but is harmless — GPU acceleration now works. Forcing XWayland
+// (--ozone-platform=x11) hides the ERROR but crashes on this Intel iGPU
+// (XGetWindowAttributes / command_buffer_proxy_impl), so we keep native
+// Wayland here.
+if (process.platform === 'linux') {
+    app.commandLine.appendSwitch('disable-vulkan');
+    app.commandLine.appendSwitch('no-zygote');
+}
+
 let mainWindow;
 let fileToOpen = null;
 let windowCounter = 0; // Used to give each window a unique localStorage partition
