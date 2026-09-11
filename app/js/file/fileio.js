@@ -56,6 +56,7 @@ function computeDocFingerprint() {
             citations: window.Bibliography ? window.Bibliography.getSerialised() : [],
             citationStyle: window.Bibliography ? window.Bibliography.getCitationStyle() : 'apa',
             vancouverInTextStyle: window.Bibliography ? window.Bibliography.getVancouverInTextStyle() : 'brackets',
+            citationSearchMode: window.Bibliography ? window.Bibliography.getCitationSearchMode() : 'url',
             images: window.imageManager ? window.imageManager.getImagesData() : {},
             customStyles: window.StyleManager ? window.StyleManager.getCustomStyles() : {},
             headerFooter: window.HeaderFooter ? window.HeaderFooter.getData() : null,
@@ -252,6 +253,7 @@ async function buildPayload() {
         citations: window.Bibliography ? window.Bibliography.getSerialised() : [],
         citationStyle: window.Bibliography ? window.Bibliography.getCitationStyle() : 'apa',
         vancouverInTextStyle: window.Bibliography ? window.Bibliography.getVancouverInTextStyle() : 'brackets',
+        citationSearchMode: window.Bibliography ? window.Bibliography.getCitationSearchMode() : 'url',
         images: window.imageManager ? window.imageManager.getImagesData() : {},
         codeBlocks: window.codeBlockManager ? window.codeBlockManager.getCodeBlocksData() : [],
         customStyles: window.StyleManager ? window.StyleManager.getCustomStyles() : {},
@@ -457,6 +459,7 @@ function newSummary() {
         if (window.Bibliography && window.Bibliography.setCitationStyle) {
             window.Bibliography.setCitationStyle('apa');
             window.Bibliography.setVancouverInTextStyle('brackets');
+            window.Bibliography.setCitationSearchMode && window.Bibliography.setCitationSearchMode('url');
         }
         window.updateBegrippenList && window.updateBegrippenList();
         window.updateInhoudList && window.updateInhoudList();

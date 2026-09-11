@@ -122,6 +122,7 @@
             citations: window.Bibliography ? deepCopy(window.Bibliography.getSerialised()) : [],
             citationStyle: window.Bibliography ? window.Bibliography.getCitationStyle() : 'apa',
             vancouverInTextStyle: window.Bibliography ? window.Bibliography.getVancouverInTextStyle() : 'brackets',
+            citationSearchMode: window.Bibliography ? window.Bibliography.getCitationSearchMode() : 'url',
             images: window.imageManager ? deepCopy(window.imageManager.getImagesData()) : {},
             codeBlocks: window.codeBlockManager ? deepCopy(window.codeBlockManager.getCodeBlocksData()) : [],
             customStyles: window.StyleManager ? deepCopy(window.StyleManager.getCustomStyles()) : {},
@@ -140,9 +141,9 @@
         // to it never created an undo step AND left stale values inside
         // currentSnapshot — so Ctrl+Z/Ctrl+Y silently resurrected old content.
         return JSON.stringify([a.content, a.pages, a.begrippen, a.protected, a.references, a.citations,
-            a.citationStyle, a.vancouverInTextStyle, a.images, a.codeBlocks, a.customStyles, a.tabRulerIndents, a.headerFooter])
+            a.citationStyle, a.vancouverInTextStyle, a.citationSearchMode, a.images, a.codeBlocks, a.customStyles, a.tabRulerIndents, a.headerFooter])
             === JSON.stringify([b.content, b.pages, b.begrippen, b.protected, b.references, b.citations,
-                b.citationStyle, b.vancouverInTextStyle, b.images, b.codeBlocks, b.customStyles, b.tabRulerIndents, b.headerFooter]);
+                b.citationStyle, b.vancouverInTextStyle, b.citationSearchMode, b.images, b.codeBlocks, b.customStyles, b.tabRulerIndents, b.headerFooter]);
     }
 
     function enforceStackLimit() {
@@ -216,6 +217,7 @@
             citations: deepCopy(snap.citations || []),
             citationStyle: snap.citationStyle || 'apa',
             vancouverInTextStyle: snap.vancouverInTextStyle || 'brackets',
+            citationSearchMode: snap.citationSearchMode || 'url',
             images: snap.images || {},
             codeBlocks: snap.codeBlocks || [],
             customStyles: snap.customStyles || {},

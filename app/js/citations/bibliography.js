@@ -53,6 +53,10 @@
     // Chosen once per document; every in-text citation follows it.
     var _vancouverInTextStyle = 'brackets';
 
+    // Last used citation lookup mode (per document): 'url' | 'doi' | 'title'
+    // Remembered until the user picks a different mode.
+    var _citationSearchMode = 'url';
+
     function getCitationStyle() {
         return _citationStyle;
     }
@@ -61,6 +65,27 @@
         if (style === 'apa' || style === 'vancouver') {
             _citationStyle = style;
         }
+    }
+
+    function getCitationSearchMode() {
+        return _citationSearchMode;
+    }
+
+    function setCitationSearchMode(mode) {
+        if (mode === 'url' || mode === 'doi' || mode === 'title') {
+            _citationSearchMode = mode;
+            // Keep the modal's working variable in sync when the modal exists
+            currentMode = mode;
+            if (typeof modeSelect !== 'undefined' && modeSelect) modeSelect.value = mode;
+            return true;
+        }
+        return false;
+    }
+
+    function _persistSearchMode() {
+        window.saveToLocalStorage && window.saveToLocalStorage();
+        window.updateUnsavedIndicator && window.updateUnsavedIndicator();
+        if (window.UndoManager && window.UndoManager.notifyExternalChange) window.UndoManager.notifyExternalChange();
     }
 
     function getVancouverInTextStyle() {
@@ -564,6 +589,15 @@
             if (window.UndoManager && window.UndoManager.notifyExternalChange) window.UndoManager.notifyExternalChange();
         },
 
+        getCitationSearchMode: function () {
+            return _citationSearchMode;
+        },
+
+        setCitationSearchMode: function (mode) {
+            if (!setCitationSearchMode(mode)) return;
+            _persistSearchMode();
+        },
+
         getVancouverInTextStyle: function () {
             return _vancouverInTextStyle;
         },
@@ -602,7 +636,7 @@
 
         // Restore per-document settings from a .sumd file / draft payload.
         // Called from applyLoadedData so a reopened document keeps the exact
-        // style + notation it was saved with.
+        // style + notation + search mode it was saved with.
         applyDocumentSettings: function (data) {
             if (!data) return;
             // Missing fields (legacy files) fall back to the defaults instead
@@ -610,6 +644,12 @@
             var style = data.citationStyle === 'vancouver' ? 'vancouver' : 'apa';
             setVancouverInTextStyle(data.vancouverInTextStyle || 'brackets');
             setCitationStyle(style);
+            // Restore last used search mode (url/doi/title) per document
+            var searchMode = (data.citationSearchMode === 'doi' || data.citationSearchMode === 'title' || data.citationSearchMode === 'url')
+                ? data.citationSearchMode : 'url';
+            _citationSearchMode = searchMode;
+            currentMode = searchMode;
+            if (modeSelect) modeSelect.value = searchMode;
             this.citationStyle = _citationStyle;
             this._syncInTextStyleSelectors();
             var sidebarStyleSelect = document.getElementById('citationStyleSelectSidebar');
@@ -692,6 +732,8 @@ var searchPerformed = false; // whether a search has been done in the current mo
 
         modeSelect.addEventListener('change', function () {
             currentMode = modeSelect.value;
+            _citationSearchMode = currentMode;
+            _persistSearchMode();
             clearResults();
             queryInput.placeholder = placeholderForMode(currentMode);
             queryInput.focus();
@@ -788,6 +830,12 @@ var searchPerformed = false; // whether a search has been done in the current mo
         if (!window.electron || !window.electron.citationLookup) {
             setStatus(SummieI18n.t('Deze functie is alleen beschikbaar in de Summie-app.'), true);
             return;
+        }
+
+        // Remember this lookup mode for the document until the user picks another
+        if (_citationSearchMode !== currentMode) {
+            _citationSearchMode = currentMode;
+            _persistSearchMode();
         }
 
         clearResults();
@@ -942,13 +990,16 @@ fields.addEventListener('input', function () {
         var styleSelectEl = modal.querySelector('#citationStyleSelect');
         if (styleSelectEl) styleSelectEl.value = _citationStyle;
         window.Bibliography._syncInTextStyleSelectors();
-        currentMode = 'url';
-        modeSelect.value = 'url';
+        // Restore the last used lookup mode for this document (url/doi/title)
+        currentMode = _citationSearchMode;
+        modeSelect.value = _citationSearchMode;
         queryInput.value = '';
-        queryInput.placeholder = placeholderForMode('url');
+        queryInput.placeholder = placeholderForMode(_citationSearchMode);
         clearResults();
         setTimeout(function () { queryInput.focus(); }, 30);
         // If text is selected in the editor, offer it as a title query.
+        // This is a transient convenience — the stored preference is only
+        // updated when the user actually searches or changes the dropdown.
         var sel = window.getSelection();
         if (sel && sel.rangeCount && sel.toString().trim()) {
             queryInput.value = sel.toString().trim().slice(0, 200);
