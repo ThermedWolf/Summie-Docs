@@ -63,7 +63,10 @@
       "target": [
         {
           "target": "dmg",
-          "arch": ["x64", "arm64"]
+          "arch": [
+            "x64",
+            "arm64"
+          ]
         }
       ],
       "artifactName": "Summie-mac-${arch}-${version}.${ext}",
@@ -88,13 +91,13 @@
     }
   },
   "devDependencies": {
-    "electron": "^43.4.0",
+    "electron": "^43.7.0",
     "electron-builder": "^26.15.3"
   },
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "dompurify": "^3.4.13",
+    "dompurify": "^3.4.15",
     "electron-log": "^5.4.4"
   }
 }
