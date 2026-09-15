@@ -1,0 +1,234 @@
+/* ==================== READ ALOUD (VOORLEZEN) ==================== */
+
+.tts-highlight {
+    background: #fde68a;
+    border-radius: 3px;
+    padding: 1px 2px;
+    box-shadow: 0 0 0 2px #fde68a;
+}
+
+[data-theme='dark'] .tts-highlight {
+    background: rgba(251, 191, 36, 0.35);
+    box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.35);
+}
+
+.tts-active-block {
+    background: rgba(253, 230, 138, 0.25);
+    border-radius: 4px;
+}
+
+[data-theme='dark'] .tts-active-block {
+    background: rgba(251, 191, 36, 0.12);
+}
+
+/* Floating mini-player */
+.tts-player {
+    position: fixed;
+    bottom: 44px;
+    left: 50%;
+    transform: translateX(-50%) translateY(12px);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-white);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    padding: 8px 12px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12), 0 1px 3px rgba(0,0,0,0.08);
+    z-index: 120;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.22s ease, transform 0.22s ease;
+    min-width: 420px;
+    max-width: calc(100vw - 32px);
+    font-size: 13px;
+    user-select: none;
+}
+
+.tts-player.active {
+    opacity: 1;
+    pointer-events: all;
+    transform: translateX(-50%) translateY(0);
+}
+
+.tts-player button {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-white);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--text-primary);
+    transition: background 0.15s, border-color 0.15s, transform 0.08s;
+    flex-shrink: 0;
+}
+
+.tts-player button:hover { background: var(--bg-light); border-color: var(--secondary-color); }
+.tts-player button:active { transform: scale(0.96); }
+.tts-player button.primary {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: #fff;
+}
+.tts-player button.primary:hover { background: var(--primary-hover); }
+.tts-player button:disabled { opacity: 0.45; cursor: default; pointer-events: none; }
+
+.tts-player-close {
+    width: 28px !important;
+    height: 28px !important;
+    border: none !important;
+    background: transparent !important;
+    color: var(--text-secondary) !important;
+}
+
+.tts-player-close:hover { background: var(--bg-light) !important; color: var(--text-primary) !important; }
+
+.tts-progress-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.tts-progress-track {
+    flex: 1;
+    height: 6px;
+    background: var(--border-color);
+    border-radius: 999px;
+    position: relative;
+    cursor: pointer;
+    overflow: hidden;
+}
+
+.tts-progress-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #06b6d4, var(--primary-color));
+    border-radius: 999px;
+    transition: width 0.15s linear;
+}
+
+.tts-progress-text {
+    font-size: 11px;
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.tts-controls-compact {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.tts-divider {
+    width: 1px;
+    height: 20px;
+    background: var(--border-color);
+    flex-shrink: 0;
+}
+
+.tts-select {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-white);
+    color: var(--text-primary);
+    font-size: 12px;
+    padding: 4px 6px;
+    cursor: pointer;
+}
+
+.tts-speed-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.tts-speed-btn {
+    width: 26px !important;
+    height: 26px !important;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 6px !important;
+}
+
+.tts-speed-btn.active {
+    background: var(--primary-color) !important;
+    border-color: var(--primary-color) !important;
+    color: #fff !important;
+}
+
+.tts-player.is-paused .tts-progress-fill { opacity: 0.6; }
+.tts-player.is-loading .tts-progress-fill.indeterminate {
+    background: linear-gradient(90deg, var(--primary-color), var(--primary-hover));
+    background-size: 200% 100%;
+    animation: tts-progress-indeterminate 1.2s ease-in-out infinite;
+    width: 100% !important;
+}
+@keyframes tts-progress-indeterminate {
+    0% { background-position: 100% 0; }
+    100% { background-position: -100% 0; }
+}
+.tts-player.is-loading button:not(#ttsStopBtn):not(#ttsCloseBtn) { opacity: 0.5; pointer-events: none; }
+
+@media (max-width: 640px) {
+    .tts-player { min-width: 0; width: calc(100vw - 16px); flex-wrap: wrap; }
+}
+
+/* Install progress overlay (indeterminate) */
+.tts-install-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100000;
+    animation: tts-fade-in 0.15s ease;
+}
+.tts-install-box {
+    background: var(--bg-white);
+    border-radius: 12px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.18);
+    width: 90%;
+    max-width: 420px;
+    padding: 20px 24px;
+    font-family: inherit;
+}
+[data-theme='dark'] .tts-install-box { background: #12122a; box-shadow: 0 12px 40px rgba(0,0,0,0.55); }
+.tts-install-title { font-size: 15px; font-weight: 600; color: var(--text-primary); margin: 0 0 6px; }
+[data-theme='dark'] .tts-install-title { color: #eee8ff; }
+.tts-install-desc { font-size: 13px; color: var(--text-secondary); margin: 0 0 14px; line-height: 1.5; }
+.tts-install-bar-track {
+    height: 8px;
+    background: var(--border-color);
+    border-radius: 999px;
+    overflow: hidden;
+    position: relative;
+}
+.tts-install-bar {
+    height: 100%;
+    width: 40%;
+    background: linear-gradient(90deg, var(--primary-color), var(--primary-hover));
+    border-radius: 999px;
+    position: absolute;
+    top: 0;
+    animation: tts-indeterminate 1.3s ease-in-out infinite;
+}
+@keyframes tts-indeterminate {
+    0% { left: -40%; }
+    50% { left: 30%; }
+    100% { left: 100%; }
+}
+@keyframes tts-fade-in { from{opacity:0} to{opacity:1} }
+
+@media (prefers-reduced-motion: reduce) {
+    .tts-player, .tts-progress-fill, .tts-highlight { transition: none; }
+    .tts-install-bar { animation: none; left: 0; width: 100%; }
+}

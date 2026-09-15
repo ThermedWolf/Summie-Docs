@@ -20,6 +20,12 @@ function getCleanEditorContent(editor) {
     clone.querySelectorAll('mark.fr-highlight').forEach(mark => {
         mark.replaceWith(document.createTextNode(mark.textContent));
     });
+    clone.querySelectorAll('span.tts-highlight').forEach(span => {
+        span.replaceWith(document.createTextNode(span.textContent));
+    });
+    clone.querySelectorAll('.tts-active-block').forEach(el => {
+        el.classList.remove('tts-active-block');
+    });
     // Clean up empty spans and zero-width space spans left by font-size operations
     clone.querySelectorAll('span').forEach(span => {
         if (!span.textContent && !span.children.length) {

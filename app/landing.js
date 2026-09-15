@@ -1616,6 +1616,21 @@ async function initSettings() {
     if (themeSelect) themeSelect.value = settings.theme || 'system';
     if (authorDelimiterSelect) authorDelimiterSelect.value = settings.citationAuthorDelimiter || 'semicolon';
 
+    // TTS Voorlezen
+    const ttsGender = document.getElementById('settingTtsGender');
+    const ttsRate = document.getElementById('settingTtsRate');
+    const ttsPauseCode = document.getElementById('settingTtsPauseCodeBlock');
+    const ttsPauseTable = document.getElementById('settingTtsPauseTable');
+    const ttsPauseImage = document.getElementById('settingTtsPauseImage');
+    const ttsPauseShape = document.getElementById('settingTtsPauseShape');
+    if (ttsGender) ttsGender.value = settings.ttsGender || 'female';
+    if (ttsRate) ttsRate.value = String(settings.ttsRate || 1);
+    const pauses = settings.ttsPauses || { codeBlock:5, table:10, image:5, shape:5 };
+    if (ttsPauseCode) ttsPauseCode.value = pauses.codeBlock ?? 5;
+    if (ttsPauseTable) ttsPauseTable.value = pauses.table ?? 10;
+    if (ttsPauseImage) ttsPauseImage.value = pauses.image ?? 5;
+    if (ttsPauseShape) ttsPauseShape.value = pauses.shape ?? 5;
+
     // Gear spin on hover — always finishes, 1s cooldown after
     let _gearCooling = false;
     gearBtn.addEventListener('mouseenter', () => {
@@ -1705,4 +1720,29 @@ async function initSettings() {
             await window.electron.settingsSet({ citationAuthorDelimiter: authorDelimiterSelect.value });
         });
     }
+
+    // TTS handlers
+    if (ttsGender) ttsGender.addEventListener('change', async () => {
+        await window.electron.settingsSet({ ttsGender: ttsGender.value });
+    });
+    if (ttsRate) ttsRate.addEventListener('change', async () => {
+        await window.electron.settingsSet({ ttsRate: parseFloat(ttsRate.value) || 1 });
+    });
+    async function bindTtsPause(input, key) {
+        if (!input) return;
+        input.addEventListener('change', async () => {
+            let v = parseInt(input.value, 10);
+            if (isNaN(v) || v < 0) v = 0;
+            if (v > 30) v = 30;
+            input.value = v;
+            const s = await window.electron.settingsGet();
+            const pauses = s.ttsPauses || { codeBlock:5, table:10, image:5, shape:5, default:5 };
+            pauses[key] = v;
+            await window.electron.settingsSet({ ttsPauses: pauses });
+        });
+    }
+    await bindTtsPause(ttsPauseCode, 'codeBlock');
+    await bindTtsPause(ttsPauseTable, 'table');
+    await bindTtsPause(ttsPauseImage, 'image');
+    await bindTtsPause(ttsPauseShape, 'shape');
 }

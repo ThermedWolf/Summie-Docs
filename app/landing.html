@@ -551,6 +551,62 @@
                         </select>
                     </div>
                 </div>
+                <div class="settings-group">
+                    <h3 class="settings-group-title">Voorlezen</h3>
+                    <div class="settings-item">
+                        <div class="settings-item-info">
+                            <span class="settings-item-label">Stem</span>
+                            <span class="settings-item-desc">Kies een mannelijke of vrouwelijke stem voor voorlezen.</span>
+                        </div>
+                        <select class="settings-select" id="settingTtsGender">
+                            <option value="female">Vrouw</option>
+                            <option value="male">Man</option>
+                            <option value="system">Systeem</option>
+                        </select>
+                    </div>
+                    <div class="settings-item">
+                        <div class="settings-item-info">
+                            <span class="settings-item-label">Snelheid</span>
+                            <span class="settings-item-desc">Hoe snel het document wordt voorgelezen.</span>
+                        </div>
+                        <select class="settings-select" id="settingTtsRate">
+                            <option value="0.5">0.5× — langzaam</option>
+                            <option value="0.75">0.75×</option>
+                            <option value="1">1× — normaal</option>
+                            <option value="1.25">1.25×</option>
+                            <option value="1.5">1.5×</option>
+                            <option value="2">2× — snel</option>
+                        </select>
+                    </div>
+                    <div class="settings-item">
+                        <div class="settings-item-info">
+                            <span class="settings-item-label">Pauze na codeblok (sec)</span>
+                            <span class="settings-item-desc">Stilte nadat een codeblok is overgeslagen.</span>
+                        </div>
+                        <input type="number" class="settings-select" id="settingTtsPauseCodeBlock" min="0" max="30" step="1" style="width:90px;text-align:center;">
+                    </div>
+                    <div class="settings-item">
+                        <div class="settings-item-info">
+                            <span class="settings-item-label">Pauze na tabel (sec)</span>
+                            <span class="settings-item-desc">Stilte nadat een tabel is overgeslagen.</span>
+                        </div>
+                        <input type="number" class="settings-select" id="settingTtsPauseTable" min="0" max="30" step="1" style="width:90px;text-align:center;">
+                    </div>
+                    <div class="settings-item">
+                        <div class="settings-item-info">
+                            <span class="settings-item-label">Pauze na afbeelding (sec)</span>
+                            <span class="settings-item-desc">Stilte nadat een afbeelding is overgeslagen.</span>
+                        </div>
+                        <input type="number" class="settings-select" id="settingTtsPauseImage" min="0" max="30" step="1" style="width:90px;text-align:center;">
+                    </div>
+                    <div class="settings-item">
+                        <div class="settings-item-info">
+                            <span class="settings-item-label">Pauze na vorm (sec)</span>
+                            <span class="settings-item-desc">Stilte nadat een vorm is overgeslagen.</span>
+                        </div>
+                        <input type="number" class="settings-select" id="settingTtsPauseShape" min="0" max="30" step="1" style="width:90px;text-align:center;">
+                    </div>
+                </div>
                 <div class="settings-group settings-group-about">
                     <h3 class="settings-group-title">Over Summie</h3>
                     <div class="settings-item">

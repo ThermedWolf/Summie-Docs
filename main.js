@@ -31,6 +31,11 @@ app.commandLine.appendSwitch('disable-http-cache');
 if (process.platform === 'linux') {
     app.commandLine.appendSwitch('disable-vulkan');
     app.commandLine.appendSwitch('no-zygote');
+    // Enable Chromium's speech-dispatcher TTS backend (Linux uses speech-dispatcher + espeak-ng)
+    // Without this flag speechSynthesis.speak fails with synthesis-failed even when the
+    // daemon is installed; with it, speak uses the espeak-ng default voice even if
+    // getVoices() is still empty.
+    app.commandLine.appendSwitch('enable-speech-dispatcher');
 }
 
 let mainWindow;
@@ -240,6 +245,9 @@ const DEFAULT_APP_SETTINGS = {
     theme: 'system',                    // 'system' = volg OS | 'dark' | 'light'
     dismissedUpdateVersion: null,       // update version whose reminder the user dismissed
     citationAuthorDelimiter: 'semicolon', // 'semicolon' (;) | 'newline' (\n) — scheidingsteken tussen auteurs in invoerveld
+    ttsRate: 1.0,                       // voorlees-snelheid 0.5–2.0
+    ttsGender: 'female',                // 'female' | 'male' | 'system'
+    ttsPauses: { codeBlock: 5, table: 10, image: 5, shape: 5, default: 5 }, // stilte na overgeslagen elementen (sec)
 };
 
 function readAppSettings() {
@@ -253,6 +261,18 @@ function readAppSettings() {
     }
     if (merged.citationAuthorDelimiter !== 'semicolon' && merged.citationAuthorDelimiter !== 'newline') {
         merged.citationAuthorDelimiter = 'semicolon';
+    }
+    // TTS settings — validate and clamp
+    if (typeof merged.ttsRate !== 'number' || merged.ttsRate < 0.5 || merged.ttsRate > 2) merged.ttsRate = DEFAULT_APP_SETTINGS.ttsRate;
+    if (!['female', 'male', 'system'].includes(merged.ttsGender)) merged.ttsGender = DEFAULT_APP_SETTINGS.ttsGender;
+    if (!merged.ttsPauses || typeof merged.ttsPauses !== 'object') {
+        merged.ttsPauses = { ...DEFAULT_APP_SETTINGS.ttsPauses };
+    } else {
+        const def = DEFAULT_APP_SETTINGS.ttsPauses;
+        for (const k of Object.keys(def)) {
+            const v = merged.ttsPauses[k];
+            merged.ttsPauses[k] = (typeof v === 'number' && v >= 0 && v <= 30) ? v : def[k];
+        }
     }
     return merged;
 }
@@ -1023,6 +1043,70 @@ safeHandle('updater-quit-and-install', async () => {
 
 safeHandle('updater-is-downloaded', () => {
     return updater.isUpdateDownloaded();
+});
+
+// ── TTS dependencies (Linux speech-dispatcher) ────────────────────────────
+// Chromium's Web Speech API on Linux talks to speech-dispatcher + espeak-ng.
+// On Omarchy/Arch this stack is often not pre-installed. When the renderer
+// detects zero voices it calls this handler, which offers to install the
+// missing packages via the system's package manager (pkexec for auth).
+safeHandle('tts-check-deps', async () => {
+    if (process.platform !== 'linux') return { platform: process.platform, needsInstall: false };
+    const { execSync } = require('child_process');
+    try { execSync('which spd-say', { stdio: 'ignore' }); return { platform: 'linux', needsInstall: false }; } catch {}
+    return { platform: 'linux', needsInstall: true, detail: 'speech-dispatcher/espeak-ng ontbreekt' };
+});
+
+safeHandle('tts-install-deps', async (event) => {
+    if (process.platform !== 'linux') return { success: true, skipped: true, platform: process.platform };
+    const { execSync, spawn } = require('child_process');
+    // Already installed? (re-check — user may have installed since the check)
+    try { execSync('which spd-say', { stdio: 'ignore' }); return { success: true, alreadyInstalled: true }; } catch {}
+
+    const hasPacman = fs.existsSync('/usr/bin/pacman');
+    const hasApt = fs.existsSync('/usr/bin/apt-get');
+    const hasDnf = fs.existsSync('/usr/bin/dnf');
+    const hasZypper = fs.existsSync('/usr/bin/zypper');
+
+    let cmd, args, label;
+    if (hasPacman) {
+        cmd = 'pkexec'; args = ['pacman', '-S', '--noconfirm', 'speech-dispatcher', 'espeak-ng'];
+        label = 'pacman';
+    } else if (hasApt) {
+        cmd = 'pkexec'; args = ['bash', '-c', 'apt-get update && apt-get install -y speech-dispatcher espeak-ng espeak-ng-data'];
+        label = 'apt';
+    } else if (hasDnf) {
+        cmd = 'pkexec'; args = ['dnf', 'install', '-y', 'speech-dispatcher', 'espeak-ng'];
+        label = 'dnf';
+    } else if (hasZypper) {
+        cmd = 'pkexec'; args = ['zypper', '--non-interactive', 'install', 'speech-dispatcher', 'espeak-ng'];
+        label = 'zypper';
+    } else {
+        return { success: false, error: 'Geen ondersteunde pakketbeheerder gevonden (pacman/apt/dnf/zypper). Installeer handmatig: speech-dispatcher espeak-ng' };
+    }
+
+    // Spawn pkexec — it shows the system auth dialog. Use spawn so we don't
+    // need a timeout (per AGENTS.md: do not wrap pkexec with timeout).
+    return await new Promise((resolve) => {
+        let proc;
+        try { proc = spawn(cmd, args, { stdio: 'ignore' }); }
+        catch (err) { resolve({ success: false, error: err.message }); return; }
+        proc.on('error', (err) => resolve({ success: false, error: err.message }));
+        proc.on('close', (code) => {
+            // pkexec: 126 = dismissed/cancelled, 127 = auth failed / not authorized
+            if (code === 126 || code === 127) {
+                resolve({ success: false, canceled: true, error: 'Installatie geannuleerd' });
+                return;
+            }
+            if (code !== 0) {
+                resolve({ success: false, error: `Installatie mislukt (code ${code}, ${label})` });
+                return;
+            }
+            // Verify it actually landed
+            try { execSync('which spd-say', { stdio: 'ignore' }); resolve({ success: true }); }
+            catch { resolve({ success: false, error: 'Installatie leek te slagen maar spd-say is nog niet gevonden' }); }
+        });
+    });
 });
 
 // Only ever open http/https/mailto — never file://, custom URI schemes or

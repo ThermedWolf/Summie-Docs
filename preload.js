@@ -112,6 +112,10 @@ contextBridge.exposeInMainWorld(
         quitAndInstall: () => ipcRenderer.invoke('updater-quit-and-install'),
         isUpdateDownloaded: () => ipcRenderer.invoke('updater-is-downloaded'),
 
+        // TTS speech-dispatcher deps (Linux auto-install)
+        ttsCheckDeps: () => ipcRenderer.invoke('tts-check-deps'),
+        ttsInstallDeps: () => ipcRenderer.invoke('tts-install-deps'),
+
         // Shell (for opening external links)
         shell: {
             openExternal: (url) => ipcRenderer.invoke('shell-open-external', url),
