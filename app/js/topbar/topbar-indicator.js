@@ -43,6 +43,12 @@ window.TopbarIndicator = (function () {
     let animGen = 0;        // generation counter — lets a new animation cancel a stale one
     let rafHandle = null;
 
+    // Observers that keep the indicator aligned when tab text/width changes
+    // (e.g. after i18n translates "Bewerken" -> "Edit" which is shorter).
+    let tabRO = null;
+    let i18nMO = null;
+    let deferredTimer = null;
+
     function isUsable(tab) {
         return !!tab && tab.offsetParent !== null;
     }
@@ -207,6 +213,9 @@ window.TopbarIndicator = (function () {
                 // Snap to the exact resting box (guards against float drift)
                 // and hand back to normal CSS-transition-driven hover state.
                 settleOn(newTab, { instant: true });
+                // Re-attach size observer to the newly active tab so future
+                // text changes (e.g. language switch) keep it aligned.
+                watchActiveTab(newTab);
             }
         }
 
@@ -226,6 +235,7 @@ window.TopbarIndicator = (function () {
             // nothing to slide between, just make sure it's resting right.
             cancelSlide();
             settleOn(newTab, { instant: !oldTab });
+            watchActiveTab(newTab);
             return;
         }
 
@@ -251,6 +261,32 @@ window.TopbarIndicator = (function () {
     function reposition() {
         if (!container || !indicator || sliding || !activeTab) return;
         settleOn(activeTab, { instant: true });
+    }
+
+    // Keep the indicator centred when any tab's size changes
+    // (e.g. Dutch "Bewerken" vs English "Edit"). A sibling shrinking
+    // shifts the active tab's left offset even if its own width didn't
+    // change, so we watch every tab plus the container. MutationObserver
+    // below is the backstop for the actual text replacement.
+    function watchActiveTab(tab) {
+        if (!tab || !window.ResizeObserver) return;
+        if (!tabRO) {
+            tabRO = new ResizeObserver(() => {
+                // Defer one frame so the new widths are fully flushed
+                // before we measure, and skip if a slide is in progress.
+                requestAnimationFrame(() => reposition());
+            });
+        }
+        try { tabRO.disconnect(); } catch (e) { }
+        try { tabRO.observe(tab); } catch (e) { }
+        try { tabRO.observe(container); } catch (e) { }
+        // Sibling tabs changing width (due to translation / fonts) also
+        // shift the active tab's left offset, so observe them too.
+        container.querySelectorAll('.topbar-section').forEach(t => {
+            try { tabRO.observe(t); } catch (e) { }
+        });
+        const scrollable = document.querySelector('.topbar-sections-scrollable');
+        if (scrollable) try { tabRO.observe(scrollable); } catch (e) { }
     }
 
     function attachEvents() {
@@ -291,6 +327,87 @@ window.TopbarIndicator = (function () {
         if (initial) {
             activeTab = initial;
             settleOn(initial, { instant: true });
+            watchActiveTab(initial);
+        }
+
+        // ── Post-i18n guard ──────────────────────────────────────────────
+        // The HTML is authored in Dutch ("Bewerken"). When the app runs in
+        // English, SummieI18n translates it to "Edit" *after* DOMContentLoaded
+        // — and its init() is async (settings/IPC), so it may still be pending
+        // when this indicator's own DOMContentLoaded handler runs. At that
+        // moment we measured the Dutch width and the underline ends up too
+        // wide/shifted. The ResizeObserver above fixes it reactively, but we
+        // also schedule a few deferred repositions and watch for text mutations
+        // so the very first paint is already correct even if the observer
+        // hasn't fired yet.
+
+        // Deferred repositions catch the async translation window.
+        requestAnimationFrame(() => requestAnimationFrame(reposition));
+        setTimeout(reposition, 60);
+        setTimeout(reposition, 300);
+        // After web fonts load the tab metrics can shift again.
+        if (document.fonts && document.fonts.ready) {
+            document.fonts.ready.then(() => reposition()).catch(() => {});
+        }
+
+        // MutationObserver: i18n walks the DOM and replaces text nodes
+        // (and also on later language switches). Any characterData / childList
+        // change under the tab bar should re-centre the indicator.
+        try {
+            if (window.MutationObserver && !i18nMO) {
+                i18nMO = new MutationObserver(() => {
+                    clearTimeout(deferredTimer);
+                    deferredTimer = setTimeout(reposition, 10);
+                });
+                i18nMO.observe(container, { childList: true, subtree: true, characterData: true });
+            }
+        } catch (e) { }
+
+        // Hook SummieI18n.apply / setLang if already available; otherwise
+        // wait for it via a short poll (it loads synchronously in <head>
+        // before this script in practice, but be defensive).
+        function hookI18n() {
+            const api = window.SummieI18n;
+            if (!api || api.__indicatorHooked) return false;
+            api.__indicatorHooked = true;
+            const origApply = api.apply.bind(api);
+            api.apply = function (root) {
+                const r = origApply(root);
+                requestAnimationFrame(() => reposition());
+                setTimeout(reposition, 20);
+                return r;
+            };
+            if (api.setLang) {
+                const origSetLang = api.setLang.bind(api);
+                api.setLang = function (lang) {
+                    const r = origSetLang(lang);
+                    setTimeout(reposition, 20);
+                    setTimeout(reposition, 150);
+                    return r;
+                };
+            }
+            return true;
+        }
+        if (!hookI18n()) {
+            let tries = 0;
+            const iv = setInterval(() => {
+                if (hookI18n() || ++tries > 20) clearInterval(iv);
+            }, 100);
+        }
+
+        // Also listen for explicit language-change events (electron bridge
+        // and any custom event the app may fire).
+        window.addEventListener('summie:languageChanged', () => {
+            setTimeout(reposition, 20);
+            setTimeout(reposition, 150);
+        });
+        if (window.electron && window.electron.onLanguageChanged) {
+            try {
+                window.electron.onLanguageChanged(() => {
+                    setTimeout(reposition, 20);
+                    setTimeout(reposition, 150);
+                });
+            } catch (e) { }
         }
     }
 
