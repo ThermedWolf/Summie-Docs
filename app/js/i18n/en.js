@@ -963,6 +963,11 @@
         'Toevoegen aan bronnen': 'Add to sources',
         'Invoegen in document': 'Insert in document',
         'In-tekstverwijzing invoegen': 'Insert in-text citation',
+        // v4.3.1 — inline bibliography editing
+        'Bron bewerken': 'Edit source',
+        'Klik om te bewerken': 'Click to edit',
+        'Bron bijgewerkt': 'Source updated',
+        'De bron is bijgewerkt.': 'The source has been updated.',
         // v4.3.0 additions
         'Referentiestijl:': 'Citation style:',
         'APA (Auteur, Jaar)': 'APA (Author, Year)',

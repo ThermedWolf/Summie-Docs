@@ -65,6 +65,10 @@
     // in Settings; we also tolereer pipe and newline regardless of preference.
     var _citationAuthorDelimiter = 'semicolon'; // 'semicolon' | 'newline'
 
+    // Edit mode state: when the modal is used to edit an existing source
+    var _editingId = null;
+    var _editMode = false;
+
     function getAuthorDelimiter() { return _citationAuthorDelimiter; }
     function setAuthorDelimiter(v) {
         if (v === 'newline' || v === 'semicolon') _citationAuthorDelimiter = v;
@@ -314,6 +318,20 @@
                 });
             }
             this._syncInTextStyleSelectors();
+
+            // Directe Bewerkbaarheid: de bronnenlijst + losse verwijzingen in het
+            // document zijn klik-bewerkbaar. Dubbelklik op een losse verwijzing
+            // (APA of Vancouver) opent dezelfde 'Bron bewerken' modal als de lijst.
+            var selfInit = this;
+            document.addEventListener('dblclick', function (ev) {
+                var el = ev.target.closest('.summie-citation, .summie-citation-inline');
+                if (!el) return;
+                if (el.closest && el.closest('.summie-bibliography')) return; // bibliography items have own click
+                var id = el.getAttribute('data-citation-id');
+                if (!id) return;
+                ev.preventDefault();
+                selfInit.editCitation(id);
+            });
 
             // Restore after a document has been loaded (applyLoadedData runs too
             // early for module initialisation, so the restore call above in
@@ -599,7 +617,7 @@
             block.setAttribute('data-bib', '1');
             block.contentEditable = 'false';
             block.innerHTML =
-                '<div class="summie-bib-heading">' + e(SummieI18n.t('Bronnen')) + '</div>' +
+                '<div class="summie-bib-heading" contenteditable="true" data-bib-heading="1">' + e(SummieI18n.t('Bronnen')) + '</div>' +
                 '<div class="summie-bib-items"></div>';
 
             this._appendToEditor(block);
@@ -613,6 +631,29 @@
             if (!editor) return;
             var block = editor.querySelector('.summie-bibliography');
             if (!block) return;
+            // Make the heading freely editable — user can rename "Bronnen" to anything
+            var heading = block.querySelector('.summie-bib-heading');
+            if (heading) {
+                heading.contentEditable = 'true';
+                heading.setAttribute('data-bib-heading', '1');
+                // Plain-text only: block paste of rich HTML, keep it simple
+                if (!heading._bibHeadingHandlers) {
+                    heading._bibHeadingHandlers = true;
+                    heading.addEventListener('keydown', function (ev) {
+                        // Enter should not create a new block inside the bibliography wrapper
+                        if (ev.key === 'Enter') { ev.preventDefault(); heading.blur(); }
+                    });
+                    heading.addEventListener('paste', function (ev) {
+                        ev.preventDefault();
+                        var text = (ev.clipboardData || window.clipboardData).getData('text/plain');
+                        document.execCommand('insertText', false, text);
+                    });
+                    // Don't let empty heading stay empty — restore placeholder on blur
+                    heading.addEventListener('blur', function () {
+                        if (!heading.textContent.trim()) heading.textContent = SummieI18n.t('Bronnen');
+                    });
+                }
+            }
             var itemsEl = block.querySelector('.summie-bib-items');
             if (!itemsEl) return;
             itemsEl.innerHTML = '';
@@ -625,6 +666,7 @@
                 itemsEl.innerHTML = '<div class="summie-bib-empty">' + e(SummieI18n.t('Nog geen bronnen toegevoegd.')) + '</div>';
                 return;
             }
+            var self = this;
             sorted.forEach(function (c, idx) {
                 var item = document.createElement('div');
                 item.className = 'summie-bib-item';
@@ -632,7 +674,32 @@
                 // Vancouver number = occurrence position (idx+1).
                 // APA keeps author-year but index is still passed for consistency
                 var index = idx + 1;
-                item.innerHTML = formatReference(c, index);
+                // Content wrapper + hover actions — clicking the entry edits it
+                var content = document.createElement('div');
+                content.className = 'summie-bib-item-content';
+                content.innerHTML = formatReference(c, index);
+                content.title = SummieI18n.t('Klik om te bewerken');
+                content.addEventListener('click', function (ev) {
+                    // Prevent triggering when a button was clicked
+                    if (ev.target.closest('button')) return;
+                    self.editCitation(c.id);
+                });
+                var actions = document.createElement('div');
+                actions.className = 'summie-bib-item-actions';
+                actions.innerHTML =
+                    '<button class="summie-bib-btn" data-act="edit" title="' + e(SummieI18n.t('Bewerken')) + '">' +
+                    '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>' +
+                    '<button class="summie-bib-btn summie-bib-btn-danger" data-act="delete" title="' + e(SummieI18n.t('Verwijderen')) + '">' +
+                    '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>';
+                actions.addEventListener('click', function (ev) {
+                    var btn = ev.target.closest('button');
+                    if (!btn) return;
+                    ev.stopPropagation();
+                    if (btn.dataset.act === 'edit') self.editCitation(c.id);
+                    else if (btn.dataset.act === 'delete') self.removeCitation(c.id);
+                });
+                item.appendChild(content);
+                item.appendChild(actions);
                 itemsEl.appendChild(item);
             }, this);
         },
@@ -656,8 +723,10 @@
                 item.className = 'bron-item';
                 var index = getCitationNumber(c, indexMap);
                 item.innerHTML =
-                    '<div class="bron-item-text">' + formatReference(c, index) + '</div>' +
+                    '<div class="bron-item-text" title="' + e(SummieI18n.t('Klik om te bewerken')) + '">' + formatReference(c, index) + '</div>' +
                     '<div class="bron-item-actions">' +
+                    '<button class="bron-btn" data-act="edit" title="' + e(SummieI18n.t('Bewerken')) + '">' +
+                    '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>' +
                     '<button class="bron-btn" data-act="insert" title="' + e(SummieI18n.t('Invoegen in document')) + '">' +
                     '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="5 12 12 19 19 12"/></svg></button>' +
                     '<button class="bron-btn" data-act="inline" title="' + e(SummieI18n.t('In-tekstverwijzing invoegen')) + '">' +
@@ -667,10 +736,14 @@
                     '<button class="bron-btn bron-btn-danger" data-act="delete" title="' + e(SummieI18n.t('Verwijderen')) + '">' +
                     '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>' +
                     '</div>';
+                // Click on the reference text itself also opens edit
+                var textEl = item.querySelector('.bron-item-text');
+                if (textEl) textEl.addEventListener('click', function () { self.editCitation(c.id); });
                 item.querySelector('.bron-item-actions').addEventListener('click', function (ev) {
                     var act = ev.target.closest('.bron-btn');
                     if (!act) return;
-                    if (act.dataset.act === 'insert') self.insertReferenceAtCursor(c);
+                    if (act.dataset.act === 'edit') self.editCitation(c.id);
+                    else if (act.dataset.act === 'insert') self.insertReferenceAtCursor(c);
                     else if (act.dataset.act === 'inline') self.insertInTextAtCursor(c);
                     else if (act.dataset.act === 'open') {
                         var u = clean(c.url || (c.doi ? 'https://doi.org/' + c.doi : ''));
@@ -786,6 +859,77 @@
                     p.innerHTML = formatReference(c2, idx2);
                 }
             });
+        },
+
+        // ── Edit existing citation (used by sidebar + bibliography block) ──
+        editCitation: function (id) {
+            var c = null;
+            for (var i = 0; i < this.citations.length; i++) { if (this.citations[i].id === id) { c = this.citations[i]; break; } }
+            if (!c) return;
+            if (window.SummieSelection) window.SummieSelection.save();
+            _editMode = true;
+            _editingId = id;
+            if (!modal) buildModal();
+            this._openEditModal(c);
+        },
+
+        _openEditModal: function (orig) {
+            if (!modal) return;
+            modal.classList.add('active');
+            var hdr = modal.querySelector('.modal-header h3');
+            if (hdr) hdr.textContent = SummieI18n.t('Bron bewerken');
+            var addBtn = modal.querySelector('#citationAddBtn');
+            if (addBtn) { addBtn.textContent = SummieI18n.t('Opslaan'); addBtn.disabled = false; }
+            var cancelBtn = modal.querySelector('#cancelCitationModal');
+            if (cancelBtn) cancelBtn.textContent = SummieI18n.t('Annuleren');
+            var hint = modal.querySelector('#citationHint');
+            if (hint) hint.style.display = 'none';
+            var searchRow = modal.querySelector('.citation-search-row');
+            if (searchRow) searchRow.style.display = 'none';
+            if (statusEl) { statusEl.style.display = 'none'; statusEl.textContent = ''; statusEl.className = 'citation-status'; }
+            if (resultsEl) resultsEl.innerHTML = '';
+            // Deep copy original so edits don't mutate until saved
+            try { currentResult = JSON.parse(JSON.stringify(orig)); } catch (e) { currentResult = orig; }
+            pendingCitation = toCitationObject(currentResult);
+            pendingCitation.id = orig.id;
+            currentResult.id = orig.id;
+            _citationSearchMode = pendingCitation.sourceType || _citationSearchMode;
+            currentMode = _citationSearchMode;
+            if (modeSelect) modeSelect.value = _citationSearchMode;
+            var styleSelectEl = modal.querySelector('#citationStyleSelect');
+            if (styleSelectEl) styleSelectEl.value = _citationStyle;
+            window.Bibliography._syncInTextStyleSelectors();
+            if (previewEl) {
+                previewEl.innerHTML = '';
+                previewEl.style.display = 'block';
+                var card = document.createElement('div');
+                card.className = 'citation-preview-card';
+                card.innerHTML =
+                    '<div class="citation-preview-apa">' + formatReference(pendingCitation) + '</div>' +
+                    '<div class="citation-edit-fields" id="citationEditFields" style=""></div>';
+                previewEl.appendChild(card);
+                var fields = card.querySelector('#citationEditFields');
+                fields.innerHTML = buildEditFields(pendingCitation);
+                fields.addEventListener('input', function () {
+                    pendingCitation = collectEditedCitation();
+                    var pre = card.querySelector('.citation-preview-apa');
+                    if (pre) pre.innerHTML = formatReference(pendingCitation);
+                });
+            }
+        },
+
+        _closeEditMode: function () {
+            _editMode = false;
+            _editingId = null;
+            if (!modal) return;
+            var hdr = modal.querySelector('.modal-header h3');
+            if (hdr) hdr.textContent = SummieI18n.t('Bron automatisch toevoegen');
+            var addBtn = modal.querySelector('#citationAddBtn');
+            if (addBtn) addBtn.textContent = SummieI18n.t('Toevoegen aan bronnen');
+            var hint = modal.querySelector('#citationHint');
+            if (hint) hint.style.display = '';
+            var searchRow = modal.querySelector('.citation-search-row');
+            if (searchRow) searchRow.style.display = '';
         },
 
         getAuthorDelimiter: function () { return _citationAuthorDelimiter; },
@@ -934,6 +1078,23 @@ var searchPerformed = false; // whether a search has been done in the current mo
         });
 
         modal.querySelector('#citationAddBtn').addEventListener('click', function () {
+            // Edit mode: update the existing source instead of adding a new one
+            if (_editMode && _editingId) {
+                if (!pendingCitation) return;
+                var updated = collectEditedCitation();
+                updated.id = _editingId;
+                // Replace in citations array
+                var bib = window.Bibliography;
+                for (var i = 0; i < bib.citations.length; i++) {
+                    if (bib.citations[i].id === _editingId) { bib.citations[i] = updated; break; }
+                }
+                // Persist + re-render inline citations + bibliography block + sidebar
+                bib._afterChange();
+                window.showNotification && window.showNotification(SummieI18n.t('Bron bijgewerkt'), SummieI18n.t('De bron is bijgewerkt.'), 'success');
+                bib._closeEditMode();
+                closeCitationModal();
+                return;
+            }
             // Auto-search if no citation has been looked up yet
             if (!pendingCitation && !searchPerformed) {
                 doSearch();
@@ -1155,7 +1316,22 @@ fields.addEventListener('input', function () {
     function openCitationModal() {
         if (window.SummieSelection) window.SummieSelection.save();
         if (!modal) buildModal();
+        // Leaving edit mode if we were in it — normal "toevoegen" flow
+        if (_editMode) {
+            _editMode = false;
+            _editingId = null;
+            if (window.Bibliography && window.Bibliography._closeEditMode) window.Bibliography._closeEditMode();
+        }
         modal.classList.add('active');
+        // Restore default header/button text (in case we came from edit)
+        var hdr0 = modal.querySelector('.modal-header h3');
+        if (hdr0) hdr0.textContent = SummieI18n.t('Bron automatisch toevoegen');
+        var ab0 = modal.querySelector('#citationAddBtn');
+        if (ab0) ab0.textContent = SummieI18n.t('Toevoegen aan bronnen');
+        var hint0 = modal.querySelector('#citationHint');
+        if (hint0) hint0.style.display = '';
+        var sr0 = modal.querySelector('.citation-search-row');
+        if (sr0) sr0.style.display = '';
         // Keep style + notation selectors in sync with the document's current
         // settings (they may have changed since the modal was built).
         var styleSelectEl = modal.querySelector('#citationStyleSelect');
@@ -1186,6 +1362,11 @@ fields.addEventListener('input', function () {
         if (modal) modal.classList.remove('active');
         currentResult = null;
         pendingCitation = null;
+        if (_editMode) {
+            _editMode = false;
+            _editingId = null;
+            if (window.Bibliography && window.Bibliography._closeEditMode) window.Bibliography._closeEditMode();
+        }
         // Return focus/caret to where it was before the modal opened (cancel
         // path or after a successful insert the caret is already correct).
         if (window.SummieSelection) window.SummieSelection.restore();

@@ -28,24 +28,118 @@
     letter-spacing: 0.2px;
 }
 
+.summie-bib-heading[contenteditable="true"] {
+    cursor: text;
+    border-radius: 4px;
+    padding: 2px 4px;
+    margin: -2px -4px 8px -4px;
+    outline: none;
+    transition: background 0.12s, box-shadow 0.12s;
+}
+
+.summie-bib-heading[contenteditable="true"]:hover {
+    background: rgba(124, 58, 237, 0.06);
+}
+
+.summie-bib-heading[contenteditable="true"]:focus {
+    background: rgba(124, 58, 237, 0.08);
+    box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.18);
+}
+
 .summie-bib-item {
-    font-size: 13px;
-    line-height: 1.6;
-    color: var(--text-primary);
-    text-indent: -1.5em;
-    padding-left: 1.5em;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
     margin-bottom: 8px;
     text-align: left;
+    border-radius: 6px;
+    transition: background 0.12s;
+    padding: 3px 4px;
+    margin-left: -4px;
+    margin-right: -4px;
+}
+
+.summie-bib-item:hover {
+    background: rgba(124, 58, 237, 0.04);
 }
 
 .summie-bib-item:last-child {
     margin-bottom: 0;
 }
 
+.summie-bib-item-content {
+    flex: 1;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text-primary);
+    text-indent: -1.5em;
+    padding-left: 1.5em;
+    overflow-wrap: anywhere;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.summie-bib-item-content:hover {
+    color: #7c3aed;
+}
+
+.summie-bib-item-actions {
+    flex-shrink: 0;
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity 0.14s;
+    padding-top: 1px;
+}
+
+.summie-bib-item:hover .summie-bib-item-actions,
+.summie-bib-item:focus-within .summie-bib-item-actions {
+    opacity: 1;
+}
+
+.summie-bib-btn {
+    width: 24px;
+    height: 24px;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    background: var(--bg-white);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    transition: all 0.14s;
+}
+
+.summie-bib-btn:hover {
+    border-color: #7c3aed;
+    color: #7c3aed;
+    background: rgba(124, 58, 237, 0.08);
+}
+
+.summie-bib-btn-danger:hover {
+    border-color: var(--danger-color);
+    color: var(--danger-color);
+    background: rgba(239, 68, 68, 0.08);
+}
+
 .summie-bib-empty {
     font-size: 13px;
     color: var(--text-secondary);
     font-style: italic;
+}
+
+/* Losse verwijzingen in de tekst zijn dubbelklik-bewerkbaar */
+.summie-citation,
+.summie-citation-inline {
+    cursor: pointer;
+    border-radius: 3px;
+    transition: background 0.12s;
+}
+
+.summie-citation:hover,
+.summie-citation-inline:hover {
+    background: rgba(124, 58, 237, 0.08);
 }
 
 /* ── Sidebar Bronnen panel ────────────────────────────────────────── */
@@ -92,6 +186,14 @@
     text-indent: -1.2em;
     padding-left: 1.2em;
     overflow-wrap: anywhere;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background 0.12s, color 0.12s;
+}
+
+.bron-item-text:hover {
+    color: #7c3aed;
+    background: rgba(124, 58, 237, 0.04);
 }
 
 .bron-item-actions {
