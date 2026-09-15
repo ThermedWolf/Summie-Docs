@@ -824,6 +824,7 @@
         'Bestand Laden in Codeblok': 'Load File in Code Block',
         'Nieuw venster': 'New Window',
         'Open een nieuw Summie venster': 'Open a new Summie window',
+        'Open een nieuw Summie document': 'Open a new Summie document',
         'Begrippen Leren — Summie': 'Learn Terms — Summie',
         '{naam} - Summie': '{naam} - Summie',
 
@@ -976,5 +977,13 @@
         'Vierkante haakjes [1]': 'Square brackets [1]',
         'Ronde haakjes (1)': 'Round brackets (1)',
         'Superscript': 'Superscript',
+        // Bibliography author handling
+        'Scheid met ;  bv. Jansen, A.; Bakker, B.': 'Separate with ;  e.g. Jansen, A.; Bakker, B.',
+        'Eén auteur per regel, bv. Jansen, A.': 'One author per line, e.g. Jansen, A.',
+        'Bronnen (APA)': 'Sources (APA)',
+        'Scheidingsteken auteurs': 'Author delimiter',
+        'In APA is een auteur “Achternaam, Voorletters” — bevat zelf een komma. Kies daarom een ander teken tussen auteurs.': 'In APA an author is “Last name, Initials” — contains a comma. Choose a different character between authors.',
+        'Puntkomma (;) — aanbevolen': 'Semicolon (;) — recommended',
+        'Nieuwe regel (↩)': 'New line (↩)',
     };
 }));

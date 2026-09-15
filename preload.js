@@ -95,6 +95,7 @@ contextBridge.exposeInMainWorld(
         settingsPickDirectory: () => ipcRenderer.invoke('settings-pick-directory'),
         onThemeChanged: (callback) => ipcRenderer.on('theme-changed', (_, theme) => callback(theme)),
         onLanguageChanged: (callback) => ipcRenderer.on('language-changed', (_, lang) => callback(lang)),
+        onSettingsChanged: (callback) => ipcRenderer.on('settings-changed', (_, patch) => callback(patch)),
 
         // Platform info
         platform: process.platform,

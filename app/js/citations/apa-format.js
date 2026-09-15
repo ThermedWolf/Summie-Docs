@@ -84,7 +84,7 @@
     }
 
     function sortKey(c) {
-        var base = (c.authors && c.authors[0]) || c.title || c.url || '';
+        var base = (c.authors && c.authors[0]) || clean(c.website) || clean(c.publisher) || c.title || c.url || '';
         return String(base).replace(/[^\w\s]/g, '').toLowerCase();
     }
 
@@ -143,9 +143,15 @@
             var site = clean(c.website) || clean(c.publisher) || hostname(c.url);
             var hasFullDate = c.publishedDate && (c.publishedDate.month || c.publishedDate.day);
             var datePart = hasFullDate ? '(' + e(fullDate(c.publishedDate)) + ').' : '(' + e(year) + ').';
-            var outW = authorStr ? e(authorStr) + ' ' + datePart : e(title) + '. ' + datePart;
-            if (authorStr && title) outW += ' <i>' + e(title) + '</i>' + '.';
-            outW += ' ' + e(site) + '.';
+            // APA 7: when no personal author, use organization (website/publisher) as author
+            var orgAuthor = clean(c.website) || clean(c.publisher);
+            var effectiveAuthorStr = authorStr || orgAuthor;
+            var isOrgAuthor = !authorStr && !!orgAuthor;
+            var outW = effectiveAuthorStr ? e(effectiveAuthorStr) + ' ' + datePart : e(title) + '. ' + datePart;
+            if (effectiveAuthorStr && title) outW += ' <i>' + e(title) + '</i>' + '.';
+            // APA 7: when author and site name are identical, omit site name to avoid repetition
+            var siteIsAuthor = isOrgAuthor && site && effectiveAuthorStr && site.toLowerCase() === effectiveAuthorStr.toLowerCase();
+            if (!siteIsAuthor && site) outW += ' ' + e(site) + '.';
             var webLink = clean(c.url);
             if (webLink) {
                 outW += hasFullDate
@@ -172,15 +178,19 @@
     }
 
     // Short in-text citation, e.g. (Doe, 2020), (Doe et al., 2020).
+    // APA 7: when no personal author, use organization (website/publisher) as author.
+    // If still no author, fall back to shortened title.
     function inText(c) {
         var year = clean(c.year) || 'n.d.';
         if (c.authors && c.authors.length) {
             var first = c.authors[0];
-            var last = first.split(',')[0];
+            var last = first.split(',')[0].trim();
             if (c.authors.length >= 3) return '(' + last + ' et al., ' + year + ')';
-            if (c.authors.length === 2) return '(' + last + ' & ' + c.authors[1].split(',')[0] + ', ' + year + ')';
+            if (c.authors.length === 2) return '(' + last + ' & ' + c.authors[1].split(',')[0].trim() + ', ' + year + ')';
             return '(' + last + ', ' + year + ')';
         }
+        var org = clean(c.website) || clean(c.publisher);
+        if (org) return '(' + org + ', ' + year + ')';
         var t = sentenceCase(c.title) || c.url || 'n.b.';
         if (t.length > 15) t = t.slice(0, 15).trim() + '…';
         return '(' + t + ', ' + year + ')';

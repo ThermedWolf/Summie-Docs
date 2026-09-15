@@ -57,6 +57,61 @@
     // Remembered until the user picks a different mode.
     var _citationSearchMode = 'url';
 
+    // Author delimiter for the "Auteurs" input field.
+    // APA authors are stored as "Achternaam, Voorletters" (contain a comma), so
+    // the separator between authors MUST NOT be a comma. Official APA reference
+    // lists separate authors with ", " and " & ", but for INPUT the de-facto
+    // standard in reference managers is ";" (or newline). The user can choose
+    // in Settings; we also tolereer pipe and newline regardless of preference.
+    var _citationAuthorDelimiter = 'semicolon'; // 'semicolon' | 'newline'
+
+    function getAuthorDelimiter() { return _citationAuthorDelimiter; }
+    function setAuthorDelimiter(v) {
+        if (v === 'newline' || v === 'semicolon') _citationAuthorDelimiter = v;
+    }
+    function joinAuthorsForInput(authors) {
+        if (!authors || !authors.length) return '';
+        if (_citationAuthorDelimiter === 'newline') return authors.join('\n');
+        return authors.join('; ');
+    }
+    function parseAuthorsFromInput(raw) {
+        if (!raw || !String(raw).trim()) return [];
+        var s = String(raw);
+        // Robust: always split on semicolon, pipe, or newline regardless of preference
+        // This makes copy-paste tolerant even if the user switches the setting.
+        var parts = s.split(/[;\n|]+/).map(function (p) { return p.trim(); }).filter(Boolean);
+        // If no delimiter was found, try to detect an APA-style list that was pasted
+        // with ", & " without semicolons — e.g. "Keten, A., Jansen, B. & Pieterse, C."
+        // We only do this fallback when a single part still contains ", & " or " & ".
+        if (parts.length === 1 && parts[0].indexOf(',') !== -1) {
+            var single = parts[0];
+            // Heuristic: contains " & " or " en " between two author-like segments
+            // Example: "Keten, A. & Jansen, B." → split on " & " / " en "
+            var ampSplit = single.split(/\s+(?:&|en)\s+/);
+            if (ampSplit.length > 1 && ampSplit.every(function (p) { return p.indexOf(',') !== -1; })) {
+                // Further split left part on ", " that separates authors: look for "., "
+                // e.g. "Keten, A., Jansen, B." — split on ", " that is followed by "X, "
+                // Use pattern: period-comma-space before next surname
+                var expanded = [];
+                ampSplit.forEach(function (chunk) {
+                    // Split on ", " where next char starts a surname (capital) and chunk contains "., "
+                    if (chunk.indexOf('.,') !== -1) {
+                        var sub = chunk.split(/,\s+(?=[A-Z][a-z]*,\s)/);
+                        // fallback: split on "., " if previous didn't hit
+                        if (sub.length === 1) sub = chunk.split(/\.\s*,\s*/).map(function (p, i, a) {
+                            return i < a.length - 1 ? p + '.' : p;
+                        });
+                        sub.forEach(function (p) { if (p.trim()) expanded.push(p.trim().replace(/^,\s*/, '')); });
+                    } else {
+                        expanded.push(chunk.trim());
+                    }
+                });
+                if (expanded.length > 1) return expanded;
+            }
+        }
+        return parts;
+    }
+
     function getCitationStyle() {
         return _citationStyle;
     }
@@ -155,6 +210,21 @@
         init: function () {
             if (this._initialized) return;
             this._initialized = true;
+
+            // Load preferred author delimiter from app settings (if available)
+            if (window.electron && window.electron.settingsGet) {
+                window.electron.settingsGet().then(function (s) {
+                    if (s && (s.citationAuthorDelimiter === 'newline' || s.citationAuthorDelimiter === 'semicolon')) {
+                        setAuthorDelimiter(s.citationAuthorDelimiter);
+                    }
+                }).catch(function () { });
+                // Listen for live changes from Settings window
+                if (window.electron.onSettingsChanged) {
+                    window.electron.onSettingsChanged(function (patch) {
+                        if (patch && patch.citationAuthorDelimiter) setAuthorDelimiter(patch.citationAuthorDelimiter);
+                    });
+                }
+            }
 
             var toolbarBtn = document.getElementById('insertCitationBtn');
             if (toolbarBtn) toolbarBtn.addEventListener('click', function () { openCitationModal(); });
@@ -634,6 +704,11 @@
             });
         },
 
+        getAuthorDelimiter: function () { return _citationAuthorDelimiter; },
+        setAuthorDelimiter: function (v) { setAuthorDelimiter(v); },
+        _parseAuthorsForTest: function (v) { return parseAuthorsFromInput(v); },
+        _joinAuthorsForTest: function (a) { return joinAuthorsForInput(a); },
+
         // Restore per-document settings from a .sumd file / draft payload.
         // Called from applyLoadedData so a reopened document keeps the exact
         // style + notation + search mode it was saved with.
@@ -943,25 +1018,37 @@ fields.addEventListener('input', function () {
     }
 
     function buildEditFields(c) {
+        var authorHint = _citationAuthorDelimiter === 'newline'
+            ? SummieI18n.t('Eén auteur per regel, bv. Jansen, A.')
+            : SummieI18n.t('Scheid met ;  bv. Jansen, A.; Bakker, B.');
         var rows = [
-            ['authors', SummieI18n.t('Auteurs'), (c.authors || []).join(', ')],
-            ['year', SummieI18n.t('Jaar'), c.year],
-            ['title', SummieI18n.t('Titel'), c.title],
-            ['journal', SummieI18n.t('Tijdschrift'), c.journal],
-            ['volume', SummieI18n.t('Volume'), c.volume],
-            ['issue', SummieI18n.t('Nummer'), c.issue],
-            ['pages', SummieI18n.t('Pagina’s'), c.pages],
-            ['publisher', SummieI18n.t('Uitgever'), c.publisher],
-            ['website', SummieI18n.t('Website'), c.website],
-            ['doi', 'DOI', c.doi],
-            ['url', 'URL', c.url]
+            ['authors', SummieI18n.t('Auteurs'), joinAuthorsForInput(c.authors), authorHint],
+            ['year', SummieI18n.t('Jaar'), c.year, ''],
+            ['title', SummieI18n.t('Titel'), c.title, ''],
+            ['journal', SummieI18n.t('Tijdschrift'), c.journal, ''],
+            ['volume', SummieI18n.t('Volume'), c.volume, ''],
+            ['issue', SummieI18n.t('Nummer'), c.issue, ''],
+            ['pages', SummieI18n.t('Pagina’s'), c.pages, ''],
+            ['publisher', SummieI18n.t('Uitgever'), c.publisher, ''],
+            ['website', SummieI18n.t('Website'), c.website, ''],
+            ['doi', 'DOI', c.doi, ''],
+            ['url', 'URL', c.url, '']
         ];
         var html = '';
         rows.forEach(function (r) {
-            html += '<div class="form-group citation-field-group">' +
-                '<label>' + e(r[1]) + '</label>' +
-                '<input type="text" data-field="' + r[0] + '" value="' + e(r[2]) + '" spellcheck="false">' +
-                '</div>';
+            var hint = r[3] ? '<span class="citation-field-hint" style="font-size:11px;color:var(--text-secondary);">' + e(r[3]) + '</span>' : '';
+            var inputType = (r[0] === 'authors' && _citationAuthorDelimiter === 'newline') ? 'textarea' : 'input';
+            if (inputType === 'textarea') {
+                html += '<div class="form-group citation-field-group">' +
+                    '<label>' + e(r[1]) + '</label>' + hint +
+                    '<textarea data-field="' + r[0] + '" rows="2" style="resize:vertical;padding:6px 8px;border:1px solid var(--border-color);border-radius:4px;font-size:13px;" spellcheck="false">' + e(r[2]) + '</textarea>' +
+                    '</div>';
+            } else {
+                html += '<div class="form-group citation-field-group">' +
+                    '<label>' + e(r[1]) + '</label>' + hint +
+                    '<input type="text" data-field="' + r[0] + '" value="' + e(r[2]) + '" spellcheck="false">' +
+                    '</div>';
+            }
         });
         return html;
     }
@@ -969,10 +1056,10 @@ fields.addEventListener('input', function () {
     function collectEditedCitation() {
         var base = toCitationObject(currentResult);
         if (previewEl) {
-            previewEl.querySelectorAll('.citation-edit-fields input[data-field]').forEach(function (input) {
-                var f = input.dataset.field;
+            previewEl.querySelectorAll('.citation-edit-fields [data-field]').forEach(function (input) {
+                var f = input.dataset.field || input.getAttribute('data-field');
                 if (f === 'authors') {
-                    base.authors = input.value.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+                    base.authors = parseAuthorsFromInput(input.value);
                 } else {
                     base[f] = input.value.trim();
                 }

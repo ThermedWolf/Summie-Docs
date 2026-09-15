@@ -13,6 +13,7 @@
   "build": {
     "appId": "com.summie.app",
     "productName": "Summie",
+    "afterPack": "./build/afterPack.js",
     "directories": {
       "output": "dist"
     },
@@ -86,8 +87,11 @@
         "Name": "Summie",
         "Comment": "Samenvattingen Maker",
         "Categories": "Office;Education;",
-        "Keywords": "summary;notes;education;"
-      }
+        "Keywords": "summary;notes;education;",
+        "StartupWMClass": "Summie",
+        "Actions": "new-document;new-window;"
+      },
+      "executableName": "summie"
     }
   },
   "devDependencies": {

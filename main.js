@@ -35,6 +35,7 @@ if (process.platform === 'linux') {
 
 let mainWindow;
 let fileToOpen = null;
+let openNewDocumentOnStart = false;
 let windowCounter = 0; // Used to give each window a unique localStorage partition
 
 const gotSingleInstanceLock = app.requestSingleInstanceLock();
@@ -66,18 +67,26 @@ function normalizeSumdArg(arg) {
     return arg;
 }
 
-// Handle file opening on Windows/Linux (double-click .sumd file).
-// macOS delivers opened files via the 'open-file' event instead, so we skip
-// argv scanning there to avoid double-handling the path.
+// Handle file opening on Windows/Linux (double-click .sumd file) and
+// taskbar "New document" launch (--new-document). macOS delivers opened
+// files via the 'open-file' event instead, so we skip argv scanning there
+// to avoid double-handling the path.
 if (process.platform !== 'darwin' && process.argv.length >= 2) {
-    fileToOpen = findSumdPath(process.argv);
+    if (process.argv.includes('--new-document')) {
+        openNewDocumentOnStart = true;
+    } else {
+        fileToOpen = findSumdPath(process.argv);
+    }
 }
 
-// Allow multiple instances (needed for "New Window" from taskbar)
-// When a second instance is launched with --new-window, open a new window
+// Allow multiple instances (needed for taskbar Jumplist entries).
+// --new-document opens a fresh blank document directly,
+// --new-window opens the landing/home screen.
 app.on('second-instance', (event, argv) => {
     const secondInstanceFile = findSumdPath(argv);
-    if (argv.includes('--new-window')) {
+    if (argv.includes('--new-document')) {
+        createWindow(null, { newDocument: true });
+    } else if (argv.includes('--new-window')) {
         createWindow();
     } else if (secondInstanceFile) {
         openSumdFileFromOS(secondInstanceFile);
@@ -230,6 +239,7 @@ const DEFAULT_APP_SETTINGS = {
     numberLocale: 'eu',                 // 'eu' = komma decimaal | 'us' = punt decimaal
     theme: 'system',                    // 'system' = volg OS | 'dark' | 'light'
     dismissedUpdateVersion: null,       // update version whose reminder the user dismissed
+    citationAuthorDelimiter: 'semicolon', // 'semicolon' (;) | 'newline' (\n) — scheidingsteken tussen auteurs in invoerveld
 };
 
 function readAppSettings() {
@@ -240,6 +250,9 @@ function readAppSettings() {
     const merged = { ...DEFAULT_APP_SETTINGS, ...raw };
     if (merged.language !== 'nl' && merged.language !== 'en') {
         merged.language = detectDefaultLanguage();
+    }
+    if (merged.citationAuthorDelimiter !== 'semicolon' && merged.citationAuthorDelimiter !== 'newline') {
+        merged.citationAuthorDelimiter = 'semicolon';
     }
     return merged;
 }
@@ -296,7 +309,12 @@ function saveWindowState() {
     }
 }
 
-function createWindow(filePathToOpen = null) {
+function createWindow(filePathToOpen = null, options = {}) {
+    // Support createWindow({ newDocument: true }) shorthand
+    if (filePathToOpen && typeof filePathToOpen === 'object' && !Array.isArray(filePathToOpen)) {
+        options = filePathToOpen;
+        filePathToOpen = null;
+    }
     const savedState = loadWindowState();
     const isFirstLaunch = !savedState;
     const isNewWindow = mainWindow !== null && mainWindow !== undefined;
@@ -328,7 +346,12 @@ function createWindow(filePathToOpen = null) {
     // Track the first (main) window
     if (!mainWindow) mainWindow = win;
 
-    if (filePathToOpen) {
+    if (options.newDocument) {
+        // Jump-list / Dock "Nieuw document": straight into a blank editor.
+        // Each window already has an isolated localStorage partition, so
+        // loading index.html empty is a fresh document without extra flags.
+        win.loadFile(path.join(__dirname, 'app', 'index.html'));
+    } else if (filePathToOpen) {
         try {
             const fileContent = fs.readFileSync(filePathToOpen, 'utf8');
             win.initialSumdFile = { data: JSON.parse(fileContent), path: filePathToOpen };
@@ -812,6 +835,37 @@ safeOnLax('get-theme-sync', (event) => {
     event.returnValue = readAppSettings().theme || 'system';
 });
 safeHandle('settings-get', () => readAppSettings());
+function refreshUserTasks() {
+    if (process.platform === 'win32') {
+        app.setUserTasks([
+            {
+                program: process.execPath,
+                arguments: '--new-document',
+                iconPath: process.execPath,
+                iconIndex: 0,
+                title: tMain('Nieuw document'),
+                description: tMain('Open een nieuw Summie document')
+            },
+            {
+                program: process.execPath,
+                arguments: '--new-window',
+                iconPath: process.execPath,
+                iconIndex: 0,
+                title: tMain('Nieuw venster'),
+                description: tMain('Open een nieuw Summie venster')
+            }
+        ]);
+    }
+    if (process.platform === 'darwin' && app.dock) {
+        const { Menu } = require('electron');
+        const dockMenu = Menu.buildFromTemplate([
+            { label: tMain('Nieuw document'), click() { createWindow(null, { newDocument: true }); } },
+            { label: tMain('Nieuw venster'), click() { createWindow(); } }
+        ]);
+        app.dock.setMenu(dockMenu);
+    }
+}
+
 safeHandle('settings-set', (event, patch) => {
     const current = readAppSettings();
     writeAppSettings({ ...current, ...patch });
@@ -826,6 +880,16 @@ safeHandle('settings-set', (event, patch) => {
     if (patch && patch.language && patch.language !== current.language) {
         BrowserWindow.getAllWindows().forEach(win => {
             win.webContents.send('language-changed', updated.language || 'nl');
+        });
+        refreshUserTasks();
+        if (process.platform === 'darwin' && app.dock) {
+            // dock menu already refreshed above
+        }
+    }
+    // Notify all windows about any settings patch (for author delimiter live update)
+    if (patch) {
+        BrowserWindow.getAllWindows().forEach(win => {
+            win.webContents.send('settings-changed', patch);
         });
     }
     return updated;
@@ -1332,7 +1396,11 @@ safeHandle('citation-lookup', async (event, payload) => {
 });
 
 app.whenReady().then(() => {
-    createWindow(fileToOpen);
+    if (openNewDocumentOnStart) {
+        createWindow(null, { newDocument: true });
+    } else {
+        createWindow(fileToOpen);
+    }
 
     // Clean up old installer files from temp directory
     updater.cleanupOldInstallers();
@@ -1340,9 +1408,18 @@ app.whenReady().then(() => {
     // Check for updates on startup
     updater.checkForUpdates();
 
-    // Windows taskbar right-click / Start menu "New Window" option
+    // Windows taskbar Jumplist: right-click icon → "Nieuw document" / "Nieuw venster"
+    // macOS Dock menu does the same via app.dock.setMenu below.
     if (process.platform === 'win32') {
         app.setUserTasks([
+            {
+                program: process.execPath,
+                arguments: '--new-document',
+                iconPath: process.execPath,
+                iconIndex: 0,
+                title: tMain('Nieuw document'),
+                description: tMain('Open een nieuw Summie document')
+            },
             {
                 program: process.execPath,
                 arguments: '--new-window',
@@ -1352,6 +1429,22 @@ app.whenReady().then(() => {
                 description: tMain('Open een nieuw Summie venster')
             }
         ]);
+    }
+
+    // macOS Dock: right-click / long-press on Dock icon
+    if (process.platform === 'darwin' && app.dock) {
+        const { Menu } = require('electron');
+        const dockMenu = Menu.buildFromTemplate([
+            {
+                label: tMain('Nieuw document'),
+                click() { createWindow(null, { newDocument: true }); }
+            },
+            {
+                label: tMain('Nieuw venster'),
+                click() { createWindow(); }
+            }
+        ]);
+        app.dock.setMenu(dockMenu);
     }
 });
 

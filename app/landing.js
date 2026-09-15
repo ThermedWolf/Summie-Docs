@@ -1599,6 +1599,7 @@ async function initSettings() {
     const closeToHome = document.getElementById('settingCloseToHome');
     const numberLocale = document.getElementById('settingNumberLocale');
     const themeSelect = document.getElementById('settingTheme');
+    const authorDelimiterSelect = document.getElementById('settingAuthorDelimiter');
     const overlay = document.getElementById('settingsOverlay');
     const gearBtn = document.getElementById('landingSettingsBtn');
     const closeBtn = document.getElementById('settingsCloseBtn');
@@ -1613,6 +1614,7 @@ async function initSettings() {
     if (closeToHome) closeToHome.checked = settings.closeToHome !== false;
     if (numberLocale) numberLocale.value = settings.numberLocale || 'eu';
     if (themeSelect) themeSelect.value = settings.theme || 'system';
+    if (authorDelimiterSelect) authorDelimiterSelect.value = settings.citationAuthorDelimiter || 'semicolon';
 
     // Gear spin on hover — always finishes, 1s cooldown after
     let _gearCooling = false;
@@ -1696,4 +1698,11 @@ async function initSettings() {
             await window.electron.settingsSet({ newFilesDirectory: chosen });
         }
     });
+
+    // Author delimiter (Bronnen APA)
+    if (authorDelimiterSelect) {
+        authorDelimiterSelect.addEventListener('change', async () => {
+            await window.electron.settingsSet({ citationAuthorDelimiter: authorDelimiterSelect.value });
+        });
+    }
 }
