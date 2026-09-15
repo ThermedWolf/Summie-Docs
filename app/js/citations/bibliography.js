@@ -198,6 +198,59 @@
         return sortKeyAPA(c);
     }
 
+    // ── Ordering helpers ─────────────────────────────────────────────────
+    // Sidebar: insertion order (citations array). Document bibliography:
+    // order of first appearance in the text (first occurrence of
+    // .summie-citation or .summie-citation-inline). Bibliography block
+    // contains only cited sources; uncited sources are omitted until cited.
+
+    function getOrderedCitationIds() {
+        var roots = [];
+        if (window.PageManager && window.PageManager.isPaginationEnabled && window.PageManager.isPaginationEnabled() && window.PageManager.getAllPages) {
+            try { roots = window.PageManager.getAllPages(); } catch (e) { roots = []; }
+        }
+        if (!roots || !roots.length) {
+            var ed = (window.AppState && window.AppState.editor) || document.getElementById('editor');
+            if (ed) roots = [ed];
+        }
+        var seen = {};
+        var order = [];
+        roots.forEach(function (root) {
+            if (!root || !root.querySelectorAll) return;
+            var nodes = root.querySelectorAll('.summie-citation[data-citation-id], .summie-citation-inline[data-citation-id]');
+            nodes.forEach(function (el) {
+                if (el.closest && el.closest('.summie-bibliography')) return;
+                var id = el.getAttribute('data-citation-id');
+                if (!id || seen[id]) return;
+                seen[id] = true;
+                order.push(id);
+            });
+        });
+        return order;
+    }
+
+    function getCitationIndexMap() {
+        var order = getOrderedCitationIds();
+        var map = {};
+        order.forEach(function (id, i) { map[id] = i + 1; });
+        return map;
+    }
+
+    function getSortedCitationsForBibliography(citations) {
+        var order = getOrderedCitationIds();
+        var byId = {};
+        (citations || []).forEach(function (c) { if (c && c.id) byId[c.id] = c; });
+        var sorted = [];
+        order.forEach(function (id) { if (byId[id]) sorted.push(byId[id]); });
+        return sorted;
+    }
+
+    function getCitationNumber(c, indexMap) {
+        if (!c || !c.id) return '—';
+        if (indexMap && indexMap[c.id]) return indexMap[c.id];
+        return '—';
+    }
+
     var sentenceCase = function (str) { return window.ApaFormat.sentenceCase(str); };
 
     // ── Manager ──────────────────────────────────────────────────────────
@@ -430,14 +483,27 @@
             window.saveToLocalStorage && window.saveToLocalStorage();
             window.updateUnsavedIndicator && window.updateUnsavedIndicator();
             if (window.UndoManager && window.UndoManager.notifyExternalChange) window.UndoManager.notifyExternalChange();
+            this._updateInlineCitationSpans();
             this.renderBibliographyBlock();
             this._updatePanelIfOpen();
         },
 
         // Insert a full reference entry (hanging-indent paragraph) at the cursor.
         insertReferenceAtCursor: function (c) {
-            // Find the index of this citation in the array (for Vancouver numbering)
-            var index = this.citations.indexOf(c) + 1;
+            // Vancouver number = occurrence position; use current map as
+            // best estimate before DOM mutation — _afterChange will correct it.
+            var map = getCitationIndexMap();
+            var existing = map[c.id];
+            var index = existing || (getOrderedCitationIds().length + 1);
+            // For a brand-new citation not yet in the DOM, estimate its
+            // position as last+1; the subsequent _updateInlineCitationSpans
+            // will fix all numbers to true occurrence order.
+            if (!existing) {
+                // If citation already cited elsewhere, reuse its number
+                // otherwise it will be the next number in occurrence order
+                var alreadyCited = getOrderedCitationIds().indexOf(c.id) !== -1;
+                if (!alreadyCited) index = getOrderedCitationIds().length + 1;
+            }
             var html = '<p class="summie-citation" data-citation-id="' + e(c.id) + '">' + formatReference(c, index) + '</p>';
             if (!this._insertHtmlAtCursor(html)) {
                 var p = document.createElement('p');
@@ -455,8 +521,9 @@
         // _updateInlineCitationSpans). formatInText output is internally
         // generated (digits/delimiters only), so no escaping is needed there.
         insertInTextAtCursor: function (c) {
-            // Find the index of this citation in the array (for Vancouver numbering)
-            var index = this.citations.indexOf(c) + 1;
+            var map = getCitationIndexMap();
+            var existing = map[c.id];
+            var index = existing || (getOrderedCitationIds().length + 1);
             var html = '<span class="summie-citation-inline" data-citation-id="' + e(c.id) + '">' + formatInText(c, index) + '</span>';
             if (!this._insertHtmlAtCursor(html)) {
                 var p = document.createElement('p');
@@ -550,14 +617,9 @@
             if (!itemsEl) return;
             itemsEl.innerHTML = '';
 
-            // For Vancouver, keep original order (citation order)
-            // For APA, sort alphabetically
-            var sorted = this.citations.slice();
-            if (_citationStyle === 'apa') {
-                sorted.sort(function (a, b) {
-                    return sortKey(a).localeCompare(sortKey(b));
-                });
-            }
+            // Bibliography: order of first appearance in the text.
+            // Only cited sources are shown; uncited stay in sidebar only.
+            var sorted = getSortedCitationsForBibliography(this.citations);
 
             if (sorted.length === 0) {
                 itemsEl.innerHTML = '<div class="summie-bib-empty">' + e(SummieI18n.t('Nog geen bronnen toegevoegd.')) + '</div>';
@@ -567,8 +629,9 @@
                 var item = document.createElement('div');
                 item.className = 'summie-bib-item';
                 if (c.id) item.setAttribute('data-citation-id', c.id);
-                // Use index in sorted array + 1 for Vancouver numbering
-                var index = _citationStyle === 'vancouver' ? idx + 1 : this.citations.indexOf(c) + 1;
+                // Vancouver number = occurrence position (idx+1).
+                // APA keeps author-year but index is still passed for consistency
+                var index = idx + 1;
                 item.innerHTML = formatReference(c, index);
                 itemsEl.appendChild(item);
             }, this);
@@ -584,18 +647,14 @@
                 return;
             }
             var self = this;
-            // For Vancouver, keep original order; for APA, sort alphabetically
+            // Sidebar: always insertion order (oldest top, newest bottom).
+            // Vancouver numbers reflect document occurrence order; uncited show "—".
+            var indexMap = getCitationIndexMap();
             var sorted = this.citations.slice();
-            if (_citationStyle === 'apa') {
-                sorted.sort(function (a, b) {
-                    return sortKey(a).localeCompare(sortKey(b));
-                });
-            }
             sorted.forEach(function (c, idx) {
                 var item = document.createElement('div');
                 item.className = 'bron-item';
-                // Use index in sorted array + 1 for Vancouver numbering
-                var index = _citationStyle === 'vancouver' ? idx + 1 : this.citations.indexOf(c) + 1;
+                var index = getCitationNumber(c, indexMap);
                 item.innerHTML =
                     '<div class="bron-item-text">' + formatReference(c, index) + '</div>' +
                     '<div class="bron-item-actions">' +
@@ -689,9 +748,12 @@
         // Re-render every inline citation in the document with the current
         // style/notation (used after loading, after changing the notation and
         // after switching between APA and Vancouver).
+        // Vancouver numbers now follow occurrence order in the text.
         _updateInlineCitationSpans: function () {
             if (!window.AppState) return;
             var self = this;
+            var indexMap = getCitationIndexMap();
+            var order = getOrderedCitationIds();
             document.querySelectorAll('.summie-citation-inline[data-citation-id]').forEach(function (span) {
                 var c = null;
                 for (var i = 0; i < self.citations.length; i++) {
@@ -699,8 +761,30 @@
                 }
                 // Source removed → drop the orphaned inline marker
                 if (!c) { span.remove(); return; }
-                var index = self.citations.indexOf(c) + 1;
-                span.innerHTML = formatInText(c, index);
+                var idx = indexMap[c.id];
+                // Fallback: if for some reason not in map but span exists,
+                // use its position in order array; otherwise insertion order
+                if (!idx) {
+                    var pos = order.indexOf(c.id);
+                    idx = pos !== -1 ? pos + 1 : self.citations.indexOf(c) + 1;
+                }
+                span.innerHTML = formatInText(c, idx);
+            });
+            // Also re-render full reference paragraphs (.summie-citation) so their
+            // Vancouver numbers stay in sync with the bibliography order.
+            var fullMap = getCitationIndexMap();
+            document.querySelectorAll('.summie-citation[data-citation-id]').forEach(function (p) {
+                if (p.closest && p.closest('.summie-bibliography')) return;
+                var c2 = null;
+                for (var i = 0; i < self.citations.length; i++) {
+                    if (self.citations[i].id === p.getAttribute('data-citation-id')) { c2 = self.citations[i]; break; }
+                }
+                if (!c2) { p.remove(); return; }
+                var idx2 = fullMap[c2.id] || (self.citations.indexOf(c2) + 1);
+                // Only Vancouver uses the index visibly; APA ignores it
+                if (_citationStyle === 'vancouver') {
+                    p.innerHTML = formatReference(c2, idx2);
+                }
             });
         },
 
