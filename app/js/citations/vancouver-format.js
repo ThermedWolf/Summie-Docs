@@ -11,8 +11,22 @@
 (function () {
     'use strict';
 
-    var MONTHS = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    var MONTHS_EN = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
         'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    var MONTHS_NL = ['', 'jan', 'feb', 'mrt', 'apr', 'mei', 'jun',
+        'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
+
+    function isEnglish() {
+        try {
+            if (window.SummieI18n && window.SummieI18n.isEnglish) return window.SummieI18n.isEnglish();
+            if (window.SummieI18n && window.SummieI18n.lang === 'en') return true;
+        } catch (e) { }
+        return false;
+    }
+
+    function monthsForLang() {
+        return isEnglish() ? MONTHS_EN : MONTHS_NL;
+    }
 
     function e(str) {
         return window.escapeHtml
@@ -50,6 +64,7 @@
     function formatDate(d) {
         if (!d) return '';
         var m = parseInt(d.month, 10);
+        var MONTHS = monthsForLang();
         var month = MONTHS[m] || '';
         var day = d.day ? ' ' + d.day : '';
         return month ? month + day + ' ' + d.year : d.year;
@@ -125,7 +140,9 @@
             if (authorStr) out += e(authorStr) + '. ';
             if (title) out += '<i>' + e(title) + '</i>. ';
             var ed = clean(c.edition);
-            if (ed && ed !== '1') out += e(ed) + ' ed. ';
+            if (ed && ed !== '1') {
+                out += isEnglish() ? e(ed) + ' ed. ' : e(ed) + ' ed. ';
+            }
             var pub = clean(c.publisher);
             if (pub) out += e(pub) + '; ';
             if (year) out += e(year) + '.';
@@ -137,7 +154,7 @@
             if (authorStr) out += e(authorStr) + '. ';
             if (title) out += e(title) + '. In: ';
             var eds = joinAuthors(c.editors);
-            out += e(eds) + ', editors. ';
+            out += e(eds) + (isEnglish() ? ', editors. ' : ', redacteuren. ');
             out += '<i>' + e(clean(c.journal) || clean(c.publisher)) + '</i>. ';
             var pub = clean(c.publisher);
             if (pub) out += e(pub) + '; ';
@@ -155,13 +172,18 @@
             if (site) out += e(site) + '; ';
             var pubDate = c.publishedDate;
             var dateStr = pubDate ? formatDate(pubDate) : year;
-            // NLM format: [cited YYYY Mon DD]
+            // NLM format: [cited YYYY Mon DD] — localised
+            var MONTHS = monthsForLang();
             var citedDate = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
             var citedParts = citedDate.split('-');
             var citedFormatted = citedParts[0] + ' ' + MONTHS[parseInt(citedParts[1], 10)] + ' ' + citedParts[2];
-            out += '[cited ' + e(citedFormatted) + ']';
+            out += isEnglish()
+                ? '[cited ' + e(citedFormatted) + ']'
+                : '[geraadpleegd ' + e(citedFormatted) + ']';
             var webLink = clean(c.url);
-            if (webLink) out += '. Available from: ' + e(webLink);
+            if (webLink) out += isEnglish()
+                ? '. Available from: ' + e(webLink)
+                : '. Beschikbaar op: ' + e(webLink);
             return out;
         }
 

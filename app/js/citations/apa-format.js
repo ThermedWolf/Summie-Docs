@@ -11,8 +11,22 @@
 (function () {
     'use strict';
 
-    var MONTHS = ['', 'January', 'February', 'March', 'April', 'May', 'June',
+    var MONTHS_EN = ['', 'January', 'February', 'March', 'April', 'May', 'June',
         'July', 'August', 'September', 'October', 'November', 'December'];
+    var MONTHS_NL = ['', 'januari', 'februari', 'maart', 'april', 'mei', 'juni',
+        'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
+
+    function isEnglish() {
+        try {
+            if (window.SummieI18n && window.SummieI18n.isEnglish) return window.SummieI18n.isEnglish();
+            if (window.SummieI18n && window.SummieI18n.lang === 'en') return true;
+        } catch (e) { }
+        return false;
+    }
+
+    function monthsForLang() {
+        return isEnglish() ? MONTHS_EN : MONTHS_NL;
+    }
 
     function e(str) {
         return window.escapeHtml
@@ -54,14 +68,25 @@
     function fullDate(d) {
         if (!d) return '';
         var m = parseInt(d.month, 10);
+        var MONTHS = monthsForLang();
         var month = MONTHS[m] || '';
-        var day = d.day ? ', ' + d.day : '';
-        return month ? month + day + ', ' + d.year : d.year;
+        if (isEnglish()) {
+            var day = d.day ? ', ' + d.day : '';
+            return month ? month + day + ', ' + d.year : d.year;
+        }
+        // Dutch: 5 maart 2024  (dag maand jaar)
+        if (!month) return d.year;
+        if (d.day) return d.day + ' ' + month + ' ' + d.year;
+        return month + ' ' + d.year;
     }
 
     function todayFullDate() {
         var now = new Date();
-        return MONTHS[now.getMonth() + 1] + ' ' + now.getDate() + ', ' + now.getFullYear();
+        var MONTHS = monthsForLang();
+        if (isEnglish()) {
+            return MONTHS[now.getMonth() + 1] + ' ' + now.getDate() + ', ' + now.getFullYear();
+        }
+        return now.getDate() + ' ' + MONTHS[now.getMonth() + 1] + ' ' + now.getFullYear();
     }
 
     function hostname(url) {
@@ -104,7 +129,10 @@
             var CLEAD = authorStr ? e(authorStr) + ' (' + e(year) + ').' : e(title) + '. (' + e(year) + ').';
             var outC = CLEAD;
             if (authorStr && title) outC += ' <i>' + e(title) + '</i>' + '.';
-            outC += ' In ' + e(eds) + (c.editors.length > 1 ? ' (Eds.), ' : ' (Ed.), ') + '<i>' + e(clean(c.journal) || clean(c.publisher)) + '</i>';
+            var edLabel = isEnglish()
+                ? (c.editors.length > 1 ? ' (Eds.), ' : ' (Ed.), ')
+                : ' (Red.), ';
+            outC += ' In ' + e(eds) + edLabel + '<i>' + e(clean(c.journal) || clean(c.publisher)) + '</i>';
             if (clean(c.pages)) outC += ' (pp. ' + e(enDash(c.pages)) + ')';
             outC += '.';
             if (clean(c.publisher)) outC += ' ' + e(clean(c.publisher)) + '.';
@@ -154,9 +182,14 @@
             if (!siteIsAuthor && site) outW += ' ' + e(site) + '.';
             var webLink = clean(c.url);
             if (webLink) {
-                outW += hasFullDate
-                    ? ' ' + e(webLink)
-                    : ' Geraadpleegd op ' + todayFullDate() + ', van ' + e(webLink);
+                if (hasFullDate) {
+                    outW += ' ' + e(webLink);
+                } else {
+                    var retrieved = isEnglish()
+                        ? ' Retrieved ' + todayFullDate() + ', from '
+                        : ' Geraadpleegd op ' + todayFullDate() + ', van ';
+                    outW += retrieved + e(webLink);
+                }
             }
             return outW;
         }
@@ -191,7 +224,7 @@
         }
         var org = clean(c.website) || clean(c.publisher);
         if (org) return '(' + org + ', ' + year + ')';
-        var t = sentenceCase(c.title) || c.url || 'n.b.';
+        var t = sentenceCase(c.title) || c.url || (isEnglish() ? 'n.a.' : 'n.b.');
         if (t.length > 15) t = t.slice(0, 15).trim() + '…';
         return '(' + t + ', ' + year + ')';
     }

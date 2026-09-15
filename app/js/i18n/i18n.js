@@ -125,7 +125,10 @@
         '#docPreviewContainer', '#currentDocName', '.md-row-name', '.md-row-desc', '.md-tags',
         '.begrippen-list', '.references-list', '.inhoud-list', '.term-list',
         '.learning-term', '.learning-def', '.flashcard-term', '.flashcard-def', '.rdi-date',
-        '.current-doc-name', '.current-doc-date', '.landing-doc-name', '.recent-doc-item'
+        '.current-doc-name', '.current-doc-date', '.landing-doc-name', '.recent-doc-item',
+        // Bibliography content is rendered by language-aware formatters; exclude from generic walk
+        '.summie-bibliography', '.summie-citation', '.summie-citation-inline',
+        '.summie-bib-item', '.summie-bib-empty', '.bronnen-list', '.bron-item', '.bronnen-toolbar'
     ].join(',');
 
     function inSkipZone(node) {
@@ -243,9 +246,30 @@
         return observer;
     }
 
+    function refreshBibliographyLang() {
+        try {
+            if (window.Bibliography && window.Bibliography.renderBibliographyBlock) {
+                window.Bibliography.renderBibliographyBlock();
+                if (window.Bibliography._updateInlineCitationSpans) window.Bibliography._updateInlineCitationSpans();
+                if (window.Bibliography._updatePanelIfOpen) window.Bibliography._updatePanelIfOpen();
+                var editor = window.AppState && window.AppState.editor || document.getElementById('editor');
+                if (editor) {
+                    var h = editor.querySelector('.summie-bib-heading');
+                    if (h) {
+                        var txt = (h.textContent || '').trim();
+                        if (txt === 'Bronnen' || txt === 'References' || txt === 'Sources' || txt === 'Referenties') {
+                            h.textContent = window.SummieI18n.t('Bronnen');
+                        }
+                    }
+                }
+            }
+        } catch (e) { }
+    }
+
     function setLang(lang) {
         applyLang(lang, true);
         apply();
+        refreshBibliographyLang();
     }
 
     const api = {
@@ -274,6 +298,7 @@
             window.electron.onLanguageChanged((lang) => {
                 applyLang(lang, false);
                 apply();
+                refreshBibliographyLang();
             });
         }
     });
