@@ -1724,6 +1724,7 @@ async function initSettings() {
     // TTS handlers
     if (ttsGender) ttsGender.addEventListener('change', async () => {
         await window.electron.settingsSet({ ttsGender: ttsGender.value });
+        await refreshPiperStatus();
     });
     if (ttsRate) ttsRate.addEventListener('change', async () => {
         await window.electron.settingsSet({ ttsRate: parseFloat(ttsRate.value) || 1 });
@@ -1745,4 +1746,74 @@ async function initSettings() {
     await bindTtsPause(ttsPauseTable, 'table');
     await bindTtsPause(ttsPauseImage, 'image');
     await bindTtsPause(ttsPauseShape, 'shape');
+
+    // Piper neural status/download
+    const piperStateEl = document.getElementById('piperVoiceState');
+    const piperBtn = document.getElementById('piperDownloadBtn');
+    const piperProgRow = document.getElementById('piperProgressRow');
+    const piperProgBar = document.getElementById('piperProgressBar');
+    const piperProgDesc = document.getElementById('piperProgressDesc');
+    async function refreshPiperStatus() {
+        if (!piperStateEl) return;
+        try {
+            const info = window.electron && window.electron.piperGetStatus ? await window.electron.piperGetStatus() : null;
+            if (!info) { piperStateEl.textContent = 'Onbekend'; return; }
+            const hasEn = info.installed && info.installed['en_US-libritts_r-medium'];
+            const hasEnHigh = info.installed && info.installed['en_US-libritts-high'];
+            const hasNlF = info.installed && (info.installed['nl_NL-dii-high'] || info.installed['nl_BE-nathalie-medium']);
+            const hasNlM = info.installed && info.installed['nl_NL-ronnie-medium'];
+            const hasDii = info.installed && info.installed['nl_NL-dii-high'];
+            const parts = [];
+            parts.push((hasEn || hasEnHigh) ? 'EN ✓' : 'EN …');
+            parts.push(hasNlF ? 'NL vrouw ✓' : 'NL vrouw …');
+            parts.push(hasNlM ? 'NL man ✓' : 'NL man …');
+            if (hasDii) parts.push('NL high ✓');
+            piperStateEl.textContent = parts.filter(Boolean).join(' · ') || 'Geen stem';
+            if (piperBtn) {
+                const gender = (ttsGender && ttsGender.value) || 'female';
+                const want = gender === 'male' ? 'nl_NL-ronnie-medium' : 'nl_NL-dii-high';
+                const hasWant = info.installed && info.installed[want];
+                if (hasWant) {
+                    piperBtn.style.display = 'none';
+                    piperBtn.textContent = '✓';
+                } else {
+                    piperBtn.style.display = '';
+                    piperBtn.textContent = gender === 'male' ? 'Download man' : 'Download vrouw';
+                }
+                piperBtn.disabled = false;
+            }
+        } catch { piperStateEl.textContent = 'Fout'; }
+    }
+    await refreshPiperStatus();
+    if (piperBtn) {
+        piperBtn.addEventListener('click', async () => {
+            const gender = (ttsGender && ttsGender.value) || 'female';
+            const want = gender === 'male' ? 'nl_NL-ronnie-medium' : 'nl_NL-dii-high';
+            piperBtn.disabled = true;
+            if (piperProgRow) piperProgRow.style.display = '';
+            if (piperProgBar) piperProgBar.style.width = '0%';
+            if (piperProgDesc) piperProgDesc.textContent = '0%';
+            try {
+                if (window.electron && window.electron.onPiperDownloadProgress) {
+                    window.electron.onPiperDownloadProgress((p) => {
+                        if (p.voiceId !== want) return;
+                        if (piperProgBar) piperProgBar.style.width = (p.percent||0)+'%';
+                        if (piperProgDesc) piperProgDesc.textContent = (p.percent||0)+'% ' + (p.file||'');
+                    });
+                }
+                const res = await window.electron.piperDownloadVoice(want);
+                if (res && res.success) {
+                    if (window.showNotification) window.showNotification('Stem gedownload', want, 'success');
+                } else {
+                    if (window.showNotification) window.showNotification('Download mislukt', (res&&res.error)||'', 'error');
+                }
+            } catch (e) {
+                if (window.showNotification) window.showNotification('Download mislukt', String(e), 'error');
+            } finally {
+                if (piperProgRow) piperProgRow.style.display = 'none';
+                piperBtn.disabled = false;
+                await refreshPiperStatus();
+            }
+        });
+    }
 }

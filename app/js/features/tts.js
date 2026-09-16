@@ -1,6 +1,6 @@
 // ==================== READ ALOUD / VOORLEZEN ====================
-// Web Speech API based TTS. Offline, OS voices, no network.
-// Queue model: collectBlocks -> segment sentences -> [utterance|pause] queue.
+// Piper neural TTS only — no Web Speech fallback. Bundled English + on-demand Dutch.
+// Offline after first download. Queue model: collectBlocks -> segment sentences -> [utterance|pause] queue.
 // Highlight sync + floating mini-player driven from here.
 
 (function () {
@@ -60,6 +60,32 @@
     function getLangCode() {
         const lang = (settingsCache && settingsCache.language) || (window.SummieI18n && window.SummieI18n.lang) || 'nl';
         return lang === 'en' ? 'en-US' : 'nl-NL';
+    }
+
+    // ── Piper: bundled/on-demand registry (mirrors main.js PIPER_REGISTRY) ─────
+    const PIPER_REGISTRY = {
+        'en_US-libritts_r-medium': { lang: 'en', prefix: 'en', gender: 'female', bundled: true,  label: 'English (neural)' },
+        'en_US-libritts-high':     { lang: 'en', prefix: 'en', gender: 'female', bundled: false, label: 'English high (krachtiger)' },
+        'en_US-ryan-medium':       { lang: 'en', prefix: 'en', gender: 'male',   bundled: false, label: 'English male (neural)' },
+        'en_US-ryan-high':         { lang: 'en', prefix: 'en', gender: 'male',   bundled: false, label: 'English male high (krachtiger)' },
+        'nl_BE-nathalie-medium':   { lang: 'nl', prefix: 'nl', gender: 'female', bundled: false, label: 'Nederlands vrouw (neuraal)' },
+        'nl_NL-ronnie-medium':     { lang: 'nl', prefix: 'nl', gender: 'male',   bundled: false, label: 'Nederlands man (neuraal)' },
+        'nl_NL-dii-high':          { lang: 'nl', prefix: 'nl', gender: 'female', bundled: false, label: 'Nederlands vrouw high (krachtiger)' },
+    };
+    const PIPER_GENDER_MAP = {
+        nl: { female: 'nl_NL-dii-high', male: 'nl_NL-ronnie-medium', system: 'nl_NL-dii-high' },
+        en: { female: 'en_US-libritts-high', male: 'en_US-ryan-high', system: 'en_US-libritts-high' },
+    };
+    function getPiperVoiceIdForLang(prefix, gender) {
+        const g = ['female','male','system'].includes(gender) ? gender : 'female';
+        const p = (prefix || 'en').toLowerCase();
+        const map = PIPER_GENDER_MAP[p] || PIPER_GENDER_MAP.en;
+        return map[g] || map.female;
+    }
+    function getPiperVoiceIdForUtterance(langCode) {
+        const prefix = (langCode || getLangCode()).split('-')[0].toLowerCase();
+        const gender = (settingsCache && settingsCache.ttsGender) || 'female';
+        return getPiperVoiceIdForLang(prefix, gender);
     }
 
     // ── Document language detection (Dutch vs English) ────────────────
@@ -127,7 +153,190 @@
         return out;
     }
 
-    // ── Voices ────────────────────────────────────────
+    // ── Piper neural engine (WASM/ONNX) ────────────────────────────────
+    const PiperEngine = (() => {
+        let ready = false;
+        let initializing = null;
+        let piperStatus = null; // {installed, available}
+        let audioEl = null;
+        let audioUrl = null;
+        let currentResolve = null;
+        let useStub = false; // when wasm not available, fall back gracefully
+
+        async function fetchStatus() {
+            try {
+                if (window.electron && window.electron.piperGetStatus) {
+                    piperStatus = await window.electron.piperGetStatus();
+                    return piperStatus;
+                }
+            } catch {}
+            return null;
+        }
+        async function init() {
+            if (ready) return true;
+            if (initializing) return initializing;
+            initializing = (async () => {
+                piperStatus = await fetchStatus();
+                // Piper is usable if at least one voice is installed (bundled English counts)
+                const anyInstalled = piperStatus && piperStatus.installed && Object.values(piperStatus.installed).some(Boolean);
+                // Try to probe WASM availability — onnxruntime-web may not be bundled yet
+                // We treat Piper as "ready" for queue/download even if WASM not loaded; synthesis will fallback.
+                ready = !!anyInstalled;
+                // Still consider ready if status fetch succeeded — download flow works even when no voice yet
+                if (piperStatus) ready = true;
+                // Attempt wasm warmup (non-blocking)
+                try {
+                    if (window.ort) useStub = false;
+                    else useStub = true;
+                } catch { useStub = true; }
+                return ready;
+            })();
+            const r = await initializing;
+            initializing = null;
+            return r;
+        }
+        function isReady() { return ready; }
+        function getStatus() { return piperStatus; }
+        async function ensureVoiceForLang(langCode) {
+            const voiceId = getPiperVoiceIdForUtterance(langCode);
+            piperStatus = await fetchStatus();
+            const installed = piperStatus && piperStatus.installed && piperStatus.installed[voiceId];
+            if (installed) return { voiceId, installed: true };
+            // Not installed — trigger download if online; otherwise caller falls back to WebSpeech
+            return { voiceId, installed: false };
+        }
+        async function downloadVoice(voiceId) {
+            if (!window.electron || !window.electron.piperDownloadVoice) return { success:false, error:'no ipc' };
+            const target = voiceId || getPiperVoiceIdForUtterance();
+            try {
+                const res = await window.electron.piperDownloadVoice(target);
+                piperStatus = await fetchStatus();
+                return res;
+            } catch (e) { return { success:false, error: String(e) }; }
+        }
+        function hasVoice(voiceId) {
+            return !!(piperStatus && piperStatus.installed && piperStatus.installed[voiceId]);
+        }
+        // Audio playback helpers (WAV blob → <audio>)
+        function createAudio() {
+            if (audioEl) { try { audioEl.pause(); } catch{} if (audioUrl) URL.revokeObjectURL(audioUrl); }
+            audioEl = new Audio();
+            audioEl.preload = 'auto';
+            return audioEl;
+        }
+        async function synthesize(text, voiceId, rate) {
+            if (!hasVoice(voiceId)) return null;
+            // Prefer native piper binary via IPC (bundled piper-bin/piper) — works on Linux x64.
+            // Falls back to browser wasm if binary unavailable; currently binary path is primary.
+            if (window.electron && window.electron.piperSynthesize) {
+                try {
+                    const res = await window.electron.piperSynthesize({ text, voiceId, rate });
+                    if (res && res.success && res.wavBase64) {
+                        const buf = Uint8Array.from(atob(res.wavBase64), c => c.charCodeAt(0));
+                        return new Blob([buf], { type: res.mime || 'audio/wav' });
+                    }
+                    console.warn('piper-synthesize failed', res && res.error);
+                    // If binary missing, try wasm fallback below
+                    if (res && res.error && /piper/i.test(res.error) && !useStub) {
+                        // fall through to wasm attempt
+                    } else if (res && !res.success) {
+                        throw new Error(res.error || 'synthesize failed');
+                    }
+                } catch (e) {
+                    console.warn('piper IPC synthesize error', e);
+                    throw e;
+                }
+            }
+            // WASM fallback placeholder — not yet wired, return null to trigger error (no old voice)
+            return null;
+        }
+        let audioCtx = null;
+        function playBlob(blob, rate, onEnd, onError) {
+            if (!blob) { if (onError) onError(new Error('no blob')); return; }
+            createAudio();
+            // Try <audio> element first (simplest)
+            audioUrl = URL.createObjectURL(blob);
+            audioEl.src = audioUrl;
+            audioEl.playbackRate = Math.max(0.5, Math.min(2, rate || 1));
+            audioEl.onended = () => { try { URL.revokeObjectURL(audioUrl); } catch{} audioUrl=null; if (onEnd) onEnd(); };
+            audioEl.onerror = async (e) => {
+                const code = audioEl.error ? ` code=${audioEl.error.code} msg=${audioEl.error.message}` : '';
+                const msg = `Audio element error${code} type=${e && e.type || 'unknown'}`;
+                console.error(msg, e, audioEl.error);
+                // Fallback: try Web Audio API decode
+                try {
+                    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    if (audioCtx.state === 'suspended') await audioCtx.resume();
+                    const arr = await blob.arrayBuffer();
+                    const decoded = await audioCtx.decodeAudioData(arr.slice(0));
+                    const src = audioCtx.createBufferSource();
+                    src.buffer = decoded;
+                    src.playbackRate.value = Math.max(0.5, Math.min(2, rate || 1));
+                    src.onended = () => { if (onEnd) onEnd(); };
+                    src.connect(audioCtx.destination);
+                    src.start();
+                    // Store for pause/cancel
+                    audioEl._fallbackSrc = src;
+                } catch (err2) {
+                    console.error('WebAudio fallback failed', err2);
+                    if (onError) onError(new Error(msg + ' | fallback: ' + (err2 && err2.message || String(err2))));
+                }
+            };
+            const p = audioEl.play();
+            if (p && typeof p.catch === 'function') p.catch(async e => {
+                const msg = e && e.message ? e.message : String(e);
+                console.error('Audio play() rejected', e);
+                // Try Web Audio fallback on play() rejection (autoplay policy)
+                try {
+                    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    if (audioCtx.state === 'suspended') await audioCtx.resume();
+                    const arr = await blob.arrayBuffer();
+                    const decoded = await audioCtx.decodeAudioData(arr.slice(0));
+                    const src = audioCtx.createBufferSource();
+                    src.buffer = decoded;
+                    src.playbackRate.value = Math.max(0.5, Math.min(2, rate || 1));
+                    src.onended = () => { if (onEnd) onEnd(); };
+                    src.connect(audioCtx.destination);
+                    src.start();
+                    audioEl._fallbackSrc = src;
+                } catch (err2) {
+                    if (onError) onError(new Error(`play() failed: ${msg} | fallback: ${err2 && err2.message || String(err2)}`));
+                }
+            });
+        }
+        function pause() {
+            try { if (audioEl && !audioEl.paused) audioEl.pause(); } catch{}
+            try { if (audioEl && audioEl._fallbackSrc) try { audioEl._fallbackSrc.stop(); } catch{} } catch{}
+            try { if (audioCtx && audioCtx.state === 'running') audioCtx.suspend(); } catch{}
+        }
+        function resume() {
+            try { if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume(); } catch{}
+            // For Web Audio fallback, need to re-create source from decoded buffer — simplest: resume <audio>
+            try { if (audioEl && audioEl.src) audioEl.play(); } catch{}
+        }
+        function cancel() {
+            try {
+                if (audioEl) {
+                    audioEl.onended = null;
+                    audioEl.onerror = null;
+                    try { audioEl.pause(); } catch{}
+                    try { audioEl.currentTime = 0; } catch{}
+                    try { audioEl.src = ''; audioEl.load(); } catch{}
+                    if (audioEl._fallbackSrc) { try { audioEl._fallbackSrc.stop(); } catch{} try { audioEl._fallbackSrc.disconnect(); } catch{} audioEl._fallbackSrc=null; }
+                }
+            } catch{}
+            try { if (audioCtx) { try { audioCtx.close(); } catch{} audioCtx=null; } } catch{}
+            if (audioUrl) { try { URL.revokeObjectURL(audioUrl); } catch{} audioUrl=null; }
+            if (currentResolve) { try { currentResolve(); } catch{} currentResolve=null; }
+        }
+        function setRate(r) {
+            try { if (audioEl) audioEl.playbackRate = r; } catch{}
+            try { if (audioEl && audioEl._fallbackSrc) audioEl._fallbackSrc.playbackRate.value = r; } catch{}
+        }
+        return { init, isReady, getStatus, fetchStatus, ensureVoiceForLang, downloadVoice, hasVoice, synthesize, playBlob, pause, resume, cancel, setRate };
+    })();
+
+    // ── Voices (Web Speech fallback) ──────────────────────────
     function refreshVoices() {
         try {
             voices = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
@@ -183,9 +392,10 @@
         });
         const gender = (settingsCache && settingsCache.ttsGender) || 'female';
         els.voiceSelect.value = ['female','male','system'].includes(gender) ? gender : 'female';
-        // Hint if no voices
-        const hasLangVoice = voices.some(v => v.lang && v.lang.toLowerCase().startsWith(prefix));
-        els.voiceSelect.title = hasLangVoice ? '' : t('Geen stemmen beschikbaar');
+        // Hint if no Piper voice installed for this language/gender
+        const wanted = getPiperVoiceIdForLang(prefix, gender);
+        const hasPiperVoice = PiperEngine.hasVoice(wanted);
+        els.voiceSelect.title = hasPiperVoice ? '' : t('Neurale stem downloaden?');
     }
 
     // ── Text extraction ───────────────────────────────
@@ -252,8 +462,25 @@
         return isBlock ? txt + '\n' : txt;
     }
 
+    function stripParenthetical(text) {
+        if (!text) return '';
+        // Remove all (…) including nested — repeatedly strip innermost ()
+        let prev;
+        let cur = text;
+        do {
+            prev = cur;
+            cur = cur.replace(/\([^()]*\)/g, ' ');
+        } while (cur !== prev);
+        // Also handle stray unmatched brackets gracefully (remove lone ( or ))
+        cur = cur.replace(/[()]/g, ' ');
+        // Collapse gaps left by removal
+        return cur.replace(/[ \t]+/g, ' ');
+    }
     function normalizeTextForTTS(text) {
-        return (text || '').replace(/\u00a0/g, ' ').replace(/\r\n?/g, '\n').replace(/[ \t\f\v]+/g, ' ').replace(/ *\n+ */g, '\n').trim();
+        let t = (text || '').replace(/\u00a0/g, ' ').replace(/\r\n?/g, '\n');
+        // Skip words inside braces (...) per user request — do before whitespace collapse
+        t = stripParenthetical(t);
+        return t.replace(/[ \t\f\v]+/g, ' ').replace(/ *\n+ */g, '\n').trim();
     }
 
     function segmentSentences(text, lang) {
@@ -478,8 +705,104 @@
         return '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
     }
 
+    function shouldUsePiper() {
+        // Piper-only per user request — never fallback to Web Speech
+        return true;
+    }
+
+    // ── Speech helpers (Web Speech fallback) ───────────────
+    function speakWithWebSpeech(item) {
+        const u = new SpeechSynthesisUtterance(item.text);
+        const utterLang = item.lang || getLangCode();
+        const voice = pickVoice(utterLang);
+        if (voice) u.voice = voice;
+        u.lang = utterLang;
+        u.rate = (settingsCache && settingsCache.ttsRate) || 1;
+        u.pitch = 1;
+        u.onend = () => {
+            if (state !== STATE.PLAYING) return;
+            utteranceIndex++;
+            updatePlayerUI();
+            speakCurrent();
+        };
+        u.onerror = (e) => {
+            const err = (e && e.error) || '';
+            console.warn('TTS utterance error', e);
+            if (state !== STATE.PLAYING) return;
+            if (err === 'synthesis-failed' || err === 'synthesis-unavailable') {
+                const alreadyWarned = u._warnedSynthesisFailed;
+                if (!alreadyWarned) {
+                    u._warnedSynthesisFailed = true;
+                    setTimeout(() => {
+                        if (state !== STATE.PLAYING) return;
+                        const retry = new SpeechSynthesisUtterance(item.text);
+                        const rLang = item.lang || getLangCode();
+                        const v = pickVoice(rLang); if (v) retry.voice = v;
+                        retry.lang = rLang;
+                        retry.rate = (settingsCache && settingsCache.ttsRate) || 1;
+                        retry.onend = u.onend;
+                        retry.onerror = async (e2) => {
+                            const err2 = e2 && e2.error;
+                            if (err2 === 'synthesis-failed' || err2 === 'synthesis-unavailable') {
+                                stop();
+                                const doReload = await window.SummieDialogs.choice(
+                                    t('Geen stemmen beschikbaar') + '\n' + t('Installeer speech-dispatcher voor voorlezen op Linux.') + '\n\n' + t('Herstart Summie om de nieuwe stemmen te laden?'),
+                                    { title: t('Geen stemmen beschikbaar'), buttons: [{ label: t('Herstarten'), value: 'reload', primary: true }, { label: t('Annuleren'), value: 'cancel' }], escValue: 'cancel' }
+                                );
+                                if (doReload === 'reload') location.reload();
+                                else if (window.showNotification) window.showNotification(t('Geen stemmen beschikbaar'), t('Installeer speech-dispatcher voor voorlezen op Linux.'), 'warning');
+                            } else { utteranceIndex++; updatePlayerUI(); speakCurrent(); }
+                        };
+                        try { window.speechSynthesis.speak(retry); currentUtterance = retry; } catch {}
+                    }, 600);
+                    return;
+                }
+            }
+            utteranceIndex++;
+            updatePlayerUI();
+            speakCurrent();
+        };
+        currentUtterance = u;
+        try { window.speechSynthesis.speak(u); } catch (e) { console.error('speechSynthesis.speak failed', e); utteranceIndex++; speakCurrent(); }
+    }
+
+    async function speakWithPiper(item) {
+        const utterLang = item.lang || getLangCode();
+        const voiceId = getPiperVoiceIdForUtterance(utterLang);
+        const rate = (settingsCache && settingsCache.ttsRate) || 1;
+        try {
+            const blob = await PiperEngine.synthesize(item.text, voiceId, rate);
+            if (!blob) {
+                console.error('Piper synthesize returned no audio for', voiceId);
+                await window.SummieDialogs.alert(t('Geen audio gegenereerd — probeer een andere stem of download de stem opnieuw.'), { title: t('Voorlezen mislukt') });
+                stop();
+                return;
+            }
+            state = STATE.PLAYING;
+            highlightForIndex(utteranceIndex);
+            updatePlayerUI();
+            PiperEngine.playBlob(blob, rate, () => {
+                if (state !== STATE.PLAYING) return;
+                utteranceIndex++;
+                updatePlayerUI();
+                speakCurrent();
+            }, async (e) => {
+                const msg = e && e.message ? e.message : (e && e.type ? `Event ${e.type}` : String(e));
+                console.error('Piper playback error', e);
+                await window.SummieDialogs.alert(msg, { title: t('Voorlezen mislukt') });
+                stop();
+            });
+        } catch (e) {
+            const msg2 = e && e.message ? e.message : (e && e.type ? `Event ${e.type}` : String(e));
+            console.error('Piper synthesize failed', e);
+            await window.SummieDialogs.alert(msg2, { title: t('Voorlezen mislukt') });
+            stop();
+        }
+    }
+
     // ── Speech loop ───────────────────────────────────
-    function speakCurrent() {
+    async function speakCurrent() {
+        if (state === STATE.IDLE) return;
         if (utteranceIndex >= queue.length) { stop(); return; }
         const item = queue[utteranceIndex];
         if (!item) { stop(); return; }
@@ -506,88 +829,68 @@
             }, item.duration * 1000);
             return;
         }
-        // Utterance
-        state = STATE.PLAYING;
-        highlightForIndex(utteranceIndex);
-        updatePlayerUI();
-        const u = new SpeechSynthesisUtterance(item.text);
-        const utterLang = item.lang || getLangCode();
-        const voice = pickVoice(utterLang);
-        if (voice) u.voice = voice;
-        u.lang = utterLang;
-        u.rate = (settingsCache && settingsCache.ttsRate) || 1;
-        u.pitch = 1;
-        u.onend = () => {
-            if (state !== STATE.PLAYING) return;
-            utteranceIndex++;
-            // Skip any immediate pauses via loop
-            updatePlayerUI();
-            speakCurrent();
-        };
-        u.onerror = (e) => {
-            const err = (e && e.error) || '';
-            console.warn('TTS utterance error', e);
-            if (state !== STATE.PLAYING) return;
-            // synthesis-failed means speech-dispatcher not ready / needs flag / restart
-            if (err === 'synthesis-failed' || err === 'synthesis-unavailable') {
-                const alreadyWarned = u._warnedSynthesisFailed;
-                if (!alreadyWarned) {
-                    u._warnedSynthesisFailed = true;
-                    // Try one retry after short delay before giving up
-                    setTimeout(() => {
-                        if (state !== STATE.PLAYING) return;
-                        // If still failing on retry, prompt restart
-                        const retry = new SpeechSynthesisUtterance(item.text);
-                        const rLang = item.lang || getLangCode();
-                        const v = pickVoice(rLang); if (v) retry.voice = v;
-                        retry.lang = rLang;
-                        retry.rate = (settingsCache && settingsCache.ttsRate) || 1;
-                        retry.onend = u.onend;
-                        retry.onerror = async (e2) => {
-                            const err2 = e2 && e2.error;
-                            if (err2 === 'synthesis-failed' || err2 === 'synthesis-unavailable') {
-                                stop();
-                                const doReload = await window.SummieDialogs.choice(
-                                    t('Geen stemmen beschikbaar') + '\n' + t('Installeer speech-dispatcher voor voorlezen op Linux.') + '\n\n' + t('Herstart Summie om de nieuwe stemmen te laden?'),
-                                    {
-                                        title: t('Geen stemmen beschikbaar'),
-                                        buttons: [
-                                            { label: t('Herstarten'), value: 'reload', primary: true },
-                                            { label: t('Annuleren'), value: 'cancel' }
-                                        ],
-                                        escValue: 'cancel'
-                                    }
-                                );
-                                if (doReload === 'reload') location.reload();
-                                else if (window.showNotification) window.showNotification(t('Geen stemmen beschikbaar'), t('Installeer speech-dispatcher voor voorlezen op Linux.'), 'warning');
-                            } else {
-                                utteranceIndex++;
-                                updatePlayerUI();
-                                speakCurrent();
-                            }
-                        };
-                        try { window.speechSynthesis.speak(retry); currentUtterance = retry; } catch {}
-                    }, 600);
+        // Utterance — Piper only
+        {
+            const voiceId = getPiperVoiceIdForUtterance(item.lang);
+            let has = PiperEngine.hasVoice(voiceId);
+            if (!has) {
+                try { await PiperEngine.init(); has = PiperEngine.hasVoice(voiceId); } catch {}
+            }
+            if (!has) {
+                const status = PiperEngine.getStatus() || await PiperEngine.fetchStatus();
+                const avail = status && status.available && status.available[voiceId];
+                const isBundled = avail && avail.bundled;
+                if (isBundled) {
+                    await window.SummieDialogs.alert(t('Engelse stem niet gevonden — installeer opnieuw via build met piper-voices.'), { title: t('Stem ontbreekt') });
+                    stop();
                     return;
                 }
+                const wantDownload = await window.SummieDialogs.choice(
+                    t('Neurale stem downloaden?') + '\n' + t('Voor deze taal is een betere stem beschikbaar (~40 MB, éénmalig). Wil je die downloaden?'),
+                    { title: t('Neurale stem'), buttons: [{ label: t('Downloaden'), value: 'download', primary: true }, { label: t('Annuleren'), value: 'cancel' }], escValue: 'cancel' }
+                );
+                if (wantDownload !== 'download') { stop(); return; }
+                state = STATE.LOADING;
+                updatePlayerUI();
+                showTtsInstallOverlay(true);
+                isInstalling = true;
+                const res = await PiperEngine.downloadVoice(voiceId);
+                showTtsInstallOverlay(false);
+                isInstalling = false;
+                if (!res || !res.success) {
+                    await window.SummieDialogs.alert(t('Download mislukt') + ': ' + ((res && res.error) || ''), { title: t('Download mislukt') });
+                    stop();
+                    return;
+                }
+                if (window.showNotification) window.showNotification(t('Stem gedownload'), t('Voorlezen start zo.'), 'success');
+                has = PiperEngine.hasVoice(voiceId);
+                if (!has) { await window.SummieDialogs.alert(t('Stem nog niet beschikbaar na download.'), { title: t('Fout') }); stop(); return; }
             }
-            utteranceIndex++;
-            updatePlayerUI();
-            speakCurrent();
-        };
-        currentUtterance = u;
-        try {
-            window.speechSynthesis.speak(u);
-        } catch (e) {
-            console.error('speechSynthesis.speak failed', e);
-            utteranceIndex++;
-            speakCurrent();
+            await speakWithPiper(item);
+            return;
         }
     }
 
     async function ensureDepsThenPlay() {
         refreshVoices();
+        // Piper neural path — primary
+        if (shouldUsePiper()) {
+            try { await PiperEngine.init(); } catch {}
+            // If Piper ready but voice missing for current queue langs, pre-check first utterance
+            if (queue.length) {
+                const firstLang = (queue.find(q=>q.type==='utterance')||{}).lang;
+                const vid = firstLang ? getPiperVoiceIdForUtterance(firstLang) : getPiperVoiceIdForLang((settingsCache && settingsCache.language==='en'?'en':'nl'), (settingsCache&&settingsCache.ttsGender)||'female');
+                const has = PiperEngine.hasVoice(vid);
+                if (!has) {
+                    // Will be handled per-utterance in speakCurrent (prompt download there).
+                    // Still warm up status so isReady reflects reality.
+                }
+            }
+            doPlay();
+            return;
+        }
 
+        // Legacy Web Speech / espeak path (fallback when Piper disabled)
         // On Linux, speechSynthesis may report 0 voices yet still speak with the
         // default espeak-ng voice once speech-dispatcher is running. So we gate
         // the install prompt on the *binary* missing (tts-check-deps), not on
@@ -661,8 +964,9 @@
             stop();
             return;
         }
-        // Cancel any existing speech
+        // Cancel any existing speech (both engines)
         try { window.speechSynthesis.cancel(); } catch {}
+        try { PiperEngine.cancel(); } catch {}
         if (pauseTimer) { clearTimeout(pauseTimer); pauseTimer = null; }
         if (pauseCountdownTimer) { clearInterval(pauseCountdownTimer); pauseCountdownTimer = null; }
         state = STATE.PLAYING;
@@ -693,14 +997,8 @@
             if (window.showNotification) window.showNotification(t('Geen tekst om voor te lezen'), '', 'info');
             return;
         }
-        if (!window.speechSynthesis) {
-            state = STATE.IDLE;
-            updatePlayerUI();
-            if (window.showNotification) window.showNotification(t('Geen stemmen beschikbaar'), '', 'error');
-            return;
-        }
-        // Resume if suspended (browser autoplay policy)
-        try { if (window.speechSynthesis.paused) window.speechSynthesis.resume(); } catch {}
+        // Piper-only: no speechSynthesis gate; PiperEngine handles voices
+        try { if (window.speechSynthesis && window.speechSynthesis.paused) window.speechSynthesis.resume(); } catch {}
         // keep LOADING visible until ensureDepsThenPlay decides to play or stop
         ensureDepsThenPlay();
     }
@@ -709,6 +1007,7 @@
         if (state !== STATE.PLAYING && state !== STATE.PAUSE_DELAY) return;
         state = STATE.PAUSED;
         try { window.speechSynthesis.pause(); } catch {}
+        try { PiperEngine.pause(); } catch {}
         if (pauseTimer) { clearTimeout(pauseTimer); pauseTimer = null; }
         if (pauseCountdownTimer) { clearInterval(pauseCountdownTimer); pauseCountdownTimer = null; }
         updatePlayerUI();
@@ -716,24 +1015,22 @@
 
     function resume() {
         if (state !== STATE.PAUSED) return;
-        // Chromium bug: if paused > ~15s, resume() freezes. We re-queue instead if long pause.
-        // Simple: try resume, but also check paused state after short delay and fallback to cancel+replay
         state = STATE.PLAYING;
         try { window.speechSynthesis.resume(); } catch {}
-        // If we were in a pause-delay, restart that pause
+        try { PiperEngine.resume(); } catch {}
         const item = queue[utteranceIndex];
         if (item && item.type === 'pause') {
             state = STATE.PAUSE_DELAY;
-            // Re-enter pause handling by re-calling speakCurrent logic for pause
             if (pauseTimer) clearTimeout(pauseTimer);
             speakCurrent();
         }
         updatePlayerUI();
-        // Fallback: if still paused after 600ms, cancel and replay current utterance
         setTimeout(() => {
             try {
-                if (window.speechSynthesis.paused && state === STATE.PLAYING) {
+                const stillPaused = (window.speechSynthesis && window.speechSynthesis.paused) && state === STATE.PLAYING;
+                if (stillPaused) {
                     window.speechSynthesis.cancel();
+                    try { PiperEngine.cancel(); } catch{}
                     speakCurrent();
                 }
             } catch {}
@@ -742,7 +1039,9 @@
 
     function stop() {
         state = STATE.IDLE;
+        utteranceIndex = queue.length; // prevent next speakCurrent from continuing
         try { window.speechSynthesis.cancel(); } catch {}
+        try { PiperEngine.cancel(); } catch {}
         if (pauseTimer) { clearTimeout(pauseTimer); pauseTimer = null; }
         if (pauseCountdownTimer) { clearInterval(pauseCountdownTimer); pauseCountdownTimer = null; }
         currentUtterance = null;
@@ -755,9 +1054,9 @@
     function next() {
         if (state === STATE.IDLE) return;
         try { window.speechSynthesis.cancel(); } catch {}
+        try { PiperEngine.cancel(); } catch {}
         if (pauseTimer) { clearTimeout(pauseTimer); pauseTimer = null; }
         if (pauseCountdownTimer) { clearInterval(pauseCountdownTimer); pauseCountdownTimer = null; }
-        // Advance to next utterance (skip pauses)
         let idx = utteranceIndex + 1;
         while (idx < queue.length && queue[idx].type === 'pause') idx++;
         if (idx >= queue.length) { stop(); return; }
@@ -770,13 +1069,12 @@
     function prev() {
         if (state === STATE.IDLE) return;
         try { window.speechSynthesis.cancel(); } catch {}
+        try { PiperEngine.cancel(); } catch {}
         if (pauseTimer) { clearTimeout(pauseTimer); pauseTimer = null; }
         if (pauseCountdownTimer) { clearInterval(pauseCountdownTimer); pauseCountdownTimer = null; }
-        // Go to previous utterance (skip pauses backwards)
         let idx = utteranceIndex - 1;
         while (idx > 0 && queue[idx].type === 'pause') idx--;
         if (idx < 0) idx = 0;
-        // If utterance had been playing >2s, restart it instead of going further back
         utteranceIndex = idx;
         state = STATE.PLAYING;
         updatePlayerUI();
@@ -784,11 +1082,11 @@
     }
 
     function seekToUtterance(utterancePos) {
-        // utterancePos is 0..totalUtterances-1
         const utteranceIndices = queue.map((q, i) => q.type === 'utterance' ? i : -1).filter(i => i !== -1);
         const targetQueueIdx = utteranceIndices[utterancePos];
         if (targetQueueIdx == null) return;
         try { window.speechSynthesis.cancel(); } catch {}
+        try { PiperEngine.cancel(); } catch {}
         if (pauseTimer) { clearTimeout(pauseTimer); pauseTimer = null; }
         if (pauseCountdownTimer) { clearInterval(pauseCountdownTimer); pauseCountdownTimer = null; }
         utteranceIndex = targetQueueIdx;
@@ -810,6 +1108,7 @@
         while (idx < queue.length && queue[idx].type === 'pause') idx++;
         if (idx >= queue.length) { stop(); return; }
         try { window.speechSynthesis.cancel(); } catch {}
+        try { PiperEngine.cancel(); } catch {}
         if (pauseTimer) { clearTimeout(pauseTimer); pauseTimer = null; }
         if (pauseCountdownTimer) { clearInterval(pauseCountdownTimer); pauseCountdownTimer = null; }
         utteranceIndex = idx;
@@ -840,6 +1139,7 @@
             idx = j;
         }
         try { window.speechSynthesis.cancel(); } catch {}
+        try { PiperEngine.cancel(); } catch {}
         if (pauseTimer) { clearTimeout(pauseTimer); pauseTimer = null; }
         if (pauseCountdownTimer) { clearInterval(pauseCountdownTimer); pauseCountdownTimer = null; }
         utteranceIndex = idx;
@@ -853,10 +1153,11 @@
         settingsCache = settingsCache || await loadSettings();
         settingsCache.ttsRate = r;
         if (window.electron && window.electron.settingsSet) window.electron.settingsSet({ ttsRate: r });
+        try { PiperEngine.setRate(r); } catch {}
         updatePlayerUI();
-        // Rate applies to next utterance; if playing, restart current
         if (state === STATE.PLAYING && queue[utteranceIndex] && queue[utteranceIndex].type === 'utterance') {
             try { window.speechSynthesis.cancel(); } catch {}
+            try { PiperEngine.cancel(); } catch {}
             speakCurrent();
         }
     }
@@ -866,9 +1167,12 @@
         settingsCache = settingsCache || await loadSettings();
         settingsCache.ttsGender = g;
         if (window.electron && window.electron.settingsSet) window.electron.settingsSet({ ttsGender: g });
+        // Refresh Piper status so hasVoice check is up to date
+        try { await PiperEngine.fetchStatus(); } catch {}
         updatePlayerUI();
         if (state === STATE.PLAYING && queue[utteranceIndex] && queue[utteranceIndex].type === 'utterance') {
             try { window.speechSynthesis.cancel(); } catch {}
+            try { PiperEngine.cancel(); } catch {}
             speakCurrent();
         }
     }
@@ -982,16 +1286,25 @@
             }
         });
 
-        // Voices
+        // Voices + Piper status
         refreshVoices();
         if (window.speechSynthesis) {
             window.speechSynthesis.onvoiceschanged = refreshVoices;
-            // Some Chromium needs polling
             setTimeout(refreshVoices, 500);
+        }
+        // Init Piper engine (warm status cache)
+        try { PiperEngine.init(); } catch {}
+        if (window.electron && window.electron.onPiperDownloadProgress) {
+            window.electron.onPiperDownloadProgress((p) => {
+                if (state === STATE.LOADING || isInstalling) {
+                    if (els.progressText) els.progressText.textContent = t('Downloaden...') + ' ' + (p.percent||0) + '%';
+                    updatePlayerUI();
+                }
+            });
         }
 
         // Settings live updates
-        loadSettings().then(() => updatePlayerUI());
+        loadSettings().then(() => { updatePlayerUI(); try { PiperEngine.init(); } catch{} });
         if (window.electron && window.electron.onSettingsChanged) {
             window.electron.onSettingsChanged((patch) => {
                 if (!patch) return;

@@ -24,6 +24,27 @@
       "app/**/*",
       "!app/**/*sync-conflict*"
     ],
+    "extraResources": [
+      {
+        "from": "piper-voices",
+        "to": "piper-voices",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "piper-bin",
+        "to": "piper-bin",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "asarUnpack": [
+      "**/*.wasm",
+      "**/*.onnx",
+      "**/*.onnx.json"
+    ],
     "publish": null,
     "fileAssociations": [
       {
@@ -101,7 +122,9 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@laiss-labs/piper-tts-web": "^1.0.6",
     "dompurify": "^3.4.15",
-    "electron-log": "^5.4.4"
+    "electron-log": "^5.4.4",
+    "onnxruntime-web": "^1.20.0"
   }
 }

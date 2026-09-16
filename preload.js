@@ -115,6 +115,13 @@ contextBridge.exposeInMainWorld(
         // TTS speech-dispatcher deps (Linux auto-install)
         ttsCheckDeps: () => ipcRenderer.invoke('tts-check-deps'),
         ttsInstallDeps: () => ipcRenderer.invoke('tts-install-deps'),
+        // Piper neural TTS (bundled English + on-demand Dutch)
+        piperGetStatus: () => ipcRenderer.invoke('piper-get-status'),
+        piperGetVoicePaths: (voiceId) => ipcRenderer.invoke('piper-get-voice-paths', voiceId),
+        piperDownloadVoice: (voiceId) => ipcRenderer.invoke('piper-download-voice', voiceId),
+        piperDeleteVoice: (voiceId) => ipcRenderer.invoke('piper-delete-voice', voiceId),
+        piperSynthesize: (payload) => ipcRenderer.invoke('piper-synthesize', payload),
+        onPiperDownloadProgress: (callback) => ipcRenderer.on('piper-download-progress', (_, p) => callback(p)),
 
         // Shell (for opening external links)
         shell: {

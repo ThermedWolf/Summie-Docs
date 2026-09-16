@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none';">
+        content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' https://huggingface.co https://cdn.jsdelivr.net blob:; media-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none';">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Summie</title>
     <!-- Apply saved theme before first paint to avoid a light-mode flash -->
@@ -605,6 +605,25 @@
                             <span class="settings-item-desc">Stilte nadat een vorm is overgeslagen.</span>
                         </div>
                         <input type="number" class="settings-select" id="settingTtsPauseShape" min="0" max="30" step="1" style="width:90px;text-align:center;">
+                    </div>
+                    <div class="settings-item" id="piperVoiceRow">
+                        <div class="settings-item-info">
+                            <span class="settings-item-label">Neurale stem</span>
+                            <span class="settings-item-desc" id="piperVoiceStatus">Piper — Engels gebundeld, Nederlands éénmalig downloaden (~40 MB).</span>
+                        </div>
+                        <div style="display:flex;gap:8px;align-items:center;">
+                            <span class="settings-dir-path" id="piperVoiceState" style="font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Controleren…</span>
+                            <button class="settings-dir-btn" id="piperDownloadBtn" style="display:none">Downloaden</button>
+                        </div>
+                    </div>
+                    <div class="settings-item" id="piperProgressRow" style="display:none">
+                        <div class="settings-item-info">
+                            <span class="settings-item-label" id="piperProgressLabel">Downloaden...</span>
+                            <span class="settings-item-desc" id="piperProgressDesc">0%</span>
+                        </div>
+                        <div class="settings-dir-picker" style="flex:1;max-width:220px">
+                            <div class="tts-install-bar-track" style="flex:1"><div class="tts-install-bar" id="piperProgressBar" style="width:0%"></div></div>
+                        </div>
                     </div>
                 </div>
                 <div class="settings-group settings-group-about">

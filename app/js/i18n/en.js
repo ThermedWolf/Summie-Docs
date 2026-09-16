@@ -1032,5 +1032,15 @@
         'Herstarten': 'Restart',
         'Herstart Summie om de nieuwe stemmen te laden?': 'Restart Summie to load the new voices?',
         'Laden...': 'Loading...',
+        'Downloaden...': 'Downloading...',
+        'Downloaden': 'Download',
+        'Nu niet': 'Not now',
+        'Neurale stem': 'Neural voice',
+        'Neurale stem downloaden?': 'Download neural voice?',
+        'Voor deze taal is een betere stem beschikbaar (~40 MB, éénmalig). Wil je die downloaden?': 'A better voice is available for this language (~40 MB, once). Download it?',
+        'Stem gedownload': 'Voice downloaded',
+        'Voorlezen start zo.': 'Read-aloud will start shortly.',
+        'Download mislukt': 'Download failed',
+        'Geen neurale stem gedownload — standaard stem gebruikt': 'No neural voice downloaded — using system voice',
     };
 }));

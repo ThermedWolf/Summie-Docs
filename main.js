@@ -236,6 +236,27 @@ function detectDefaultLanguage() {
     return locale.startsWith('nl') ? 'nl' : 'en';
 }
 
+// ── Piper neural TTS registry ───────────────────────────────────────────────
+// Bundled: English voice ships inside app resources. On-demand: Dutch voices
+// downloaded to userData/piper-voices/ on first use.
+// Note: nl_NL/mls is multi-speaker (52). Default speaker 0 is male, so for
+// female we use the dedicated Flemish single-speaker nathalie (clear female)
+// rather than guessing a speaker_id in the multi-speaker model.
+const PIPER_REGISTRY = {
+    'en_US-libritts_r-medium':   { lang: 'en', prefix: 'en', gender: 'female', bundled: true,  quality: 'medium', label: 'English (neural)', hfPath: 'en/en_US/libritts_r/medium', speakerId: 0 },
+    'en_US-libritts-high':       { lang: 'en', prefix: 'en', gender: 'female', bundled: false, quality: 'high',   label: 'English high (krachtiger)', hfPath: 'en/en_US/libritts/high', speakerId: 0 },
+    'en_US-ryan-medium':         { lang: 'en', prefix: 'en', gender: 'male',   bundled: false, quality: 'medium', label: 'English male (neural)', hfPath: 'en/en_US/ryan/medium', speakerId: 0 },
+    'en_US-ryan-high':           { lang: 'en', prefix: 'en', gender: 'male',   bundled: false, quality: 'high',   label: 'English male high (krachtiger)', hfPath: 'en/en_US/ryan/high', speakerId: 0 },
+    'nl_BE-nathalie-medium':     { lang: 'nl', prefix: 'nl', gender: 'female', bundled: false, quality: 'medium', label: 'Nederlands vrouw (neuraal)', hfPath: 'nl/nl_BE/nathalie/medium', speakerId: 0 },
+    'nl_NL-ronnie-medium':       { lang: 'nl', prefix: 'nl', gender: 'male',   bundled: false, quality: 'medium', label: 'Nederlands man (neuraal)',   hfPath: 'nl/nl_NL/ronnie/medium', speakerId: 0 },
+    // high-power Dutch (OpenVoiceOS dii, 28-32M) — more natural, now default for nl vrouw
+    'nl_NL-dii-high':            { lang: 'nl', prefix: 'nl', gender: 'female', bundled: false, quality: 'high', label: 'Nederlands vrouw high (krachtiger)', hfRepo: 'OpenVoiceOS/pipertts_nl-NL_dii', hfFiles: { onnx: 'dii_nl-NL.onnx', json: 'dii_nl-NL.onnx.json' }, speakerId: 0 },
+};
+const PIPER_GENDER_MAP = {
+    nl: { female: 'nl_NL-dii-high', male: 'nl_NL-ronnie-medium', system: 'nl_NL-dii-high' },
+    en: { female: 'en_US-libritts-high', male: 'en_US-ryan-high', system: 'en_US-libritts-high' },
+};
+
 const DEFAULT_APP_SETTINGS = {
     language: detectDefaultLanguage(),  // 'nl' | 'en'
     autoSaveNewFiles: false,            // automatically save new documents
@@ -247,7 +268,9 @@ const DEFAULT_APP_SETTINGS = {
     citationAuthorDelimiter: 'semicolon', // 'semicolon' (;) | 'newline' (\n) — scheidingsteken tussen auteurs in invoerveld
     ttsRate: 1.0,                       // voorlees-snelheid 0.5–2.0
     ttsGender: 'female',                // 'female' | 'male' | 'system'
-    ttsPauses: { codeBlock: 5, table: 10, image: 5, shape: 5, default: 5 }, // stilte na overgeslagen elementen (sec)
+    ttsPauses: { codeBlock: 2, table: 3, image: 2, shape: 2, default: 1 }, // stilte na overgeslagen elementen (sec) — shorter for neural
+    ttsEngine: 'piper',                 // 'piper' | 'webSpeech' | 'auto'
+    ttsPiperVoice: 'en_US-libritts_r-medium',
 };
 
 function readAppSettings() {
@@ -274,6 +297,8 @@ function readAppSettings() {
             merged.ttsPauses[k] = (typeof v === 'number' && v >= 0 && v <= 30) ? v : def[k];
         }
     }
+    if (!['piper', 'webSpeech', 'auto'].includes(merged.ttsEngine)) merged.ttsEngine = DEFAULT_APP_SETTINGS.ttsEngine;
+    if (typeof merged.ttsPiperVoice !== 'string' || !PIPER_REGISTRY[merged.ttsPiperVoice]) merged.ttsPiperVoice = DEFAULT_APP_SETTINGS.ttsPiperVoice;
     return merged;
 }
 
@@ -1106,6 +1131,224 @@ safeHandle('tts-install-deps', async (event) => {
             try { execSync('which spd-say', { stdio: 'ignore' }); resolve({ success: true }); }
             catch { resolve({ success: false, error: 'Installatie leek te slagen maar spd-say is nog niet gevonden' }); }
         });
+    });
+});
+
+// ── Piper neural TTS (bundled English, on-demand Dutch) ─────────────────────
+function getPiperVoiceDir() {
+    return path.join(app.getPath('userData'), 'piper-voices');
+}
+function getPiperBundledDir() {
+    // In dev: app/piper-voices/, in packaged: resources/piper-voices/ (extraResources)
+    const devPath = path.join(__dirname, 'piper-voices');
+    if (fs.existsSync(devPath)) return devPath;
+    const resPath = path.join(process.resourcesPath, 'piper-voices');
+    if (fs.existsSync(resPath)) return resPath;
+    return devPath;
+}
+function isPiperVoiceInstalled(voiceId) {
+    const info = PIPER_REGISTRY[voiceId];
+    if (!info) return false;
+    const onnxName = info.hfFiles ? info.hfFiles.onnx : `${voiceId}.onnx`;
+    const jsonName = info.hfFiles ? info.hfFiles.json : `${voiceId}.onnx.json`;
+    if (info.bundled) {
+        const bundledFile = path.join(getPiperBundledDir(), voiceId, onnxName);
+        const bundledJson = path.join(getPiperBundledDir(), voiceId, jsonName);
+        if (fs.existsSync(bundledFile) && fs.existsSync(bundledJson)) return true;
+        // fallback to legacy naming
+        const legacyOnnx = path.join(getPiperBundledDir(), voiceId, `${voiceId}.onnx`);
+        const legacyJson = path.join(getPiperBundledDir(), voiceId, `${voiceId}.onnx.json`);
+        if (fs.existsSync(legacyOnnx) && fs.existsSync(legacyJson)) return true;
+    }
+    const userFile = path.join(getPiperVoiceDir(), voiceId, onnxName);
+    const userJson = path.join(getPiperVoiceDir(), voiceId, jsonName);
+    if (fs.existsSync(userFile) && fs.existsSync(userJson)) return true;
+    // legacy
+    const legacyUserOnnx = path.join(getPiperVoiceDir(), voiceId, `${voiceId}.onnx`);
+    const legacyUserJson = path.join(getPiperVoiceDir(), voiceId, `${voiceId}.onnx.json`);
+    return fs.existsSync(legacyUserOnnx) && fs.existsSync(legacyUserJson);
+}
+function getPiperVoicePaths(voiceId) {
+    const info = PIPER_REGISTRY[voiceId];
+    if (!info) return null;
+    const onnxName = info.hfFiles ? info.hfFiles.onnx : `${voiceId}.onnx`;
+    const jsonName = info.hfFiles ? info.hfFiles.json : `${voiceId}.onnx.json`;
+    const bundledOnnx = path.join(getPiperBundledDir(), voiceId, onnxName);
+    const bundledJson = path.join(getPiperBundledDir(), voiceId, jsonName);
+    if (info.bundled && fs.existsSync(bundledOnnx) && fs.existsSync(bundledJson)) {
+        return { onnx: bundledOnnx, json: bundledJson, bundled: true };
+    }
+    const legacyBundledOnnx = path.join(getPiperBundledDir(), voiceId, `${voiceId}.onnx`);
+    const legacyBundledJson = path.join(getPiperBundledDir(), voiceId, `${voiceId}.onnx.json`);
+    if (info.bundled && fs.existsSync(legacyBundledOnnx) && fs.existsSync(legacyBundledJson)) {
+        return { onnx: legacyBundledOnnx, json: legacyBundledJson, bundled: true };
+    }
+    const userOnnx = path.join(getPiperVoiceDir(), voiceId, onnxName);
+    const userJson = path.join(getPiperVoiceDir(), voiceId, jsonName);
+    if (fs.existsSync(userOnnx) && fs.existsSync(userJson)) {
+        return { onnx: userOnnx, json: userJson, bundled: false };
+    }
+    const legacyUserOnnx = path.join(getPiperVoiceDir(), voiceId, `${voiceId}.onnx`);
+    const legacyUserJson = path.join(getPiperVoiceDir(), voiceId, `${voiceId}.onnx.json`);
+    if (fs.existsSync(legacyUserOnnx) && fs.existsSync(legacyUserJson)) {
+        return { onnx: legacyUserOnnx, json: legacyUserJson, bundled: false };
+    }
+    return null;
+}
+safeHandle('piper-get-status', async () => {
+    const installed = {};
+    const available = {};
+    for (const [id, info] of Object.entries(PIPER_REGISTRY)) {
+        available[id] = { ...info, installed: isPiperVoiceInstalled(id) };
+        installed[id] = isPiperVoiceInstalled(id);
+    }
+    return { installed, available, registry: PIPER_REGISTRY, bundledDir: getPiperBundledDir(), userDir: getPiperVoiceDir() };
+});
+safeHandle('piper-get-voice-paths', async (event, voiceId) => {
+    const vid = voiceId || readAppSettings().ttsPiperVoice;
+    const p = getPiperVoicePaths(vid);
+    if (!p) return { success: false, error: 'Stem niet geïnstalleerd', voiceId: vid };
+    return { success: true, voiceId: vid, ...p };
+});
+safeHandle('piper-download-voice', async (event, voiceId) => {
+    const vid = voiceId || PIPER_GENDER_MAP.nl.female;
+    const info = PIPER_REGISTRY[vid];
+    if (!info) return { success: false, error: 'Onbekende stem: ' + vid };
+    if (isPiperVoiceInstalled(vid)) return { success: true, alreadyInstalled: true, voiceId: vid };
+    const sender = event.sender;
+    const destDir = path.join(getPiperVoiceDir(), vid);
+    fs.mkdirSync(destDir, { recursive: true });
+    // Support custom hfRepo (e.g. OpenVoiceOS) vs default rhasspy/piper-voices
+    let baseUrl, files;
+    if (info.hfRepo && info.hfFiles) {
+        baseUrl = `https://huggingface.co/${info.hfRepo}/resolve/main`;
+        files = [info.hfFiles.onnx, info.hfFiles.json];
+    } else {
+        baseUrl = `https://huggingface.co/rhasspy/piper-voices/resolve/main/${info.hfPath}`;
+        files = [`${vid}.onnx`, `${vid}.onnx.json`];
+    }
+    const https = require('https');
+    const http = require('http');
+    function downloadFile(url, dest) {
+        return new Promise((resolve, reject) => {
+            const mod = url.startsWith('https:') ? https : http;
+            const req = mod.get(url, (res) => {
+                if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+                    // Follow redirect — resolve relative locations against original URL
+                    let nextUrl = res.headers.location;
+                    try {
+                        // If location is relative (e.g. "/api/..."), resolve against current url
+                        if (!nextUrl.startsWith('http://') && !nextUrl.startsWith('https://')) {
+                            nextUrl = new URL(nextUrl, url).href;
+                        }
+                    } catch {}
+                    downloadFile(nextUrl, dest).then(resolve).catch(reject);
+                    return;
+                }
+                if (res.statusCode !== 200) {
+                    reject(new Error(`HTTP ${res.statusCode} for ${url}`));
+                    res.resume();
+                    return;
+                }
+                const total = parseInt(res.headers['content-length'] || '0', 10);
+                let received = 0;
+                const file = fs.createWriteStream(dest);
+                res.on('data', (chunk) => {
+                    received += chunk.length;
+                    if (total && sender && !sender.isDestroyed()) {
+                        const pct = Math.round((received / total) * 100);
+                        try { sender.send('piper-download-progress', { voiceId: vid, file: path.basename(dest), percent: pct, received, total }); } catch {}
+                    }
+                });
+                res.pipe(file);
+                file.on('finish', () => file.close(() => resolve()));
+                file.on('error', (err) => { try { fs.unlinkSync(dest); } catch {} reject(err); });
+            });
+            req.on('error', reject);
+            req.setTimeout(30000, () => { req.destroy(new Error('Timeout')); });
+        });
+    }
+    try {
+        for (const f of files) {
+            const url = `${baseUrl}/${f}`;
+            const dest = path.join(destDir, f);
+            // Skip if already exists (partial previous success)
+            if (fs.existsSync(dest) && fs.statSync(dest).size > 1024) continue;
+            if (sender && !sender.isDestroyed()) sender.send('piper-download-progress', { voiceId: vid, file: f, percent: 0 });
+            await downloadFile(url, dest);
+        }
+        // Verify
+        if (!isPiperVoiceInstalled(vid)) throw new Error('Download voltooid maar bestanden niet gevonden');
+        return { success: true, voiceId: vid };
+    } catch (err) {
+        // Cleanup partial
+        try { fs.rmSync(destDir, { recursive: true, force: true }); } catch {}
+        return { success: false, error: err.message || String(err) };
+    }
+});
+safeHandle('piper-delete-voice', async (event, voiceId) => {
+    const info = PIPER_REGISTRY[voiceId];
+    if (!info) return { success: false, error: 'Onbekende stem' };
+    if (info.bundled) return { success: false, error: 'Gebundelde stem kan niet worden verwijderd' };
+    const dir = path.join(getPiperVoiceDir(), voiceId);
+    try { fs.rmSync(dir, { recursive: true, force: true }); } catch {}
+    return { success: true };
+});
+function getPiperBinaryPath() {
+    const bundled = path.join(getPiperBundledDir(), '..', 'piper-bin', 'piper');
+    // getPiperBundledDir returns piper-voices dir; piper-bin is sibling in resources
+    const altBundled = path.join(process.resourcesPath || '', 'piper-bin', 'piper');
+    const dev = path.join(__dirname, 'piper-bin', 'piper');
+    for (const p of [dev, altBundled, bundled]) {
+        try { if (fs.existsSync(p)) return p; } catch {}
+    }
+    // Fallback to system piper
+    return 'piper';
+}
+safeHandle('piper-synthesize', async (event, payload) => {
+    const text = payload && payload.text ? String(payload.text) : '';
+    const voiceId = payload && payload.voiceId ? String(payload.voiceId) : PIPER_GENDER_MAP.nl.female;
+    const rate = payload && payload.rate ? parseFloat(payload.rate) : 1.0;
+    if (!text.trim()) return { success: false, error: 'Geen tekst' };
+    const voicePaths = getPiperVoicePaths(voiceId);
+    if (!voicePaths) return { success: false, error: 'Stem niet geïnstalleerd: ' + voiceId };
+    const bin = getPiperBinaryPath();
+    // Piper length_scale: >1 slower, <1 faster. Map rate (0.5-2) to length_scale
+    let lengthScale = 1.0;
+    if (rate < 1) lengthScale = 1.0 + (1 - rate) * 0.8;
+    else if (rate > 1) lengthScale = 1.0 / rate;
+    lengthScale = Math.max(0.5, Math.min(2, lengthScale));
+    const piperBinDir = path.dirname(bin);
+    const espeakData = path.join(piperBinDir, 'espeak-ng-data');
+    const speakerId = (PIPER_REGISTRY[voiceId] && PIPER_REGISTRY[voiceId].speakerId) || 0;
+    // Reduce weird pauses: piper sentence_silence 0.15 instead of default 0.2, and less length noise
+    const args = ['--model', voicePaths.onnx, '--output_file', '-', '--length_scale', String(lengthScale), '--speaker', String(speakerId), '--sentence_silence', '0.12'];
+    if (fs.existsSync(espeakData)) args.push('--espeak_data', espeakData);
+    const { spawn } = require('child_process');
+    return await new Promise((resolve) => {
+        let wavBuffer = Buffer.alloc(0);
+        let errBuf = '';
+        const env = { ...process.env, LD_LIBRARY_PATH: [piperBinDir, process.env.LD_LIBRARY_PATH || ''].filter(Boolean).join(':') };
+        let proc;
+        try { proc = spawn(bin, args, { env }); } catch (e) { resolve({ success: false, error: String(e.message || e) }); return; }
+        proc.stdout.on('data', (c) => { wavBuffer = Buffer.concat([wavBuffer, c]); });
+        proc.stderr.on('data', (c) => { errBuf += c.toString(); });
+        proc.on('error', (e) => resolve({ success: false, error: String(e.message || e) }));
+        proc.on('close', (code) => {
+            if (code !== 0) {
+                resolve({ success: false, error: errBuf || `piper exit ${code}` });
+                return;
+            }
+            if (!wavBuffer.length) {
+                resolve({ success: false, error: 'Geen audio gegenereerd' });
+                return;
+            }
+            // Return as base64 for IPC
+            resolve({ success: true, wavBase64: wavBuffer.toString('base64'), mime: 'audio/wav' });
+        });
+        // Feed text via stdin
+        try { proc.stdin.write(text); proc.stdin.end(); } catch (e) { resolve({ success: false, error: String(e) }); }
+        setTimeout(() => { try { proc.kill('SIGTERM'); } catch {} resolve({ success: false, error: 'Timeout' }); }, 20000);
     });
 });
 

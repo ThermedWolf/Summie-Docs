@@ -4,3 +4,7 @@ backup/
 dist/
 *_example*
 *CHANGELOG*
+# Piper neural TTS — large binaries not in git (download on build / on-demand)
+piper-bin/
+piper-voices/*
+!piper-voices/README.md
