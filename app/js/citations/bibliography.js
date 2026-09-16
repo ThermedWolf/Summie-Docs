@@ -547,6 +547,7 @@
             if (existing) {
                 if (opts.insert) this.insertReferenceAtCursor(existing);
                 else if (opts.inline) this.insertInTextAtCursor(existing);
+                else this._afterChange();
                 window.showNotification && window.showNotification(
                     SummieI18n.t('Bron bestaat al'),
                     SummieI18n.t(opts.inline
@@ -558,12 +559,14 @@
             }
             if (!c.id) c.id = this.genId();
             this.citations.push(c);
-            this._afterChange();
 
+            // De bronnenlijst in het document direct bijwerken:
+            // - bij in-tekst of volledige verwijzing delegeert de insert-methode
+            //   zelf naar _afterChange (zodat de volgorde in het document klopt)
+            // - zonder insert (alleen aan de lijst toegevoegd) direct verversen
             if (opts.insert) this.insertReferenceAtCursor(c);
-            else if (opts.inline) {
-                this.insertInTextAtCursor(c);
-            }
+            else if (opts.inline) this.insertInTextAtCursor(c);
+            else this._afterChange();
 
             window.showNotification && window.showNotification(
                 SummieI18n.t('Bron toegevoegd'),
@@ -574,6 +577,7 @@
                         : 'De bron is aan de lijst toegevoegd.'),
                 'success'
             );
+            return c;
         },
 
         removeCitation: function (id) {
