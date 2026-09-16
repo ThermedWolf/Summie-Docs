@@ -96,10 +96,16 @@ async function loadFromLocalStorage() {
             window.ReferencesManager.restoreFromEditor();
         }
 
-        // Restore bibliography
+        // Restore bibliography — ensure Vancouver numbers follow document order
         if (window.Bibliography && Array.isArray(data.citations)) {
             window.Bibliography.setCitations(data.citations);
-            window.Bibliography.renderBibliographyBlock();
+            setTimeout(function () {
+                if (window.Bibliography.renumberNow) window.Bibliography.renumberNow();
+                else {
+                    window.Bibliography._updateInlineCitationSpans && window.Bibliography._updateInlineCitationSpans();
+                    window.Bibliography.renderBibliographyBlock();
+                }
+            }, 150);
         }
 
         // Derive pagination mode from the saved draft itself — same logic as applyLoadedData.

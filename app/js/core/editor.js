@@ -229,12 +229,24 @@ function applyLoadedData(data) {
     // Restore bibliography citations (the formatted <p class="summie-citation">
     // entries and any .summie-bibliography block are part of the content HTML;
     // this restores the sidebar list and re-renders the block if present).
+    // Vancouver numbering must reflect document order — the first citation
+    // in the DOM is always [1], even after a reload.
     if (window.Bibliography && Array.isArray(data.citations)) {
         window.Bibliography.setCitations(data.citations);
         setTimeout(function () {
-            window.Bibliography.renderBibliographyBlock();
-            window.Bibliography._updatePanelIfOpen && window.Bibliography._updatePanelIfOpen();
-        }, 100);
+            if (window.Bibliography.renumberNow) window.Bibliography.renumberNow();
+            else {
+                window.Bibliography._updateInlineCitationSpans && window.Bibliography._updateInlineCitationSpans();
+                window.Bibliography.renderBibliographyBlock();
+                window.Bibliography._updatePanelIfOpen && window.Bibliography._updatePanelIfOpen();
+            }
+        }, 150);
+        // Pagination reflow can shuffle nodes between pages after the
+        // initial render — renumber once more after it settles.
+        setTimeout(function () {
+            if (window.Bibliography.refreshCitationNumbers) window.Bibliography.refreshCitationNumbers();
+            else if (window.Bibliography._updateInlineCitationSpans) window.Bibliography._updateInlineCitationSpans();
+        }, 700);
     }
 
     // Restore per-document citation settings (style + Vancouver in-text

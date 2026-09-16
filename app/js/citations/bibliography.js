@@ -257,6 +257,99 @@
 
     var sentenceCase = function (str) { return window.ApaFormat.sentenceCase(str); };
 
+    // ── Live renumbering (Vancouver) ─────────────────────────────────────
+    // Vancouver requires the first citation in document order to be [1],
+    // the next distinct source [2], etc. Inserting, moving, deleting or
+    // pasting a citation above an existing one must therefore renumber every
+    // in-text occurrence, every full `.summie-citation` paragraph and the
+    // bibliography block, without waiting for the next explicit add/remove.
+
+    var _renumberTimer = null;
+    var _isRenumbering = false;
+    var _lastOrderedKey = '';
+    var _citationObserver = null;
+
+    function _orderedKey() {
+        try { return getOrderedCitationIds().join('|'); } catch (e2) { return ''; }
+    }
+
+    // Immediate, synchronous renumber — guarded against re-entrance so the
+    // DOM writes inside _updateInlineCitationSpans do not re-trigger the
+    // observer synchronously.
+    function forceRenumberIfOrderChanged() {
+        if (_isRenumbering) return false;
+        var key = _orderedKey();
+        // Also renumber when the key is empty but citations exist but are
+        // uncited (shows "—" in sidebar) — don't skip that state.
+        if (key === _lastOrderedKey && key !== '') return false;
+        _lastOrderedKey = key;
+        if (!window.Bibliography || !window.Bibliography.citations) return false;
+        _isRenumbering = true;
+        try {
+            window.Bibliography._updateInlineCitationSpans();
+            window.Bibliography.renderBibliographyBlock();
+            window.Bibliography._updatePanelIfOpen();
+        } finally {
+            _isRenumbering = false;
+        }
+        return true;
+    }
+
+    function scheduleRenumber(delay) {
+        if (_isRenumbering) return;
+        clearTimeout(_renumberTimer);
+        _renumberTimer = setTimeout(function () {
+            forceRenumberIfOrderChanged();
+        }, typeof delay === 'number' ? delay : 200);
+    }
+
+    function setupCitationObserver() {
+        if (_citationObserver) return;
+        var container = document.getElementById('pagesContainer')
+            || (window.AppState && window.AppState.editor)
+            || document.getElementById('editor');
+        if (!container) return;
+
+        _lastOrderedKey = _orderedKey();
+
+        _citationObserver = new MutationObserver(function (mutations) {
+            if (_isRenumbering) return;
+            var relevant = false;
+            for (var i = 0; i < mutations.length; i++) {
+                var m = mutations[i];
+                if (m.type === 'childList' && (m.addedNodes.length || m.removedNodes.length)) { relevant = true; break; }
+                if (m.type === 'characterData') { relevant = true; break; }
+                if (m.type === 'attributes' && m.attributeName === 'data-citation-id') { relevant = true; break; }
+            }
+            if (!relevant) return;
+            // Debounce — bulk DOM operations (paste, pagination reflow,
+            // undo/redo) fire dozens of mutations in one frame.
+            scheduleRenumber(180);
+        });
+
+        _citationObserver.observe(container, {
+            childList: true,
+            subtree: true,
+            characterData: true,
+            attributes: true,
+            attributeFilter: ['data-citation-id']
+        });
+
+        // Complementary listeners for user actions that may not mutate the
+        // observed container immediately (e.g. drag-drop between pages).
+        ['input', 'paste', 'cut', 'drop'].forEach(function (evt) {
+            container.addEventListener(evt, function () { scheduleRenumber(220); });
+        });
+        // Pagination reflow moves nodes between pages without a user
+        // input event — also schedule a check after reflow.
+        document.addEventListener('paste', function () { scheduleRenumber(350); });
+    }
+
+    // Public debounced refresh — also used by editor load and undo paths.
+    function refreshCitationNumbers() {
+        scheduleRenumber(80);
+    }
+
     // ── Manager ──────────────────────────────────────────────────────────
 
     window.Bibliography = {
@@ -337,8 +430,17 @@
             // early for module initialisation, so the restore call above in
             // applyLoadedData sets the array; re-render any bibliography block).
             setTimeout(function () {
+                _lastOrderedKey = _orderedKey();
+                Bibliography._updateInlineCitationSpans();
                 Bibliography.renderBibliographyBlock();
+                Bibliography._updatePanelIfOpen();
             }, 600);
+
+            // Live Vancouver renumbering: watch the document for moves/
+            // inserts/deletes of citations so the first occurrence is always [1].
+            try { setupCitationObserver(); } catch (e3) { /* observer optional */ }
+            // If pagination was not ready yet, retry once the pages exist.
+            setTimeout(function () { try { setupCitationObserver(); } catch (e4) {} }, 1500);
         },
 
         genId: function () {
@@ -501,9 +603,15 @@
             window.saveToLocalStorage && window.saveToLocalStorage();
             window.updateUnsavedIndicator && window.updateUnsavedIndicator();
             if (window.UndoManager && window.UndoManager.notifyExternalChange) window.UndoManager.notifyExternalChange();
-            this._updateInlineCitationSpans();
-            this.renderBibliographyBlock();
-            this._updatePanelIfOpen();
+            _isRenumbering = true;
+            try {
+                this._updateInlineCitationSpans();
+                this.renderBibliographyBlock();
+                this._updatePanelIfOpen();
+            } finally {
+                _isRenumbering = false;
+            }
+            try { _lastOrderedKey = _orderedKey(); } catch (e5) {}
         },
 
         // Insert a full reference entry (hanging-indent paragraph) at the cursor.
@@ -767,9 +875,13 @@
             setCitationStyle(style);
             this.citationStyle = style;
             this._syncInTextStyleSelectors();
-            this.renderBibliographyBlock();
-            this._updateInlineCitationSpans();
-            this._updatePanelIfOpen();
+            _isRenumbering = true;
+            try {
+                this.renderBibliographyBlock();
+                this._updateInlineCitationSpans();
+                this._updatePanelIfOpen();
+            } finally { _isRenumbering = false; }
+            try { _lastOrderedKey = _orderedKey(); } catch (e7) {}
             window.saveToLocalStorage && window.saveToLocalStorage();
         },
 
@@ -784,7 +896,9 @@
             if (!setVancouverInTextStyle(style)) return;
             this.citationStyle = _citationStyle;
             this._syncInTextStyleSelectors();
-            this._updateInlineCitationSpans();
+            _isRenumbering = true;
+            try { this._updateInlineCitationSpans(); } finally { _isRenumbering = false; }
+            try { _lastOrderedKey = _orderedKey(); } catch (e8) {}
             window.saveToLocalStorage && window.saveToLocalStorage();
             window.updateUnsavedIndicator && window.updateUnsavedIndicator();
             // Collapse the document-wide span rewrite into one undo step
@@ -859,6 +973,7 @@
                     p.innerHTML = formatReference(c2, idx2);
                 }
             });
+            try { _lastOrderedKey = _orderedKey(); } catch (e6) {}
         },
 
         // ── Edit existing citation (used by sidebar + bibliography block) ──
@@ -932,6 +1047,36 @@
             if (searchRow) searchRow.style.display = '';
         },
 
+        // Public refresh used by MutationObserver, load and undo paths.
+        // Ensures the first citation in document order is always [1].
+        refreshCitationNumbers: function () {
+            if (_isRenumbering) return;
+            var changed = forceRenumberIfOrderChanged();
+            if (!changed) {
+                // Even if order is same, sidebar numbers (— vs n) may need a
+                // repaint after a citation became cited/uncited.
+                this._updatePanelIfOpen();
+            }
+        },
+
+        // Synchronous renumber — useful for export and explicit user actions.
+        renumberNow: function () {
+            if (_isRenumbering) return;
+            _isRenumbering = true;
+            try {
+                this._updateInlineCitationSpans();
+                this.renderBibliographyBlock();
+                this._updatePanelIfOpen();
+                _lastOrderedKey = _orderedKey();
+            } finally {
+                _isRenumbering = false;
+            }
+        },
+
+        // Exposed for tests / external triggers
+        _scheduleRenumber: function (delay) { scheduleRenumber(delay); },
+        _forceRenumberIfOrderChanged: function () { return forceRenumberIfOrderChanged(); },
+
         getAuthorDelimiter: function () { return _citationAuthorDelimiter; },
         setAuthorDelimiter: function (v) { setAuthorDelimiter(v); },
         _parseAuthorsForTest: function (v) { return parseAuthorsFromInput(v); },
@@ -959,6 +1104,9 @@
             if (sidebarStyleSelect) sidebarStyleSelect.value = _citationStyle;
             var modalStyleSelect = document.getElementById('citationStyleSelect');
             if (modalStyleSelect) modalStyleSelect.value = _citationStyle;
+            // After restoring style, the loaded HTML already contains citation
+            // spans — renumber so Vancouver occurrence order is correct.
+            scheduleRenumber(300);
         }
     };
 

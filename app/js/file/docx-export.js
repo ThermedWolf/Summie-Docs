@@ -1030,6 +1030,11 @@
 
         showDocxLoadingModal();
         try {
+            // Ensure Vancouver numbers are fresh — the docx must match the
+            // on-screen numbering where the first occurrence is always [1].
+            try {
+                if (window.Bibliography && window.Bibliography.renumberNow) window.Bibliography.renumberNow();
+            } catch (e) { /* non-fatal */ }
 
             const blocks = flattenBlocks(editor);
             const contentParas = await blocksToDocx(blocks, docxLib);

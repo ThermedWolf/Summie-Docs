@@ -267,6 +267,12 @@
             const sel = window.getSelection();
             if (!sel || sel.rangeCount === 0) editor.focus();
         }
+        // Vancouver numbering must survive undo/redo — the restored HTML
+        // carries the old numbers, so renumber to document order.
+        try {
+            if (window.Bibliography && window.Bibliography.renumberNow) window.Bibliography.renumberNow();
+            else if (window.Bibliography && window.Bibliography._updateInlineCitationSpans) window.Bibliography._updateInlineCitationSpans();
+        } catch (e) {}
         window.updateUnsavedIndicator && window.updateUnsavedIndicator();
         updateButtons();
     }
