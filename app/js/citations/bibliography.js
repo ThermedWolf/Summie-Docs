@@ -397,9 +397,6 @@
                 sidebarStyleSelect.addEventListener('change', function () {
                     var newStyle = sidebarStyleSelect.value;
                     Bibliography.setCitationStyle(newStyle);
-                    // Also update modal selector if open
-                    var modalStyleSelect = document.getElementById('citationStyleSelect');
-                    if (modalStyleSelect) modalStyleSelect.value = newStyle;
                 });
             }
 
@@ -922,18 +919,15 @@
             return _vancouverInTextStyle;
         },
 
-        // Keep both selects (sidebar + modal) in sync and only show the
-        // notation selector when Vancouver is active. APA always uses
-        // ronde haakjes (Auteur, Jaar) and therefore never shows a choice.
+        // Keep the sidebar notation selector in sync and only show it when
+        // Vancouver is active. APA always uses ronde haakjes (Auteur, Jaar).
         _syncInTextStyleSelectors: function () {
             var show = _citationStyle === 'vancouver';
-            ['vancouverInTextStyleSelectSidebar', 'vancouverInTextStyleSelect'].forEach(function (id) {
-                var sel = document.getElementById(id);
-                if (!sel) return;
-                sel.value = _vancouverInTextStyle;
-                var row = sel.closest('.citation-style-toolbar-row') || sel.parentElement;
-                if (row) row.style.display = show ? '' : 'none';
-            });
+            var sel = document.getElementById('vancouverInTextStyleSelectSidebar');
+            if (!sel) return;
+            sel.value = _vancouverInTextStyle;
+            var row = sel.closest('.citation-style-toolbar-row') || sel.parentElement;
+            if (row) row.style.display = show ? '' : 'none';
         },
 
         // Re-render every inline citation in the document with the current
@@ -1015,9 +1009,6 @@
             _citationSearchMode = pendingCitation.sourceType || _citationSearchMode;
             currentMode = _citationSearchMode;
             if (modeSelect) modeSelect.value = _citationSearchMode;
-            var styleSelectEl = modal.querySelector('#citationStyleSelect');
-            if (styleSelectEl) styleSelectEl.value = _citationStyle;
-            window.Bibliography._syncInTextStyleSelectors();
             if (previewEl) {
                 previewEl.innerHTML = '';
                 previewEl.style.display = 'block';
@@ -1106,8 +1097,6 @@
             this._syncInTextStyleSelectors();
             var sidebarStyleSelect = document.getElementById('citationStyleSelectSidebar');
             if (sidebarStyleSelect) sidebarStyleSelect.value = _citationStyle;
-            var modalStyleSelect = document.getElementById('citationStyleSelect');
-            if (modalStyleSelect) modalStyleSelect.value = _citationStyle;
             // After restoring style, the loaded HTML already contains citation
             // spans — renumber so Vancouver occurrence order is correct.
             scheduleRenumber(300);
@@ -1136,21 +1125,6 @@ var searchPerformed = false; // whether a search has been done in the current mo
             '</div>' +
             '<div class="modal-body">' +
             '<p class="citation-hint" id="citationHint">' + e(SummieI18n.t('Voer een DOI, titel of URL in en Summie zoekt de brongegevens automatisch op (APA 7).')) + '</p>' +
-            '<div class="citation-style-selector" style="margin-bottom:12px;">' +
-                '<label style="font-size:12px;color:var(--text-secondary);margin-right:8px;">' + e(SummieI18n.t('Referentiestijl:')) + '</label>' +
-                '<select id="citationStyleSelect" class="citation-style-select" style="padding:4px 8px;border-radius:4px;border:1px solid var(--border-color);background:var(--bg-secondary);color:var(--text-primary);font-size:13px;">' +
-                    '<option value="apa">' + e(SummieI18n.t('APA (Auteur, Jaar)')) + '</option>' +
-                    '<option value="vancouver">' + e(SummieI18n.t('Vancouver (Genummerd)')) + '</option>' +
-                '</select>' +
-            '</div>' +
-            '<div class="citation-style-selector citation-style-toolbar-row" style="margin:-4px 0 12px;display:none;">' +
-                '<label style="font-size:12px;color:var(--text-secondary);margin-right:8px;">' + e(SummieI18n.t('In-tekstnotatie:')) + '</label>' +
-                '<select id="vancouverInTextStyleSelect" class="citation-style-select" style="padding:4px 8px;border-radius:4px;border:1px solid var(--border-color);background:var(--bg-secondary);color:var(--text-primary);font-size:13px;">' +
-                    '<option value="brackets">' + e(SummieI18n.t('Vierkante haakjes [1]')) + '</option>' +
-                    '<option value="parentheses">' + e(SummieI18n.t('Ronde haakjes (1)')) + '</option>' +
-                    '<option value="superscript">' + e(SummieI18n.t('Superscript')) + '</option>' +
-                '</select>' +
-            '</div>' +
             '<div class="citation-search-row">' +
             '<select id="citationMode" class="citation-mode-select">' +
             '<option value="url">URL</option>' +
@@ -1193,36 +1167,6 @@ var searchPerformed = false; // whether a search has been done in the current mo
             queryInput.placeholder = placeholderForMode(currentMode);
             queryInput.focus();
         });
-
-        // Citation style selector in modal
-        var styleSelect = modal.querySelector('#citationStyleSelect');
-        if (styleSelect) {
-            styleSelect.value = _citationStyle;
-            styleSelect.addEventListener('change', function () {
-                var newStyle = styleSelect.value;
-                setCitationStyle(newStyle);
-                window.Bibliography.citationStyle = newStyle;
-                window.Bibliography._syncInTextStyleSelectors();
-                window.Bibliography.renderBibliographyBlock();
-                window.Bibliography._updateInlineCitationSpans();
-                window.Bibliography._updatePanelIfOpen();
-                // Update hint text
-                var hint = modal.querySelector('#citationHint');
-                if (hint) {
-                    hint.textContent = newStyle === 'vancouver'
-                        ? SummieI18n.t('Voer een DOI, titel of URL in en Summie zoekt de brongegevens automatisch op (Vancouver).')
-                        : SummieI18n.t('Voer een DOI, titel of URL in en Summie zoekt de brongegevens automatisch op (APA 7).');
-                }
-            });
-        }
-
-        // Vancouver in-text notation selector in modal
-        var inTextSelect = modal.querySelector('#vancouverInTextStyleSelect');
-        if (inTextSelect) {
-            inTextSelect.addEventListener('change', function () {
-                window.Bibliography.setVancouverInTextStyle(inTextSelect.value);
-            });
-        }
 
         searchBtn.addEventListener('click', doSearch);
         queryInput.addEventListener('keydown', function (e2) {
@@ -1481,14 +1425,14 @@ fields.addEventListener('input', function () {
         var ab0 = modal.querySelector('#citationAddBtn');
         if (ab0) ab0.textContent = SummieI18n.t('Toevoegen aan bronnen');
         var hint0 = modal.querySelector('#citationHint');
-        if (hint0) hint0.style.display = '';
+        if (hint0) {
+            hint0.style.display = '';
+            hint0.textContent = _citationStyle === 'vancouver'
+                ? SummieI18n.t('Voer een DOI, titel of URL in en Summie zoekt de brongegevens automatisch op (Vancouver).')
+                : SummieI18n.t('Voer een DOI, titel of URL in en Summie zoekt de brongegevens automatisch op (APA 7).');
+        }
         var sr0 = modal.querySelector('.citation-search-row');
         if (sr0) sr0.style.display = '';
-        // Keep style + notation selectors in sync with the document's current
-        // settings (they may have changed since the modal was built).
-        var styleSelectEl = modal.querySelector('#citationStyleSelect');
-        if (styleSelectEl) styleSelectEl.value = _citationStyle;
-        window.Bibliography._syncInTextStyleSelectors();
         // Restore the last used lookup mode for this document (url/doi/title)
         currentMode = _citationSearchMode;
         modeSelect.value = _citationSearchMode;

@@ -127,8 +127,10 @@
         '.learning-term', '.learning-def', '.flashcard-term', '.flashcard-def', '.rdi-date',
         '.current-doc-name', '.current-doc-date', '.landing-doc-name', '.recent-doc-item',
         // Bibliography content is rendered by language-aware formatters; exclude from generic walk
+        // Note: .bronnen-toolbar and .bronnen-list are intentionally NOT skipped so the
+        // Sources sidebar UI (buttons, labels) can be translated via the generic walk.
         '.summie-bibliography', '.summie-citation', '.summie-citation-inline',
-        '.summie-bib-item', '.summie-bib-empty', '.bronnen-list', '.bron-item', '.bronnen-toolbar'
+        '.summie-bib-item', '.summie-bib-empty', '.bron-item'
     ].join(',');
 
     function inSkipZone(node) {
