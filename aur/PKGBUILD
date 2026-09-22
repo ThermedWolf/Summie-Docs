@@ -10,7 +10,7 @@ pkgdesc="Distraction-free document editor for study summaries — native .sumd f
 arch=('x86_64')
 url="https://github.com/ThermedWolf/Summie-Docs"
 license=('MIT')
-depends=('gtk3' 'nss' 'alsa-lib' 'libxss' 'libxtst' 'libnotify' 'libsecret' 'libatspi' 'xdg-utils' 'hicolor-icon-theme')
+depends=('gtk3' 'nss' 'alsa-lib' 'libxss' 'libxtst' 'libnotify' 'libsecret' 'at-spi2-core' 'xdg-utils' 'hicolor-icon-theme')
 optdepends=(
   'libappindicator-gtk3: tray indicator support'
 )
@@ -73,6 +73,36 @@ package() {
     install -Dm644 "$pkgdir/opt/Summie/LICENSE.electron.txt" "$pkgdir/usr/share/licenses/$pkgname/LICENSE" 2>/dev/null || true
     install -Dm644 "$pkgdir/opt/Summie/LICENSES.chromium.html" "$pkgdir/usr/share/licenses/$pkgname/LICENSE.chromium.html" 2>/dev/null || true
   fi
+
+  # Fix MIME: electron-builder sets icon to generic x-office-document + only ships
+  # apps/summie.png. We need proper mimetype icon and xml for .sumd.
+  local mime_xml="$pkgdir/usr/share/mime/packages/summie.xml"
+  if [[ -f "$mime_xml" ]]; then
+    sed -i 's|<icon name="[^"]*"/>|<icon name="application-x-summie-sumd"/>|' "$mime_xml"
+  fi
+  # Install mimetype icons: copy app icons to mimetypes (Summie icon for .sumd files)
+  for appsvg in "$pkgdir/usr/share/icons/hicolor"/*/apps/summie.png; do
+    [[ -f "$appsvg" ]] || continue
+    size=$(basename "$(dirname "$(dirname "$appsvg")")")
+    # size is like 512x512 or 1024x1024 etc. Handle 0x0 as well
+    mimetype_dir="$pkgdir/usr/share/icons/hicolor/$size/mimetypes"
+    install -d "$mimetype_dir"
+    cp "$appsvg" "$mimetype_dir/application-x-summie-sumd.png"
+    # Keep legacy name for backwards compat (old installs used application/x-summie)
+    cp "$appsvg" "$mimetype_dir/application-x-summie.png" 2>/dev/null || true
+  done
+  # Ensure at least the main sizes exist (electron-builder only ships 1024)
+  # Generate missing sizes by copying 1024 icon if needed
+  for size in 16x16 22x22 24x24 32x32 48x48 64x64 96x96 128x128 192x192 256x256 512x512; do
+    for variant in "" "@2"; do
+      dir="$pkgdir/usr/share/icons/hicolor/${size}${variant}/mimetypes"
+      if [[ ! -f "$dir/application-x-summie-sumd.png" ]]; then
+        install -d "$dir"
+        cp "$pkgdir/usr/share/icons/hicolor/1024x1024/apps/summie.png" "$dir/application-x-summie-sumd.png" 2>/dev/null || true
+        cp "$pkgdir/usr/share/icons/hicolor/1024x1024/apps/summie.png" "$dir/application-x-summie.png" 2>/dev/null || true
+      fi
+    done
+  done
 
   # Remove unnecessary doc changelog to avoid conflicts (optional)
   # Keep it — Arch will compress man pages automatically
