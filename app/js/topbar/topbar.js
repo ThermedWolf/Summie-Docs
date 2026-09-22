@@ -322,8 +322,13 @@ class TopbarManager {
         textColorPicker.querySelectorAll('.color-swatch').forEach(swatch => {
             swatch.addEventListener('click', () => {
                 const color = swatch.dataset.color;
-                this.applyTextColor(color);
-                this.updateColorIndicator('text', color);
+                if (color === 'default') {
+                    this.applyTextColor('default');
+                    this.updateColorIndicator('text', this.getDefaultTextColor());
+                } else {
+                    this.applyTextColor(color);
+                    this.updateColorIndicator('text', color);
+                }
                 textColorPicker.classList.remove('active');
                 // Restore cursor position after closing picker
                 setTimeout(() => {
@@ -424,7 +429,103 @@ class TopbarManager {
         }
     }
 
+    getDefaultTextColor() {
+        // The default text color is the theme's --text-primary (black in light, white in dark).
+        // Falls back to #0f172a / #eee8ff if the variable is unavailable (e.g. outside Electron).
+        try {
+            const v = getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim();
+            if (v) return v;
+        } catch (e) { }
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark'
+            || window.matchMedia('(prefers-color-scheme: dark)').matches;
+        return isDark ? '#eee8ff' : '#0f172a';
+    }
+
     applyTextColor(color) {
+        if (color === 'default') {
+            this.restoreSavedRange();
+            const selection = window.getSelection();
+            if (!selection || !selection.rangeCount) return;
+            const range = selection.getRangeAt(0);
+            const editor = document.getElementById('editor');
+
+            const clearColor = (node) => {
+                if (node.nodeType === 1) {
+                    if (node.style && node.style.color) node.style.color = '';
+                    if (node.hasAttribute('color')) node.removeAttribute('color');
+                    if (node.getAttribute('style') !== null && node.getAttribute('style').trim() === '') node.removeAttribute('style');
+                    if (node.tagName === 'FONT') node.removeAttribute('color');
+                    Array.from(node.childNodes).forEach(clearColor);
+                }
+            };
+
+            if (range.collapsed) {
+                // Caret inside a colored span/font — break out so next typing is default
+                let el = range.startContainer.nodeType === 3 ? range.startContainer.parentElement : range.startContainer;
+                let coloredAncestor = null;
+                let cur = el;
+                while (cur && cur !== editor) {
+                    if ((cur.style && cur.style.color) || (cur.tagName === 'FONT' && cur.getAttribute('color'))) { coloredAncestor = cur; break; }
+                    cur = cur.parentElement;
+                }
+                if (coloredAncestor) {
+                    const zwsSpan = document.createElement('span');
+                    zwsSpan.appendChild(document.createTextNode('\u200B'));
+                    if (range.startContainer.nodeType === 3) {
+                        const textNode = range.startContainer;
+                        const offset = range.startOffset;
+                        const afterText = textNode.splitText(offset);
+                        textNode.parentNode.insertBefore(zwsSpan, afterText);
+                    } else {
+                        range.insertNode(zwsSpan);
+                    }
+                    const newRange = document.createRange();
+                    newRange.setStart(zwsSpan.firstChild, 1);
+                    newRange.collapse(true);
+                    selection.removeAllRanges();
+                    selection.addRange(newRange);
+                    this.savedRange = newRange.cloneRange();
+                } else {
+                    this.savedRange = range.cloneRange();
+                }
+            } else {
+                const fragment = range.extractContents();
+                clearColor(fragment);
+                fragment.querySelectorAll('font').forEach(font => {
+                    if (!font.getAttribute('color') && !font.style.color) {
+                        while (font.firstChild) font.parentNode.insertBefore(font.firstChild, font);
+                        font.remove();
+                    }
+                });
+                fragment.querySelectorAll('span').forEach(span => {
+                    const hasStyle = span.getAttribute('style');
+                    const hasClass = span.className;
+                    if (!hasStyle && !hasClass && span.attributes.length === 0) {
+                        while (span.firstChild) span.parentNode.insertBefore(span.firstChild, span);
+                        span.remove();
+                    } else if (hasStyle && span.style.color === '' && span.style.length === 0) {
+                        span.removeAttribute('style');
+                        if (!span.attributes.length && !span.className) {
+                            while (span.firstChild) span.parentNode.insertBefore(span.firstChild, span);
+                            span.remove();
+                        }
+                    }
+                });
+                range.insertNode(fragment);
+                // Place caret after the cleaned fragment
+                range.collapse(false);
+                selection.removeAllRanges();
+                selection.addRange(range);
+                this.savedRange = range.cloneRange();
+            }
+            this.currentTextColor = 'default';
+            const def = this.getDefaultTextColor();
+            this.updateColorIndicator('text', def);
+            setTimeout(() => this.restoreSavedRange(), 10);
+            window.updateUnsavedIndicator && window.updateUnsavedIndicator();
+            return;
+        }
+
         // Use the exposed changeTextColor function from script.js if available
         if (window.changeTextColor) {
             // Restore range first
