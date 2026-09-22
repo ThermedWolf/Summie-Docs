@@ -100,8 +100,11 @@ function hasUnsavedChanges() {
         try { saved = localStorage.getItem('summie_saved_fingerprint'); } catch (e) { saved = null; }
     }
     if (!saved) {
-        // No baseline yet (fresh session before the first load settles):
-        // fall back to a simple emptiness check so real edits are never missed.
+        // No baseline yet (fresh session before the first load settles).
+        // If a file is already associated, the baseline is just pending its
+        // delayed 950ms settle — treat as clean so a file opened FROM disk
+        // doesn't briefly flash "Niet opgeslagen wijzigingen".
+        if (window.currentFilePath) return false;
         if (!state || !state.editor) return false;
         const clean = getCleanEditorContent(state.editor);
         return !!clean.trim() && clean !== '<p>Begin hier met typen...</p>';
@@ -432,7 +435,10 @@ async function loadFromFile(e) {
             window.AutoSave && window.AutoSave.onFileChanged();
             window.updateFileSize && window.updateFileSize();
         }
-        setTimeout(() => window.UndoManager && window.UndoManager.resetBaseline(), 550);
+        // Undo baseline is also reset by applyLoadedData's 950ms/1150ms
+        // settle; this is a no-op safety for paths where apply's timer was
+        // cleared. Delay past the final baseline so history starts clean.
+        setTimeout(() => window.UndoManager && window.UndoManager.resetBaseline(), 1250);
 
         window.showNotification && window.showNotification(
             SummieI18n.t('Document geladen'),

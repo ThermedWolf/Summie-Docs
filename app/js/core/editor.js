@@ -315,17 +315,35 @@ function applyLoadedData(data) {
         setTimeout(() => window.HeaderFooter.loadData(data.headerFooter), 350);
     }
 
-    // Wait for images/codeblocks to finish restoring, then lock in the saved baseline
-    setTimeout(() => {
+    // Remember the file's last-saved time so the status area can show
+    // "Laatst opgeslagen …" instead of "Geen wijzigingen" right after a load.
+    if (data.timestamp && window.setLastSavedTime) {
+        window.setLastSavedTime(data.timestamp);
+    } else if (data.timestamp && window._setLastSavedTimeRaw) {
+        window._setLastSavedTimeRaw(data.timestamp);
+    }
+
+    // Wait for ALL async restores to finish before locking the saved baseline.
+    // Images/codeblocks restore at ~200ms, tab ruler/header at ~350ms and
+    // bibliography renumbers at 150ms + 700ms — the old 400ms timeout fired
+    // before the second bibliography pass, leaving the document permanently
+    // "dirty" when citations were present.
+    const _settleBaseline = () => {
         if (typeof window.setSavedBaseline === 'function') {
             window.setSavedBaseline();
         } else {
-            // Fingerprint helpers not loaded yet — keep legacy baseline keys
             state.lastSavedContent = state.editor.innerHTML;
             try { localStorage.setItem('summie_saved_content', state.editor.innerHTML); } catch (e) { /* ignore */ }
         }
         window.updateUnsavedIndicator && window.updateUnsavedIndicator();
-    }, 400);
+        // Seed undo history once the DOM has fully settled
+        window.UndoManager && window.UndoManager.resetBaseline();
+    };
+    setTimeout(_settleBaseline, 950);
+    // Safety second pass — if bibliography's 700ms renumber shuffles numbers,
+    // the 950ms baseline already includes it, but pagination reflow can still
+    // nudge content slightly after; this catches any late drift.
+    setTimeout(_settleBaseline, 1150);
 }
 
 // Unsaved changes detection (used by preload/electron close handler)

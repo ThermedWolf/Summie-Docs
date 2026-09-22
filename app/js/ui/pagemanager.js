@@ -474,6 +474,29 @@
         return getAllPages().map(page => {
             const clone = page.cloneNode(true);
             clone.querySelectorAll('.page-number-badge').forEach(b => b.remove());
+            // Strip transient highlights the same way getCleanEditorContent does,
+            // so the persisted pages and the fingerprint are both highlight-free.
+            clone.querySelectorAll('span.begrip-word').forEach(span => {
+                span.replaceWith(document.createTextNode(span.textContent));
+            });
+            clone.querySelectorAll('mark.fr-highlight').forEach(mark => {
+                mark.replaceWith(document.createTextNode(mark.textContent));
+            });
+            clone.querySelectorAll('span.tts-highlight').forEach(span => {
+                span.replaceWith(document.createTextNode(span.textContent));
+            });
+            clone.querySelectorAll('.tts-active-block').forEach(el => {
+                el.classList.remove('tts-active-block');
+            });
+            clone.querySelectorAll('span').forEach(span => {
+                if (!span.textContent && !span.children.length) {
+                    span.remove();
+                } else if (span.textContent === '\u200B') {
+                    span.remove();
+                } else if (span.textContent === '' && span.children.length === 0 && !span.getAttribute('style') && !span.className) {
+                    span.remove();
+                }
+            });
             return clone.innerHTML;
         });
     }

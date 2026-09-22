@@ -53,7 +53,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                         window.AutoSave && window.AutoSave.onFileChanged();
                         window.updateFileSize && window.updateFileSize();
                     }
-                    window.setSavedBaseline && window.setSavedBaseline();
+                    // Baseline is now set by applyLoadedData after all async
+                    // restores settle (950ms + 1150ms); don't set an early
+                    // baseline here that would freeze the dirty intermediate state.
                     window.updateDocNameInput && window.updateDocNameInput();
                 }, 100);
             }
@@ -97,11 +99,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupAutoSave();
 
     // 7. Baseline for unsaved-changes detection
+    // applyLoadedData (file or localStorage) already schedules its own
+    // baseline at 950ms/1150ms after the DOM settles. This fallback only
+    // fires for the "empty new document" case where applyLoadedData was
+    // never called, and runs late enough to not race it.
     setTimeout(() => {
-        window.setSavedBaseline && window.setSavedBaseline();
-        // Seed the undo history with the loaded document as its baseline
+        const hasExistingBaseline = window.AppState && window.AppState.lastSavedFingerprint;
+        if (!hasExistingBaseline && window.setSavedBaseline) {
+            window.setSavedBaseline();
+        }
         window.UndoManager && window.UndoManager.resetBaseline();
-    }, 500);
+        window.updateUnsavedIndicator && window.updateUnsavedIndicator();
+    }, 1300);
 
     // 8. Init References & Tables
     setTimeout(() => {
@@ -225,8 +234,9 @@ if (window.electron && window.electron.onLoadSumdFile) {
             window.AutoSave && window.AutoSave.onFileChanged();
             window.updateFileSize && window.updateFileSize();
         }
-        window.setSavedBaseline && window.setSavedBaseline();
-        setTimeout(() => window.UndoManager && window.UndoManager.resetBaseline(), 550);
+        window.updateDocNameInput && window.updateDocNameInput();
+        // Baseline + undo reset are handled by applyLoadedData's delayed
+        // 950ms/1150ms settle; no immediate baseline here.
     });
 }
 

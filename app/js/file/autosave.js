@@ -86,19 +86,29 @@
 
     window.AutoSave = {
         get _autoSaving() { return _autoSaving; },
+        get _enabled() { return _enabled; },
         async onFileChanged() {
             clearTimeout(_timer);
             await _loadSettingForCurrentFile();
         },
-        flush() {
+        async flush() {
             // Return the save promise so the close flow in main.js can await
             // it — fire-and-forget here meant the unsaved-changes check raced
             // the pending write, and "Niet opslaan" could still land on disk.
             clearTimeout(_timer);
-            if (_enabled && window.currentFilePath && window.saveToFile) {
-                return window.saveToFile(false).catch(() => ({}));
+            // Resolve the authoritative setting (handles the race where the
+            // window is closed before _loadSettingForCurrentFile finished).
+            let enabled = _enabled;
+            if (!enabled && window.currentFilePath && window.electron && window.electron.autoSaveGet) {
+                try { enabled = await window.electron.autoSaveGet(window.currentFilePath); } catch (e) { /* ignore */ }
             }
-            return Promise.resolve();
+            if (!enabled || !window.currentFilePath || !window.saveToFile) return Promise.resolve();
+            // Only save if actually dirty — avoids an unnecessary write that
+            // would bump the file's timestamp and confuse "last saved" text.
+            const hasChanges = (typeof window.hasUnsavedChanges === 'function' && window.hasUnsavedChanges())
+                || (typeof window._hasUnsavedChanges === 'function' && window._hasUnsavedChanges());
+            if (!hasChanges) return Promise.resolve();
+            return window.saveToFile(false).catch(() => ({}));
         }
     };
 })();

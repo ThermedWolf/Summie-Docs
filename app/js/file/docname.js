@@ -207,6 +207,23 @@ function _hasUnsavedChanges() {
     return contentChanged || begrippenChanged;
 }
 
+function setLastSavedTime(timestamp) {
+    try {
+        const d = timestamp ? new Date(timestamp) : new Date();
+        if (isNaN(d.getTime())) return;
+        _saveStatusLastSavedTime = d;
+        _saveStatusLocked = false;
+        if (_saveStatusTimer) { clearTimeout(_saveStatusTimer); _saveStatusTimer = null; }
+        if (_saveStatusIntervalId) clearInterval(_saveStatusIntervalId);
+        _saveStatusIntervalId = setInterval(updateLastSavedText, 5000);
+        updateLastSavedText();
+        // Also refresh the indicator so "Geen wijzigingen" becomes "Laatst opgeslagen …"
+        // once the fingerprint baseline later settles.
+        setTimeout(updateUnsavedIndicator, 0);
+    } catch (e) { /* ignore */ }
+}
+window._setLastSavedTimeRaw = setLastSavedTime;
+
 function showSaveStatusSuccess() {
     const area = document.getElementById('saveStatusArea');
     if (!area) return;
@@ -411,6 +428,7 @@ function setupDocNameInput() {
 
 // Expose
 window.showSaveStatusSuccess = showSaveStatusSuccess;
+window.setLastSavedTime = setLastSavedTime;
 window.updateLastSavedText = updateLastSavedText;
 window.updateUnsavedIndicator = updateUnsavedIndicator;
 window.setupDocNameInput = setupDocNameInput;
