@@ -626,6 +626,15 @@
     height: 26px;
 }
 
+#textColorBtn .fc-outline {
+    fill: var(--text-primary);
+    transition: fill 0.15s ease;
+}
+
+#textColorBtn .fc-color {
+    transition: fill 0.15s ease;
+}
+
 #highlightBtn svg {
     width: 28px;
     height: 28px;
