@@ -1,0 +1,27 @@
+pkgbase = summie-docs-bin
+	pkgdesc = Distraction-free document editor for study summaries — native .sumd format, glossary, references, flashcards, export to docx
+	pkgver = 4.3.0
+	pkgrel = 1
+	url = https://github.com/ThermedWolf/Summie-Docs
+	arch = x86_64
+	license = MIT
+	depends = gtk3
+	depends = nss
+	depends = alsa-lib
+	depends = libxss
+	depends = libxtst
+	depends = libnotify
+	depends = libsecret
+	depends = libatspi
+	depends = xdg-utils
+	depends = hicolor-icon-theme
+	optdepends = libappindicator-gtk3: tray indicator support
+	provides = summie-docs
+	provides = summie
+	conflicts = summie-docs
+	conflicts = summie
+	conflicts = summie-bin
+	source = Summie-linux-amd64.deb::https://github.com/ThermedWolf/Summie-Docs/releases/download/v4.3.0/Summie-linux-amd64.deb
+	sha256sums = 1903e0b35d4dcb39e2a32934f58de5c5b569c901346f2abbfa01e5c461920442
+
+pkgname = summie-docs-bin

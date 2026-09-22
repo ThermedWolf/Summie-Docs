@@ -1,0 +1,79 @@
+# Maintainer: ThermedWolf <shuldwhy@gmail.com>
+# AUR package for Summie — distraction-free document editor (.sumd -> docx)
+# https://github.com/ThermedWolf/Summie-Docs
+# This is the -bin package: repackages the official .deb from GitHub Releases.
+
+pkgname=summie-docs-bin
+pkgver=4.3.0
+pkgrel=1
+pkgdesc="Distraction-free document editor for study summaries — native .sumd format, glossary, references, flashcards, export to docx"
+arch=('x86_64')
+url="https://github.com/ThermedWolf/Summie-Docs"
+license=('MIT')
+depends=('gtk3' 'nss' 'alsa-lib' 'libxss' 'libxtst' 'libnotify' 'libsecret' 'libatspi' 'xdg-utils' 'hicolor-icon-theme')
+optdepends=(
+  'libappindicator-gtk3: tray indicator support'
+)
+provides=('summie-docs' 'summie')
+conflicts=('summie-docs' 'summie' 'summie-bin')
+source=("Summie-linux-amd64.deb::https://github.com/ThermedWolf/Summie-Docs/releases/download/v${pkgver}/Summie-linux-amd64.deb")
+sha256sums=('1903e0b35d4dcb39e2a32934f58de5c5b569c901346f2abbfa01e5c461920442')
+
+# The .deb is an ar archive containing control.tar.xz + data.tar.xz
+# makepkg extracts it automatically via bsdtar, but we handle it explicitly
+# for clarity and to ensure the desktop file Actions line is present.
+
+prepare() {
+  # Extract data.tar.xz from the .deb
+  # bsdtar can handle .deb directly, but ar + tar is more explicit
+  if [[ -f "$srcdir/Summie-linux-amd64.deb" ]]; then
+    cd "$srcdir"
+    # Only extract once
+    if [[ ! -f data.tar.xz ]]; then
+      bsdtar -xf Summie-linux-amd64.deb 2>/dev/null || ar x Summie-linux-amd64.deb
+    fi
+  fi
+}
+
+package() {
+  # Extract the deb payload into pkgdir
+  # data.tar.xz contains ./opt/Summie, ./usr/share/...
+  bsdtar -xf "$srcdir/data.tar.xz" -C "$pkgdir" 2>/dev/null || tar -xf "$srcdir/data.tar.xz" -C "$pkgdir"
+
+  # Ensure binary is executable (electron-builder sets 755, but be safe)
+  chmod 755 "$pkgdir/opt/Summie/summie"
+  chmod 4755 "$pkgdir/opt/Summie/chrome-sandbox" 2>/dev/null || true
+
+  # Symlink for CLI: summie-docs and summie -> /opt/Summie/summie
+  install -d "$pkgdir/usr/bin"
+  ln -sf /opt/Summie/summie "$pkgdir/usr/bin/summie-docs"
+  ln -sf /opt/Summie/summie "$pkgdir/usr/bin/summie"
+
+  # Fix desktop file: electron-builder 26 generates action sections but omits
+  # the Actions= line in [Desktop Entry]. Add it so GNOME/KDE shows the
+  # "Nieuw document" / "Nieuw venster" jump list.
+  local desktop="$pkgdir/usr/share/applications/summie.desktop"
+  if [[ -f "$desktop" ]]; then
+    if ! grep -q '^Actions=' "$desktop"; then
+      # Insert Actions line after StartupWMClass or Categories
+      if grep -q '^StartupWMClass=' "$desktop"; then
+        sed -i '/^StartupWMClass=/a Actions=new-document;new-window;' "$desktop"
+      else
+        sed -i '/^\[Desktop Entry\]/a Actions=new-document;new-window;' "$desktop"
+      fi
+    fi
+    # Ensure Exec uses absolute path and handles %U
+    sed -i 's|^Exec=.*|Exec=/opt/Summie/summie %U|' "$desktop"
+    # Fix action Execs to absolute path (AUR lint wants absolute)
+    sed -i 's|^Exec=summie |Exec=/opt/Summie/summie |' "$desktop"
+  fi
+
+  # Install license if present in deb (fallback to GitHub)
+  if [[ ! -f "$pkgdir/usr/share/licenses/$pkgname/LICENSE" ]]; then
+    install -Dm644 "$pkgdir/opt/Summie/LICENSE.electron.txt" "$pkgdir/usr/share/licenses/$pkgname/LICENSE" 2>/dev/null || true
+    install -Dm644 "$pkgdir/opt/Summie/LICENSES.chromium.html" "$pkgdir/usr/share/licenses/$pkgname/LICENSE.chromium.html" 2>/dev/null || true
+  fi
+
+  # Remove unnecessary doc changelog to avoid conflicts (optional)
+  # Keep it — Arch will compress man pages automatically
+}

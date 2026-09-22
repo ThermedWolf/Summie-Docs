@@ -71,7 +71,10 @@ Download the latest release for your platform from the [Releases](https://github
 | ------------------------------------------------------------------------------------------------------------------- | ---------------- |
 | <img src="https://api.iconify.design/logos/microsoft-windows.svg" width="14" height="14" valign="middle" /> Windows | `.exe` installer |
 | <img src="https://api.iconify.design/logos/apple.svg" width="14" height="14" valign="middle" /> macOS               | `.dmg`           |
-| <img src="https://api.iconify.design/logos/linux-tux.svg" width="14" height="14" valign="middle" /> Linux           | `.AppImage`      |
+| <img src="https://api.iconify.design/logos/linux-tux.svg" width="14" height="14" valign="middle" /> Linux           | `.AppImage` / `.deb` |
+| <img src="https://api.iconify.design/logos/arch-linux.svg" width="14" height="14" valign="middle" /> Arch Linux    | AUR `summie-docs-bin` |
+
+> **Arch Linux:** `yay -S summie-docs-bin` or `paru -S summie-docs-bin` — also available as `summie-docs` / `summie` commands after install. Manual: `git clone https://aur.archlinux.org/summie-docs-bin.git && cd summie-docs-bin && makepkg -si`
 
 ### Build from Source
 

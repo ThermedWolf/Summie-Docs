@@ -1,0 +1,253 @@
+name: Publish to AUR (summie-docs-bin)
+
+# Publishes the prebuilt .deb to AUR as summie-docs-bin.
+# Triggers after the GitHub Release is published (so the .deb exists),
+# or manually via workflow_dispatch.
+# Requires secrets: AUR_SSH_PRIVATE_KEY (SSH private key for aur.archlinux.org)
+#
+# Setup (once):
+#   1. Create account at https://aur.archlinux.org/register
+#   2. Generate SSH key: ssh-keygen -t ed25519 -C "aur@thermed" -f ~/.ssh/aur
+#   3. Add public key (~/.ssh/aur.pub) to https://aur.archlinux.org/account
+#   4. Add private key (~/.ssh/aur) as GitHub Secret: AUR_SSH_PRIVATE_KEY
+#   5. First push: clone empty AUR repo, push PKGBUILD once manually if needed
+#      git clone ssh://aur@aur.archlinux.org/summie-docs-bin.git
+#
+# The workflow auto-updates pkgver + sha256sums from the GitHub Release.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Override version (e.g. 4.3.0, without v prefix). Leave empty to use latest release/tag."
+        required: false
+        type: string
+  # Optional: also allow tag push, but it will wait for release assets
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  aur:
+    name: Publish summie-docs-bin to AUR
+    runs-on: ubuntu-latest
+    # Only run if the release is for v* or manual dispatch
+    if: github.event_name != 'push' || startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine version
+        id: version
+        run: |
+          set -e
+          if [[ -n "${{ inputs.version }}" ]]; then
+            VER="${{ inputs.version }}"
+            VER="${VER#v}"
+          elif [[ "${{ github.event_name }}" == "release" ]]; then
+            VER="${{ github.event.release.tag_name }}"
+            VER="${VER#v}"
+          elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            VER="${GITHUB_REF#refs/tags/v}"
+          else
+            # Fallback: read from package.json
+            VER=$(jq -r .version package.json)
+          fi
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+          echo "Detected version: $VER"
+          # Also get tag
+          echo "tag=v$VER" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for release asset (if triggered by tag)
+        if: github.event_name == 'push'
+        run: |
+          VER="${{ steps.version.outputs.version }}"
+          URL="https://github.com/ThermedWolf/Summie-Docs/releases/download/v${VER}/Summie-linux-amd64.deb"
+          echo "Waiting for $URL to be available..."
+          for i in {1..30}; do
+            if curl -fsI "$URL" >/dev/null 2>&1; then
+              echo "Asset available after $i tries"
+              break
+            fi
+            echo "Attempt $i/30: not yet available, sleeping 20s..."
+            sleep 20
+          done
+          curl -fsI "$URL" || { echo "Asset still not available after waiting"; exit 1; }
+
+      - name: Fetch sha256 of .deb
+        id: sha
+        run: |
+          VER="${{ steps.version.outputs.version }}"
+          URL="https://github.com/ThermedWolf/Summie-Docs/releases/download/v${VER}/Summie-linux-amd64.deb"
+          echo "Fetching SHA256 for $URL"
+          # Try GitHub API digest first (faster, no download)
+          API_SHA=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/ThermedWolf/Summie-Docs/releases/tags/v${VER}" \
+            | jq -r '.assets[] | select(.name=="Summie-linux-amd64.deb") | .digest' | sed 's/^sha256://')
+          if [[ -n "$API_SHA" && "$API_SHA" != "null" ]]; then
+            echo "Got SHA from API: $API_SHA"
+            SHA="$API_SHA"
+          else
+            echo "API digest not found, downloading file to hash..."
+            curl -L -o /tmp/Summie.deb "$URL"
+            SHA=$(sha256sum /tmp/Summie.deb | awk '{print $1}')
+            echo "Computed SHA: $SHA"
+          fi
+          echo "sha256=$SHA" >> "$GITHUB_OUTPUT"
+          echo "SHA256: $SHA"
+
+      - name: Update PKGBUILD
+        run: |
+          VER="${{ steps.version.outputs.version }}"
+          SHA="${{ steps.sha.outputs.sha256 }}"
+          echo "Updating aur/PKGBUILD to pkgver=$VER sha=$SHA"
+          sed -i "s/^pkgver=.*/pkgver=$VER/" aur/PKGBUILD
+          # pkgrel reset to 1 on version bump
+          sed -i "s/^pkgrel=.*/pkgrel=1/" aur/PKGBUILD
+          # Replace sha256sums line (single entry)
+          sed -i "s/^sha256sums=.*/sha256sums=('$SHA')/" aur/PKGBUILD
+          echo "--- Updated PKGBUILD ---"
+          cat aur/PKGBUILD
+          echo "--- Updating .SRCINFO ---"
+          # Generate .SRCINFO without needing Arch container:
+          # Use makepkg if available, otherwise use a Python fallback
+          if command -v makepkg >/dev/null 2>&1; then
+            (cd aur && makepkg --printsrcinfo > .SRCINFO)
+          else
+            # Fallback: generate minimal .SRCINFO via parsing PKGBUILD (good enough for AUR)
+            # We use the already-tested makepkg output format
+            (cd aur && makepkg --printsrcinfo > .SRCINFO 2>&1 || true)
+            if [[ ! -s aur/.SRCINFO ]]; then
+              echo "makepkg not available, generating .SRCINFO manually"
+              cat > aur/.SRCINFO <<EOF
+          pkgbase = summie-docs-bin
+          	pkgdesc = Distraction-free document editor for study summaries — native .sumd format, glossary, references, flashcards, export to docx
+          	pkgver = $VER
+          	pkgrel = 1
+          	url = https://github.com/ThermedWolf/Summie-Docs
+          	arch = x86_64
+          	license = MIT
+          	depends = gtk3
+          	depends = nss
+          	depends = alsa-lib
+          	depends = libxss
+          	depends = libxtst
+          	depends = libnotify
+          	depends = libsecret
+          	depends = libatspi
+          	depends = xdg-utils
+          	depends = hicolor-icon-theme
+          	optdepends = libappindicator-gtk3: tray indicator support
+          	provides = summie-docs
+          	provides = summie
+          	conflicts = summie-docs
+          	conflicts = summie
+          	conflicts = summie-bin
+          	source = Summie-linux-amd64.deb::https://github.com/ThermedWolf/Summie-Docs/releases/download/v$VER/Summie-linux-amd64.deb
+          	sha256sums = $SHA
+
+          pkgname = summie-docs-bin
+          EOF
+            fi
+          fi
+          cat aur/.SRCINFO
+
+      - name: Validate PKGBUILD
+        run: |
+          # Basic lint: check pkgver and sha are set, and PKGBUILD parses
+          bash -n aur/PKGBUILD && echo "PKGBUILD syntax OK"
+          grep -q "^pkgver=${{ steps.version.outputs.version }}$" aur/PKGBUILD || { echo "pkgver mismatch"; exit 1; }
+          grep -q "${{ steps.sha.outputs.sha256 }}" aur/PKGBUILD || { echo "sha not in PKGBUILD"; exit 1; }
+          echo "PKGBUILD validation passed"
+
+      - name: Setup SSH for AUR
+        if: env.AUR_SSH_PRIVATE_KEY != ''
+        env:
+          AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$AUR_SSH_PRIVATE_KEY" > ~/.ssh/aur
+          chmod 600 ~/.ssh/aur
+          ssh-keyscan -t ed25519,rsa,ecdsa aur.archlinux.org >> ~/.ssh/known_hosts 2>/dev/null
+          cat > ~/.ssh/config <<'SSHCONFIG'
+          Host aur.archlinux.org
+            HostName aur.archlinux.org
+            User aur
+            IdentityFile ~/.ssh/aur
+            IdentitiesOnly yes
+          SSHCONFIG
+          chmod 600 ~/.ssh/config
+          echo "SSH configured"
+
+      - name: Dry-run check (no secret)
+        if: env.AUR_SSH_PRIVATE_KEY == ''
+        env:
+          AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+        run: |
+          echo "::warning::AUR_SSH_PRIVATE_KEY not set — skipping actual AUR push (dry-run)."
+          echo "PKGBUILD and .SRCINFO were updated locally. To enable auto-publish:"
+          echo "1. Generate SSH key: ssh-keygen -t ed25519 -C aur -f /tmp/aur"
+          echo "2. Add public key to https://aur.archlinux.org/account"
+          echo "3. Add private key as GitHub Secret AUR_SSH_PRIVATE_KEY"
+          echo "--- PKGBUILD ---"
+          cat aur/PKGBUILD
+          echo "--- .SRCINFO ---"
+          cat aur/.SRCINFO
+
+      - name: Push to AUR
+        if: env.AUR_SSH_PRIVATE_KEY != ''
+        env:
+          AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+        run: |
+          set -e
+          VER="${{ steps.version.outputs.version }}"
+          # Clone AUR repo (it may be empty on first push)
+          if git clone ssh://aur@aur.archlinux.org/summie-docs-bin.git /tmp/aur-repo 2>&1; then
+            echo "Cloned existing AUR repo"
+          else
+            echo "AUR repo empty or not yet created — initializing"
+            mkdir -p /tmp/aur-repo
+            cd /tmp/aur-repo
+            git init
+            git remote add origin ssh://aur@aur.archlinux.org/summie-docs-bin.git
+          fi
+          cd /tmp/aur-repo
+          # Copy updated files
+          cp "$GITHUB_WORKSPACE/aur/PKGBUILD" ./PKGBUILD
+          cp "$GITHUB_WORKSPACE/aur/.SRCINFO" ./.SRCINFO
+          # Git config
+          git config user.name "ThermedWolf"
+          git config user.email "shuldwhy@gmail.com"
+          # Commit if changed
+          git add PKGBUILD .SRCINFO
+          if git diff --cached --quiet; then
+            echo "No changes to AUR repo — already up to date"
+            exit 0
+          fi
+          git commit -m "Update to v$VER"
+          # Push
+          git push origin master || git push origin main || git push
+          echo "Pushed v$VER to AUR"
+
+      - name: Summary
+        run: |
+          echo "### AUR Publish Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Package:** \`summie-docs-bin\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Version:** \`${{ steps.version.outputs.version }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **SHA256:** \`${{ steps.sha.outputs.sha256 }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Source:** \`https://github.com/ThermedWolf/Summie-Docs/releases/download/v${{ steps.version.outputs.version }}/Summie-linux-amd64.deb\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          if [[ -z "${{ secrets.AUR_SSH_PRIVATE_KEY }}" ]]; then
+            echo "> [!WARNING]" >> "$GITHUB_STEP_SUMMARY"
+            echo "> Dry-run only — add \`AUR_SSH_PRIVATE_KEY\` secret to enable push." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "> Pushed to https://aur.archlinux.org/packages/summie-docs-bin" >> "$GITHUB_STEP_SUMMARY"
+          fi
