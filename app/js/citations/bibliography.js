@@ -765,6 +765,10 @@
             var map = getCitationIndexMap();
             var existing = map[c.id];
             var index = existing || (getOrderedCitationIds().length + 1);
+            if (this._insertInlineNodeAtCursor(c, index)) {
+                this._afterChange();
+                return;
+            }
             var html = '<span class="summie-citation-inline" data-citation-id="' + e(c.id) + '" contenteditable="false">' + formatInText(c, index) + '</span>';
             if (!this._insertHtmlAtCursor(html)) {
                 var p = document.createElement('p');
@@ -777,6 +781,73 @@
                 this._appendToEditor(p);
             }
             this._afterChange();
+        },
+
+        // Inline insertion via Range — keeps the citation truly inline.
+        // The previous execCommand('insertHTML') path splits the surrounding
+        // paragraph in Chromium when the payload is a contenteditable="false"
+        // span, which is exactly the "new line at the cursor" bug.
+        _insertInlineNodeAtCursor: function (c, index) {
+            var editor = window.AppState && window.AppState.editor;
+            if (!editor) return false;
+            var documentRoot = document.getElementById('pagesContainer') || editor;
+            if (window.SummieSelection) window.SummieSelection.restore({ force: true });
+            var sel = window.getSelection();
+            if (!sel || !sel.rangeCount) return false;
+            if (!documentRoot.contains(sel.anchorNode)) {
+                if (window.SummieSelection && window.SummieSelection.savedRange) {
+                    window.SummieSelection.restore({ force: true });
+                    sel = window.getSelection();
+                    if (!sel || !sel.rangeCount || !documentRoot.contains(sel.anchorNode)) return false;
+                } else {
+                    return false;
+                }
+            }
+            try {
+                var range = sel.getRangeAt(0).cloneRange();
+                // If the selection is not collapsed, replace its contents
+                range.deleteContents();
+                // Collapse to insertion point
+                range.collapse(true);
+                var span = document.createElement('span');
+                span.className = 'summie-citation-inline';
+                if (c && c.id) span.setAttribute('data-citation-id', c.id);
+                span.contentEditable = 'false';
+                span.innerHTML = formatInText(c, index);
+                // Clean up a solitary <br> placeholder in an empty paragraph — otherwise
+                // we would end up with <p><span>…</span><br></p> which adds visual height.
+                var hostParagraph = range.startContainer.nodeType === Node.TEXT_NODE
+                    ? range.startContainer.parentElement
+                    : (range.startContainer.nodeType === Node.ELEMENT_NODE ? range.startContainer : null);
+                if (hostParagraph && hostParagraph.tagName === 'P' && hostParagraph.childNodes.length === 1 && hostParagraph.firstChild.tagName === 'BR') {
+                    hostParagraph.removeChild(hostParagraph.firstChild);
+                }
+                range.insertNode(span);
+                // If the span ended up as a direct child of the editor / page
+                // (no surrounding <p>), wrap it in a paragraph so it still flows
+                // inline and does not become a stray block-level child.
+                if (!span.closest('p')) {
+                    var wrapper = document.createElement('p');
+                    span.parentNode.insertBefore(wrapper, span);
+                    wrapper.appendChild(span);
+                }
+                // Place caret immediately after the inserted span so the
+                // user can continue typing on the same line.
+                var after = document.createRange();
+                after.setStartAfter(span);
+                after.collapse(true);
+                sel.removeAllRanges();
+                sel.addRange(after);
+                if (window.topbarManager) window.topbarManager.savedRange = after.cloneRange();
+                // Ensure focus stays inside the same page/editor without scrolling
+                var focusTarget = span.parentElement && span.parentElement.closest && span.parentElement.closest('.a4-page');
+                (focusTarget || editor).focus({ preventScroll: true });
+                sel.removeAllRanges();
+                sel.addRange(after);
+                return true;
+            } catch (err) {
+                return false;
+            }
         },
 
         // Use the native contenteditable insertHTML so a block-level reminder is

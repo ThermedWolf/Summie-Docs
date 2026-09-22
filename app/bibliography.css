@@ -129,6 +129,13 @@
     font-style: italic;
 }
 
+/* In-tekstverwijzing: blijft binnen de lopende zin, nooit een eigen regel */
+.summie-citation-inline {
+    display: inline;
+    white-space: nowrap;
+    vertical-align: baseline;
+}
+
 /* Losse verwijzingen in de tekst zijn dubbelklik-bewerkbaar */
 .summie-citation,
 .summie-citation-inline {
