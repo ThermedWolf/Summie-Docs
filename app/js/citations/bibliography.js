@@ -203,10 +203,9 @@
     }
 
     // ── Ordering helpers ─────────────────────────────────────────────────
-    // Sidebar: insertion order (citations array). Document bibliography:
-    // order of first appearance in the text (first occurrence of
-    // .summie-citation or .summie-citation-inline). Bibliography block
-    // contains only cited sources; uncited sources are omitted until cited.
+    // The source library (`citations`) is authoritative. A marker in the
+    // document only records where a source was cited. This distinction lets a
+    // bibliography be inserted before every source has an in-text marker.
 
     function getOrderedCitationIds() {
         var roots = [];
@@ -221,10 +220,13 @@
         var order = [];
         roots.forEach(function (root) {
             if (!root || !root.querySelectorAll) return;
-            var nodes = root.querySelectorAll('.summie-citation[data-citation-id], .summie-citation-inline[data-citation-id]');
+            // Accept the legacy `citation-id` attribute as well.  Current
+            // insertions use data-citation-id, but old saved documents must
+            // remain live fields when a style is changed.
+            var nodes = root.querySelectorAll('.summie-citation[data-citation-id], .summie-citation-inline[data-citation-id], .summie-citation[citation-id], .summie-citation-inline[citation-id]');
             nodes.forEach(function (el) {
                 if (el.closest && el.closest('.summie-bibliography')) return;
-                var id = el.getAttribute('data-citation-id');
+                var id = el.getAttribute('data-citation-id') || el.getAttribute('citation-id');
                 if (!id || seen[id]) return;
                 seen[id] = true;
                 order.push(id);
@@ -244,8 +246,27 @@
         var order = getOrderedCitationIds();
         var byId = {};
         (citations || []).forEach(function (c) { if (c && c.id) byId[c.id] = c; });
+        if (_citationStyle === 'apa') {
+            // APA reference lists are alphabetical, not citation-order lists.
+            return (citations || []).slice().sort(function (a, b) {
+                return sortKeyAPA(a).localeCompare(sortKeyAPA(b));
+            });
+        }
+
+        // Numeric styles show cited sources in first-citation order. Keep
+        // library sources not yet cited at the end so an inserted bibliography
+        // always reflects the source list shown in the sidebar.
+        var used = {};
         var sorted = [];
-        order.forEach(function (id) { if (byId[id]) sorted.push(byId[id]); });
+        order.forEach(function (id) {
+            if (byId[id]) {
+                sorted.push(byId[id]);
+                used[id] = true;
+            }
+        });
+        (citations || []).forEach(function (c) {
+            if (c && c.id && !used[c.id]) sorted.push(c);
+        });
         return sorted;
     }
 
@@ -253,6 +274,96 @@
         if (!c || !c.id) return '—';
         if (indexMap && indexMap[c.id]) return indexMap[c.id];
         return '—';
+    }
+
+    // Older documents can contain a rendered APA citation as ordinary text
+    // (for example "(Xie et al., 2022)") instead of a live citation span.
+    // Recover only exact citations generated from a source in this document;
+    // this deliberately does not attempt to interpret arbitrary parentheses
+    // or numbers in the user's prose.
+    function recoverPlainTextCitations(root, citations) {
+        if (!root || !citations || !citations.length || !window.ApaFormat) return;
+        var byText = {};
+        citations.forEach(function (c) {
+            if (!c || !c.id) return;
+            var rendered = clean(window.ApaFormat.inText(c));
+            if (rendered) byText[rendered] = c;
+        });
+        var texts = Object.keys(byText).sort(function (a, b) { return b.length - a.length; });
+        if (!texts.length) return;
+
+        var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null, false);
+        var nodes = [];
+        var node;
+        while ((node = walker.nextNode())) {
+            var parent = node.parentElement;
+            if (!parent || parent.closest('.summie-bibliography, .summie-citation, .summie-citation-inline, .code-block-wrapper, .code-block')) continue;
+            if (texts.some(function (text) { return node.textContent.indexOf(text) !== -1; })) nodes.push(node);
+        }
+
+        nodes.forEach(function (textNode) {
+            var text = textNode.textContent;
+            var matches = [];
+            texts.forEach(function (rendered) {
+                var start = 0;
+                while (true) {
+                    var index = text.indexOf(rendered, start);
+                    if (index === -1) break;
+                    matches.push({ start: index, end: index + rendered.length, citation: byText[rendered] });
+                    start = index + rendered.length;
+                }
+            });
+            matches.sort(function (a, b) { return a.start - b.start || b.end - a.end; });
+            var nonOverlapping = [];
+            var cursor = 0;
+            matches.forEach(function (match) {
+                if (match.start >= cursor) {
+                    nonOverlapping.push(match);
+                    cursor = match.end;
+                }
+            });
+            if (!nonOverlapping.length) return;
+
+            var fragment = document.createDocumentFragment();
+            var last = 0;
+            nonOverlapping.forEach(function (match) {
+                if (match.start > last) fragment.appendChild(document.createTextNode(text.slice(last, match.start)));
+                var span = document.createElement('span');
+                span.className = 'summie-citation-inline';
+                span.setAttribute('data-citation-id', match.citation.id);
+                span.contentEditable = 'false';
+                span.textContent = text.slice(match.start, match.end);
+                fragment.appendChild(span);
+                last = match.end;
+            });
+            if (last < text.length) fragment.appendChild(document.createTextNode(text.slice(last)));
+            textNode.parentNode.replaceChild(fragment, textNode);
+        });
+    }
+
+    // If a user typed immediately after an older editable citation field, the
+    // browser may have placed that text inside the span. Keep it as ordinary
+    // prose when the generated field is refreshed rather than overwriting it.
+    function detachIncidentalCitationText(span, citation, index) {
+        var raw = String(span.textContent || '');
+        var candidates = [];
+        if (window.ApaFormat) candidates.push(window.ApaFormat.inText(citation));
+        if (window.VancouverFormat) {
+            ['brackets', 'parentheses', 'superscript'].forEach(function (notation) {
+                window.VancouverFormat.setInTextStyle(notation);
+                candidates.push(window.VancouverFormat.inText(citation, index));
+            });
+            // Restore the document-wide preference after probing formats.
+            window.VancouverFormat.setInTextStyle(_vancouverInTextStyle);
+        }
+        candidates.sort(function (a, b) { return String(b).length - String(a).length; });
+        for (var i = 0; i < candidates.length; i++) {
+            var generated = String(candidates[i] || '');
+            if (!generated) continue;
+            if (raw.indexOf(generated) === 0) return raw.slice(generated.length);
+            if (raw.lastIndexOf(generated) === raw.length - generated.length) return raw.slice(0, raw.length - generated.length);
+        }
+        return '';
     }
 
     var sentenceCase = function (str) { return window.ApaFormat.sentenceCase(str); };
@@ -496,6 +607,9 @@
                     accessedDate: (c && c.accessedDate) || null
                 };
             });
+            // Replacing the library (notably after loading a document) must
+            // also replace an existing empty/stale bibliography block.
+            if (this._initialized) this.renumberNow();
         },
 
         // Find an existing citation that is the same source as `c`:
@@ -651,12 +765,13 @@
             var map = getCitationIndexMap();
             var existing = map[c.id];
             var index = existing || (getOrderedCitationIds().length + 1);
-            var html = '<span class="summie-citation-inline" data-citation-id="' + e(c.id) + '">' + formatInText(c, index) + '</span>';
+            var html = '<span class="summie-citation-inline" data-citation-id="' + e(c.id) + '" contenteditable="false">' + formatInText(c, index) + '</span>';
             if (!this._insertHtmlAtCursor(html)) {
                 var p = document.createElement('p');
                 var span = document.createElement('span');
                 span.className = 'summie-citation-inline';
                 if (c.id) span.setAttribute('data-citation-id', c.id);
+                span.contentEditable = 'false';
                 span.innerHTML = formatInText(c, index);
                 p.appendChild(span);
                 this._appendToEditor(p);
@@ -669,21 +784,27 @@
         _insertHtmlAtCursor: function (html) {
             var editor = window.AppState && window.AppState.editor;
             if (!editor) return false;
+            // With pagination enabled `#editor` is only page one. A valid
+            // selection on page two or later must remain valid for inline
+            // insertions, otherwise we incorrectly fall back to a new block.
+            var documentRoot = document.getElementById('pagesContainer') || editor;
             // If the modal moved focus away, restore the caret that was saved
             // when the modal opened so the insert lands at the original cursor.
             if (window.SummieSelection) window.SummieSelection.restore({ force: true });
-            editor.focus({ preventScroll: true });
             var sel = window.getSelection();
             if (!sel || !sel.rangeCount) return false;
-            if (!editor.contains(sel.anchorNode)) {
+            if (!documentRoot.contains(sel.anchorNode)) {
                 if (window.SummieSelection && window.SummieSelection.savedRange) {
                     window.SummieSelection.restore({ force: true });
                     sel = window.getSelection();
-                    if (!sel || !sel.rangeCount || !editor.contains(sel.anchorNode)) return false;
+                    if (!sel || !sel.rangeCount || !documentRoot.contains(sel.anchorNode)) return false;
                 } else {
                     return false;
                 }
             }
+            var anchor = sel.anchorNode && (sel.anchorNode.nodeType === Node.ELEMENT_NODE ? sel.anchorNode : sel.anchorNode.parentElement);
+            var focusTarget = anchor && anchor.closest && anchor.closest('.a4-page');
+            (focusTarget || editor).focus({ preventScroll: true });
             document.execCommand('insertHTML', false, html);
             return true;
         },
@@ -713,7 +834,10 @@
             var editor = window.AppState && window.AppState.editor;
             if (!editor) return;
 
-            var block = editor.querySelector('.summie-bibliography');
+            // In paginated mode the first editor page has id="editor", while
+            // the bibliography is appended to the final page. Search the
+            // document container, not just that first page.
+            var block = document.querySelector('#pagesContainer .summie-bibliography');
             if (block) {
                 this.renderBibliographyBlock();
                 block.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -738,7 +862,8 @@
         renderBibliographyBlock: function () {
             var editor = window.AppState && window.AppState.editor;
             if (!editor) return;
-            var block = editor.querySelector('.summie-bibliography');
+            // The bibliography may live on any page in paginated documents.
+            var block = document.querySelector('#pagesContainer .summie-bibliography');
             if (!block) return;
             // Make the heading freely editable — user can rename "Bronnen" to anything
             var heading = block.querySelector('.summie-bib-heading');
@@ -767,8 +892,8 @@
             if (!itemsEl) return;
             itemsEl.innerHTML = '';
 
-            // Bibliography: order of first appearance in the text.
-            // Only cited sources are shown; uncited stay in sidebar only.
+            // Render the whole source library. APA is alphabetical; numeric
+            // styles put cited works first in document order.
             var sorted = getSortedCitationsForBibliography(this.citations);
 
             if (sorted.length === 0) {
@@ -780,8 +905,8 @@
                 var item = document.createElement('div');
                 item.className = 'summie-bib-item';
                 if (c.id) item.setAttribute('data-citation-id', c.id);
-                // Vancouver number = occurrence position (idx+1).
-                // APA keeps author-year but index is still passed for consistency
+                // The numeric label follows this exact rendered order.
+                // APA ignores the index.
                 var index = idx + 1;
                 // Content wrapper + hover actions — clicking the entry edits it
                 var content = document.createElement('div');
@@ -875,15 +1000,14 @@
             if (style !== 'apa' && style !== 'vancouver') return;
             setCitationStyle(style);
             this.citationStyle = style;
+            var sidebarStyleSelect = document.getElementById('citationStyleSelectSidebar');
+            if (sidebarStyleSelect) sidebarStyleSelect.value = style;
             this._syncInTextStyleSelectors();
-            _isRenumbering = true;
-            try {
-                this.renderBibliographyBlock();
-                this._updateInlineCitationSpans();
-                this._updatePanelIfOpen();
-            } finally { _isRenumbering = false; }
-            try { _lastOrderedKey = _orderedKey(); } catch (e7) {}
+            this.renumberNow();
+            this._refreshAfterLayout();
             window.saveToLocalStorage && window.saveToLocalStorage();
+            window.updateUnsavedIndicator && window.updateUnsavedIndicator();
+            if (window.UndoManager && window.UndoManager.notifyExternalChange) window.UndoManager.notifyExternalChange();
         },
 
         getCitationStyle: function () {
@@ -897,9 +1021,8 @@
             if (!setVancouverInTextStyle(style)) return;
             this.citationStyle = _citationStyle;
             this._syncInTextStyleSelectors();
-            _isRenumbering = true;
-            try { this._updateInlineCitationSpans(); } finally { _isRenumbering = false; }
-            try { _lastOrderedKey = _orderedKey(); } catch (e8) {}
+            this.renumberNow();
+            this._refreshAfterLayout();
             window.saveToLocalStorage && window.saveToLocalStorage();
             window.updateUnsavedIndicator && window.updateUnsavedIndicator();
             // Collapse the document-wide span rewrite into one undo step
@@ -930,22 +1053,44 @@
             if (row) row.style.display = show ? '' : 'none';
         },
 
+        // A pagination reflow can move a citation to another page in the same
+        // frame as a selector change. Refresh once immediately and once after
+        // that frame, so every rendered page receives the new style/notation.
+        _refreshAfterLayout: function () {
+            var self = this;
+            var refresh = function () { self.renumberNow(); };
+            if (window.requestAnimationFrame) window.requestAnimationFrame(refresh);
+            else setTimeout(refresh, 0);
+        },
+
         // Re-render every inline citation in the document with the current
         // style/notation (used after loading, after changing the notation and
         // after switching between APA and Vancouver).
         // Vancouver numbers now follow occurrence order in the text.
         _updateInlineCitationSpans: function () {
-            if (!window.AppState) return;
             var self = this;
+            // Scope this to the document pages. `#editor` is only the first
+            // page when pagination is enabled, which was the reason citations
+            // on later pages could remain in their previous notation.
+            var documentRoot = document.getElementById('pagesContainer') || document;
+            recoverPlainTextCitations(documentRoot, this.citations);
+            // Recovery may have added citations, so derive the number map only
+            // after it has completed.
             var indexMap = getCitationIndexMap();
             var order = getOrderedCitationIds();
-            document.querySelectorAll('.summie-citation-inline[data-citation-id]').forEach(function (span) {
+            documentRoot.querySelectorAll('.summie-citation-inline, .summie-citation-inline[citation-id]').forEach(function (span) {
                 var c = null;
+                var citationId = span.getAttribute('data-citation-id') || span.getAttribute('citation-id');
                 for (var i = 0; i < self.citations.length; i++) {
-                    if (self.citations[i].id === span.getAttribute('data-citation-id')) { c = self.citations[i]; break; }
+                    if (self.citations[i].id === citationId) { c = self.citations[i]; break; }
                 }
-                // Source removed → drop the orphaned inline marker
-                if (!c) { span.remove(); return; }
+                // Remove only a genuinely orphaned, ID-linked field. A legacy
+                // field without an ID may be an author-date citation and must
+                // never be deleted merely because it cannot be reconstructed.
+                if (!c) {
+                    if (citationId) span.remove();
+                    return;
+                }
                 var idx = indexMap[c.id];
                 // Fallback: if for some reason not in map but span exists,
                 // use its position in order array; otherwise insertion order
@@ -953,23 +1098,29 @@
                     var pos = order.indexOf(c.id);
                     idx = pos !== -1 ? pos + 1 : self.citations.indexOf(c) + 1;
                 }
+                var incidentalText = detachIncidentalCitationText(span, c, idx);
                 span.innerHTML = formatInText(c, idx);
+                span.contentEditable = 'false';
+                if (incidentalText) span.after(document.createTextNode(incidentalText));
             });
             // Also re-render full reference paragraphs (.summie-citation) so their
             // Vancouver numbers stay in sync with the bibliography order.
             var fullMap = getCitationIndexMap();
-            document.querySelectorAll('.summie-citation[data-citation-id]').forEach(function (p) {
+            documentRoot.querySelectorAll('.summie-citation, .summie-citation[citation-id]').forEach(function (p) {
                 if (p.closest && p.closest('.summie-bibliography')) return;
                 var c2 = null;
+                var fullCitationId = p.getAttribute('data-citation-id') || p.getAttribute('citation-id');
                 for (var i = 0; i < self.citations.length; i++) {
-                    if (self.citations[i].id === p.getAttribute('data-citation-id')) { c2 = self.citations[i]; break; }
+                    if (self.citations[i].id === fullCitationId) { c2 = self.citations[i]; break; }
                 }
-                if (!c2) { p.remove(); return; }
+                if (!c2) {
+                    if (fullCitationId) p.remove();
+                    return;
+                }
                 var idx2 = fullMap[c2.id] || (self.citations.indexOf(c2) + 1);
-                // Only Vancouver uses the index visibly; APA ignores it
-                if (_citationStyle === 'vancouver') {
-                    p.innerHTML = formatReference(c2, idx2);
-                }
+                // These are generated fields, never static text. Re-render
+                // both directions (Vancouver → APA and APA → Vancouver).
+                p.innerHTML = formatReference(c2, idx2);
             });
             try { _lastOrderedKey = _orderedKey(); } catch (e6) {}
         },
