@@ -75,6 +75,9 @@ Download the latest release for your platform from the [Releases](https://github
 | <img src="https://api.iconify.design/logos/arch-linux.svg" width="14" height="14" valign="middle" /> Arch Linux    | AUR `summie-docs-bin` |
 
 > **Arch Linux:** `yay -S summie-docs-bin` or `paru -S summie-docs-bin` — also available as `summie-docs` / `summie` commands after install. Manual: `git clone https://aur.archlinux.org/summie-docs-bin.git && cd summie-docs-bin && makepkg -si`
+>
+> > [!NOTE]
+> > **AUR registration is temporarily paused** (Arch is cleaning up the mid-June malicious package wave). New accounts can't be created right now — last pause lasted ~4 weeks (June 15 → July 13). The `summie-docs-bin` PKGBUILD is ready in [`aur/`](aur/) and will auto-publish on the next release once registration reopens. **Until then:** `git clone https://github.com/ThermedWolf/Summie-Docs.git && cd Summie-Docs/aur && makepkg -si` — same package, no AUR account needed. Watch https://archlinux.org/news/ or `aur-general` for the reopen announcement.
 
 ### Build from Source
 
