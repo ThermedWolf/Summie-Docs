@@ -92,17 +92,7 @@
                         stroke-linecap="round" stroke-linejoin="round">
                         <path d="M12 5v14M5 12h14" />
                     </svg>
-                    Leeg document
-                </button>
-                <button class="sidebar-btn sidebar-btn-ghost" id="newDocPaginatedBtn">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                        stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="3" y="3" width="7" height="9" rx="1" />
-                        <rect x="14" y="3" width="7" height="9" rx="1" />
-                        <rect x="3" y="16" width="7" height="5" rx="1" />
-                        <rect x="14" y="16" width="7" height="5" rx="1" />
-                    </svg>
-                    Gepagineerd
+                    Nieuw document
                 </button>
                 <button class="sidebar-btn sidebar-btn-secondary" id="openDocBtn">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -144,16 +134,6 @@
                         <path d="M12 5v14M5 12h14" />
                     </svg>
                     Nieuw document
-                </button>
-                <button class="sidebar-btn sidebar-btn-ghost" id="newDocPaginatedBtnAlt">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                        stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="3" y="3" width="7" height="9" rx="1" />
-                        <rect x="14" y="3" width="7" height="9" rx="1" />
-                        <rect x="3" y="16" width="7" height="5" rx="1" />
-                        <rect x="14" y="16" width="7" height="5" rx="1" />
-                    </svg>
-                    Gepagineerd
                 </button>
                 <button class="sidebar-btn sidebar-btn-secondary" id="openDocBtnAlt">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -443,6 +423,68 @@
                 <button class="update-btn-primary" id="updateInstallBtn" style="display:none">
                     <span>Installeren en herstarten</span>
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- NEW DOCUMENT CHOOSER MODAL -->
+    <div class="modal-overlay new-doc-overlay" id="newDocChooserModal" style="display:none" role="dialog"
+        aria-modal="true" aria-labelledby="newDocChooserTitle">
+        <div class="modal-box new-doc-chooser-box" role="document">
+            <div class="modal-header new-doc-chooser-header">
+                <h3 id="newDocChooserTitle">Nieuw document</h3>
+                <button class="modal-close" id="closeNewDocChooser" aria-label="Sluiten">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                        stroke-linecap="round">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                </button>
+            </div>
+            <p class="new-doc-chooser-subtitle" id="newDocChooserSubtitle">Kies hoe je wilt starten</p>
+            <div class="new-doc-chooser-grid">
+                <button class="new-doc-option" id="chooseSinglePage" type="button" data-paginated="false">
+                    <div class="new-doc-preview new-doc-preview--single" aria-hidden="true">
+                        <div class="mini-page">
+                            <div class="mini-page-title-bar"></div>
+                            <div class="mini-line" style="width:92%"></div>
+                            <div class="mini-line" style="width:100%"></div>
+                            <div class="mini-line" style="width:88%"></div>
+                            <div class="mini-line" style="width:96%"></div>
+                            <div class="mini-line mini-line--spaced" style="width:70%"></div>
+                            <div class="mini-line" style="width:94%"></div>
+                            <div class="mini-line" style="width:82%"></div>
+                            <div class="mini-line" style="width:90%"></div>
+                        </div>
+                    </div>
+                    <span class="new-doc-option-title">Doorlopend</span>
+                    <span class="new-doc-option-desc">Eén doorlopende pagina — ideaal voor notities en
+                        samenvattingen.</span>
+                </button>
+                <button class="new-doc-option" id="choosePaginated" type="button" data-paginated="true">
+                    <div class="new-doc-preview new-doc-preview--paged" aria-hidden="true">
+                        <div class="mini-pages-stack">
+                            <div class="mini-page mini-page--back">
+                                <div class="mini-page-title-bar"></div>
+                                <div class="mini-line" style="width:90%"></div>
+                                <div class="mini-line" style="width:100%"></div>
+                                <div class="mini-line" style="width:76%"></div>
+                            </div>
+                            <div class="mini-page mini-page--front">
+                                <div class="mini-page-title-bar"></div>
+                                <div class="mini-line" style="width:88%"></div>
+                                <div class="mini-line" style="width:96%"></div>
+                                <div class="mini-line" style="width:72%"></div>
+                                <span class="mini-page-badge">2</span>
+                            </div>
+                        </div>
+                    </div>
+                    <span class="new-doc-option-title">Gepagineerd</span>
+                    <span class="new-doc-option-desc">Meerdere A4-pagina’s — ideaal voor printen en verslagen.</span>
+                </button>
+            </div>
+            <div class="modal-footer new-doc-chooser-footer">
+                <button class="btn-cancel" id="cancelNewDocChooser" type="button">Annuleren</button>
             </div>
         </div>
     </div>

@@ -995,6 +995,74 @@ async function openNewDocumentPaginated() {
     return openNewDocument(true);
 }
 
+// ==================== NEW DOCUMENT CHOOSER ====================
+
+let _newDocChooserPrevFocus = null;
+
+function openNewDocChooser() {
+    const modal = document.getElementById('newDocChooserModal');
+    if (!modal) return;
+    _newDocChooserPrevFocus = document.activeElement;
+    modal.style.display = 'flex';
+    // Focus first option for keyboard users
+    const first = document.getElementById('chooseSinglePage');
+    if (first) setTimeout(() => first.focus(), 30);
+}
+
+function closeNewDocChooser() {
+    const modal = document.getElementById('newDocChooserModal');
+    if (!modal) return;
+    modal.style.display = 'none';
+    if (_newDocChooserPrevFocus && document.body.contains(_newDocChooserPrevFocus)) {
+        _newDocChooserPrevFocus.focus();
+    }
+    _newDocChooserPrevFocus = null;
+}
+
+function initNewDocChooser() {
+    const modal = document.getElementById('newDocChooserModal');
+    if (!modal) return;
+
+    const closeBtn = document.getElementById('closeNewDocChooser');
+    const cancelBtn = document.getElementById('cancelNewDocChooser');
+    const singleBtn = document.getElementById('chooseSinglePage');
+    const pagedBtn = document.getElementById('choosePaginated');
+
+    if (closeBtn) closeBtn.addEventListener('click', closeNewDocChooser);
+    if (cancelBtn) cancelBtn.addEventListener('click', closeNewDocChooser);
+
+    if (singleBtn) singleBtn.addEventListener('click', () => {
+        closeNewDocChooser();
+        openNewDocument(false);
+    });
+    if (pagedBtn) pagedBtn.addEventListener('click', () => {
+        closeNewDocChooser();
+        openNewDocument(true);
+    });
+
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeNewDocChooser();
+    });
+
+    // Keyboard: Esc closes, arrow keys switch between cards, Enter already works via <button>
+    modal.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            closeNewDocChooser();
+        } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+            if (document.activeElement === singleBtn && pagedBtn) {
+                e.preventDefault();
+                pagedBtn.focus();
+            }
+        } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+            if (document.activeElement === pagedBtn && singleBtn) {
+                e.preventDefault();
+                singleBtn.focus();
+            }
+        }
+    });
+}
+
 async function openFromFile() {
     if (!window.electron) return;
 
@@ -1345,19 +1413,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }, 150);
 
+    // New document chooser
+    initNewDocChooser();
+
     // Action card buttons (inside current-doc section)
-    document.getElementById('newDocBtn').addEventListener('click', () => openNewDocument(false));
+    document.getElementById('newDocBtn').addEventListener('click', openNewDocChooser);
     document.getElementById('openDocBtn').addEventListener('click', openFromFile);
-    const newDocPaginatedBtn = document.getElementById('newDocPaginatedBtn');
-    if (newDocPaginatedBtn) newDocPaginatedBtn.addEventListener('click', () => openNewDocument(true));
 
     // Action card buttons (quick-actions section, shown when no current doc)
     const newDocBtnAlt = document.getElementById('newDocBtnAlt');
     const openDocBtnAlt = document.getElementById('openDocBtnAlt');
-    if (newDocBtnAlt) newDocBtnAlt.addEventListener('click', () => openNewDocument(false));
+    if (newDocBtnAlt) newDocBtnAlt.addEventListener('click', openNewDocChooser);
     if (openDocBtnAlt) openDocBtnAlt.addEventListener('click', openFromFile);
-    const newDocPaginatedBtnAlt = document.getElementById('newDocPaginatedBtnAlt');
-    if (newDocPaginatedBtnAlt) newDocPaginatedBtnAlt.addEventListener('click', () => openNewDocument(true));
 
     // Window controls
     const winMinimize = document.getElementById('winMinimize');
@@ -1487,6 +1554,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Keyboard
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
+            // New-doc chooser has priority — it handles its own Esc, but also close here as fallback
+            const chooser = document.getElementById('newDocChooserModal');
+            if (chooser && chooser.style.display !== 'none') {
+                closeNewDocChooser();
+                return;
+            }
             hideContextMenu();
             closeRenameModal();
         }
