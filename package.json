@@ -5,8 +5,12 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
+    "start:installer": "electron installer/main-installer.js",
     "build": "electron-builder",
-    "build:win": "electron-builder --win",
+    "build:win": "npm run build:win:full",
+    "build:win:dir": "electron-builder --win --dir",
+    "build:win:installer": "electron-builder --config installer/electron-builder.installer.json",
+    "build:win:full": "npm run build:win:dir && npm run build:win:installer",
     "build:mac": "electron-builder --mac",
     "build:linux": "electron-builder --linux"
   },
@@ -59,27 +63,13 @@
     "win": {
       "target": [
         {
-          "target": "nsis",
+          "target": "dir",
           "arch": [
             "x64"
           ]
         }
       ],
-      "artifactName": "Summie-windows-x64-${version}.${ext}",
       "icon": "app/icon.png"
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "createStartMenuShortcut": true,
-      "installerIcon": "app/installer-icon.ico",
-      "uninstallerIcon": "app/installer-icon.ico",
-      "installerHeaderIcon": "app/installer-icon.ico",
-      "uninstallDisplayName": "Summie",
-      "deleteAppDataOnUninstall": false,
-      "createDesktopShortcut": false,
-      "perMachine": false,
-      "include": "installer.nsh"
     },
     "mac": {
       "target": [

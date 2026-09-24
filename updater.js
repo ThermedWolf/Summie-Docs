@@ -58,7 +58,7 @@ function cleanupOldInstallers() {
         const currentVersion = getCurrentVersion();
         
         const files = fs.readdirSync(tempDir);
-        const installerPattern = /^Summie-windows-x64-([\d.]+)\.exe$/;
+        const installerPattern = /^Summie-windows-x64-([\d.]+)(?:-Setup)?\.exe$/;
         
         for (const file of files) {
             const match = file.match(installerPattern);
@@ -164,7 +164,9 @@ function getInstallerPattern() {
     const platform = getPlatform();
     
     if (platform === 'win32') {
-        return /^Summie-windows-x64-[\d.]+\.exe$/;
+        // Matches both classic NSIS (Summie-windows-x64-4.3.0.exe) and
+        // branded Electron wrapper variants (Summie-windows-x64-4.3.0-Setup.exe)
+        return /^Summie-windows-x64-[\d.]+(?:-Setup)?\.exe$/;
     }
     
     if (platform === 'darwin') {

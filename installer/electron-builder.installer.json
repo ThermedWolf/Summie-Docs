@@ -1,0 +1,41 @@
+{
+  "appId": "com.summie.installer",
+  "productName": "Summie Setup",
+  "directories": {
+    "output": "../dist-installer"
+  },
+  "files": [
+    "main-installer.js",
+    "preload-installer.js",
+    "installer.html",
+    "installer.css",
+    "installer.js",
+    "i18n.js"
+  ],
+  "extraResources": [
+    {
+      "from": "dist/win-unpacked",
+      "to": "payload",
+      "filter": ["**/*"]
+    },
+    {
+      "from": "app/icon.png",
+      "to": "app-icon.png"
+    }
+  ],
+  "win": {
+    "target": [
+      {
+        "target": "portable",
+        "arch": ["x64"]
+      }
+    ],
+    "icon": "app/icon.png",
+    "artifactName": "Summie-windows-x64-${version}-Setup.${ext}"
+  },
+  "portable": {
+    "artifactName": "Summie-windows-x64-${version}-Setup.${ext}",
+    "requestExecutionLevel": "user"
+  },
+  "publish": null
+}

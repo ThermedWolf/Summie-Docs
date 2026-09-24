@@ -9,6 +9,9 @@
 !include "MUI2.nsh"
 
 !macro customHeader
+  ; Branding: hide default "Nullsoft Install System" text when used with
+  ; the outer Summie-branded Electron wrapper (shows Summie version).
+  BrandingText "Summie ${VERSION}"
 !macroend
 
 ; ── Refresh Windows' icon cache so updated .sumd file-type icons show up
@@ -51,7 +54,13 @@
 !macroend
 
 ; ── Post-install: run update/repair/uninstall dialog if needed ────────────────
+; When the outer Summie-branded Electron wrapper launches the inner payload
+; silently (/S), skip all MessageBox wizard UI — the wrapper already handled
+; language + choice + directory UI.
 !macro customInstall
+
+  IfSilent 0 +2
+    Goto install_skip_dialogs
 
   ; === Existing-install dialog ===
   ${If} $R0 != ""
@@ -136,10 +145,14 @@
     install_done:
   ${EndIf}
 
+  install_skip_dialogs:
+
   ; Refresh the shell so the (possibly updated) .sumd icon shows immediately
   !insertmacro RefreshIconCache
 
   ; === Desktop shortcut offer (fresh install or after update) ===
+  ; Skip when silent — the Electron wrapper handles this via checkbox state.
+  IfSilent skip_desktop
   StrCpy $3 "Would you like to create a desktop shortcut?"
 
   ${If} $R1 = 0x13

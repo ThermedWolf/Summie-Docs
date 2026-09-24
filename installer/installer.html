@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Summie Setup</title>
+    <link rel="stylesheet" href="installer.css" />
+</head>
+<body>
+    <div class="inst-topbar">
+        <div class="inst-topbar-left">
+            <img class="inst-logo" src="../app/icon.png" alt="Summie" />
+            <span class="inst-appname">Summie</span>
+            <span class="inst-version" id="versionBadge">v4.3.0</span>
+        </div>
+        <div class="inst-topbar-right">
+            <button class="inst-winbtn" id="btnMin" aria-label="Minimaliseren">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="1" y="5.5" width="10" height="1" fill="currentColor"/></svg>
+            </button>
+            <button class="inst-winbtn close" id="btnClose" aria-label="Sluiten">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 1l10 10M11 1L1 11" stroke="currentColor" stroke-width="1.2"/></svg>
+            </button>
+        </div>
+    </div>
+
+    <div class="inst-shell">
+
+        <!-- Welcome — fade-in hero -->
+        <div class="inst-view active" id="view-welcome">
+            <div class="hero">
+                <div class="hero-logo-wrap">
+                    <img class="hero-logo" src="../app/icon.png" alt="Summie logo" />
+                </div>
+                <div class="hero-title" id="t-welcomeTitle">Welcome to Summie</div>
+                <div class="hero-tagline" id="t-tagline">An opinionated document-editor built specifically for summaries.</div>
+                <div class="hero-actions">
+                    <button class="btn-primary" id="btnWelcomeContinue">Continue</button>
+                </div>
+                <div class="lang-switch" id="langSwitch"></div>
+            </div>
+        </div>
+
+        <!-- Existing install choice -->
+        <div class="inst-view" id="view-existing">
+            <div class="section-label" id="t-existingTitle">Summie is already installed</div>
+            <p style="font-size:12px;color:var(--text-2);margin-bottom:12px" id="t-existingSub">We found an existing installation. What would you like to do?</p>
+
+            <div class="version-compare" id="versionCompare" style="display:none">
+                <div class="vc-col">
+                    <span class="vc-label" id="t-versionCurrent">Current</span>
+                    <span class="vc-value" id="vc-current">—</span>
+                </div>
+                <div class="vc-arrow">→</div>
+                <div class="vc-col right">
+                    <span class="vc-label" id="t-versionNew">New</span>
+                    <span class="vc-value pill" id="vc-new">—</span>
+                </div>
+            </div>
+            <p style="font-size:11px;color:var(--text-3);margin-bottom:12px;word-break:break-all" id="existingPath"></p>
+
+            <div class="existing-stack">
+                <div class="card card--selectable card--active" data-action="update" id="card-update">
+                    <div class="card-head">
+                        <div>
+                            <div class="card-title" id="t-update">Update</div>
+                            <div class="card-desc" id="t-updateDesc">Install the new version over the existing one.</div>
+                        </div>
+                        <span class="card-check">✓</span>
+                    </div>
+                </div>
+                <div class="card card--selectable" data-action="repair" id="card-repair">
+                    <div class="card-head">
+                        <div>
+                            <div class="card-title" id="t-repair">Repair</div>
+                            <div class="card-desc" id="t-repairDesc">Restore shortcuts and file associations.</div>
+                        </div>
+                        <span class="card-check">✓</span>
+                    </div>
+                </div>
+                <div class="card card--selectable" data-action="uninstall" id="card-uninstall">
+                    <div class="card-head">
+                        <div>
+                            <div class="card-title" id="t-uninstall">Uninstall</div>
+                            <div class="card-desc" id="t-uninstallDesc">Completely remove Summie from this device.</div>
+                        </div>
+                        <span class="card-check">✓</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="inst-footer">
+                <div class="left"><button class="btn-ghost" id="btnExistingBack">Back</button></div>
+                <div class="right"><button class="btn-primary" id="btnExistingContinue">Continue</button></div>
+            </div>
+        </div>
+
+        <!-- Directory -->
+        <div class="inst-view" id="view-directory">
+            <div class="section-label" id="t-locationLabel">Installation folder</div>
+            <div class="dir-row">
+                <input class="dir-input" id="dirInput" readonly />
+                <button class="btn-secondary" id="btnBrowse" style="height:38px">Browse…</button>
+            </div>
+
+            <div class="toggle-row">
+                <div class="toggle-info">
+                    <span class="toggle-label" id="t-desktopShortcut">Create desktop shortcut</span>
+                    <span class="toggle-hint" id="t-desktopShortcutHint">Adds Summie to your desktop for quick access.</span>
+                </div>
+                <label class="tgl"><input type="checkbox" id="desktopShortcutToggle" /><span class="tgl-track"><span class="tgl-thumb"></span></span></label>
+            </div>
+
+            <div class="inst-footer">
+                <div class="left"><button class="btn-ghost" id="btnDirBack">Back</button></div>
+                <div class="right"><button class="btn-primary" id="btnInstall">Install</button></div>
+            </div>
+        </div>
+
+        <!-- Progress -->
+        <div class="inst-view" id="view-progress">
+            <div style="flex:1;display:flex;flex-direction:column;justify-content:center">
+                <div class="progress-wrap">
+                    <div class="progress-head">
+                        <span class="progress-spinner"></span>
+                        <span class="progress-text" id="progressText">Installing…</span>
+                        <span class="progress-pct" id="progressPct">0%</span>
+                    </div>
+                    <div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Success -->
+        <div class="inst-view" id="view-success">
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding-top:18px">
+                <div class="success-icon" id="successIcon">✓</div>
+                <div class="success-title" id="successTitle">Summie is ready</div>
+                <div class="success-desc" id="successDesc">You can now open Summie from the Start menu or desktop.</div>
+                <div style="display:flex;gap:8px;margin-top:16px">
+                    <button class="btn-secondary" id="btnOpenFolder">Open folder</button>
+                    <button class="btn-primary" id="btnLaunch">Launch Summie</button>
+                </div>
+                <button class="btn-ghost" id="btnCloseSuccess" style="margin-top:6px">Close</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="i18n.js"></script>
+    <script src="installer.js"></script>
+</body>
+</html>
