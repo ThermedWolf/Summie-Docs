@@ -449,48 +449,38 @@ class TopbarManager {
             const range = selection.getRangeAt(0);
             const editor = document.getElementById('editor');
 
-            const clearColor = (node) => {
+            const isColoredElement = (el) => {
+                if (!el || el === editor) return false;
+                if (el.style && el.style.color) return true;
+                if (el.tagName === 'FONT' && el.getAttribute('color')) return true;
+                return false;
+            };
+
+            const findColoredAncestor = (node) => {
+                let el = node.nodeType === 3 ? node.parentElement : node;
+                while (el && el !== editor) {
+                    if (isColoredElement(el)) return el;
+                    el = el.parentElement;
+                }
+                return null;
+            };
+
+            // Recurses through DocumentFragment as well — the old version
+            // checked nodeType === 1 before recursing, so a DocumentFragment
+            // (type 11) was never visited and its colored children were skipped,
+            // leaving the selection still colored (the reported bug).
+            const clearColorRecursive = (node) => {
                 if (node.nodeType === 1) {
                     if (node.style && node.style.color) node.style.color = '';
                     if (node.hasAttribute('color')) node.removeAttribute('color');
-                    if (node.getAttribute('style') !== null && node.getAttribute('style').trim() === '') node.removeAttribute('style');
                     if (node.tagName === 'FONT') node.removeAttribute('color');
-                    Array.from(node.childNodes).forEach(clearColor);
+                    const s = node.getAttribute('style');
+                    if (s !== null && s.trim() === '') node.removeAttribute('style');
                 }
+                Array.from(node.childNodes).forEach(clearColorRecursive);
             };
 
-            if (range.collapsed) {
-                // Caret inside a colored span/font — break out so next typing is default
-                let el = range.startContainer.nodeType === 3 ? range.startContainer.parentElement : range.startContainer;
-                let coloredAncestor = null;
-                let cur = el;
-                while (cur && cur !== editor) {
-                    if ((cur.style && cur.style.color) || (cur.tagName === 'FONT' && cur.getAttribute('color'))) { coloredAncestor = cur; break; }
-                    cur = cur.parentElement;
-                }
-                if (coloredAncestor) {
-                    const zwsSpan = document.createElement('span');
-                    zwsSpan.appendChild(document.createTextNode('\u200B'));
-                    if (range.startContainer.nodeType === 3) {
-                        const textNode = range.startContainer;
-                        const offset = range.startOffset;
-                        const afterText = textNode.splitText(offset);
-                        textNode.parentNode.insertBefore(zwsSpan, afterText);
-                    } else {
-                        range.insertNode(zwsSpan);
-                    }
-                    const newRange = document.createRange();
-                    newRange.setStart(zwsSpan.firstChild, 1);
-                    newRange.collapse(true);
-                    selection.removeAllRanges();
-                    selection.addRange(newRange);
-                    this.savedRange = newRange.cloneRange();
-                } else {
-                    this.savedRange = range.cloneRange();
-                }
-            } else {
-                const fragment = range.extractContents();
-                clearColor(fragment);
+            const unwrapEmpty = (fragment) => {
                 fragment.querySelectorAll('font').forEach(font => {
                     if (!font.getAttribute('color') && !font.style.color) {
                         while (font.firstChild) font.parentNode.insertBefore(font.firstChild, font);
@@ -500,7 +490,8 @@ class TopbarManager {
                 fragment.querySelectorAll('span').forEach(span => {
                     const hasStyle = span.getAttribute('style');
                     const hasClass = span.className;
-                    if (!hasStyle && !hasClass && span.attributes.length === 0) {
+                    const hasAttrs = span.attributes.length > 0;
+                    if (!hasStyle && !hasClass && !hasAttrs) {
                         while (span.firstChild) span.parentNode.insertBefore(span.firstChild, span);
                         span.remove();
                     } else if (hasStyle && span.style.color === '' && span.style.length === 0) {
@@ -511,8 +502,106 @@ class TopbarManager {
                         }
                     }
                 });
+            };
+
+            if (range.collapsed) {
+                const coloredAncestor = findColoredAncestor(range.startContainer);
+                if (!coloredAncestor) {
+                    this.savedRange = range.cloneRange();
+                    this.currentTextColor = 'default';
+                    this.updateColorIndicator('text', this.getDefaultTextColor());
+                    window.updateUnsavedIndicator && window.updateUnsavedIndicator();
+                    return;
+                }
+                // Split the colored ancestor at the caret so next typing
+                // inherits the default color. The old code inserted a ZWS
+                // <span> *inside* the colored ancestor, so the new text
+                // still inherited the color. We instead extract the content
+                // after the caret that lives inside the ancestor and move
+                // it to a clone after the caret, leaving the caret outside.
+                try {
+                    const caretRange = range.cloneRange();
+                    const rightRange = document.createRange();
+                    rightRange.setStart(caretRange.startContainer, caretRange.startOffset);
+                    rightRange.setEnd(coloredAncestor, coloredAncestor.childNodes.length);
+                    const rightFrag = rightRange.extractContents();
+
+                    const placeholder = document.createElement('span');
+                    placeholder.appendChild(document.createTextNode('\u200B'));
+                    placeholder.style.color = '';
+                    if (placeholder.getAttribute('style') === '') placeholder.removeAttribute('style');
+
+                    // Insert placeholder *outside* the colored ancestor so it does
+                    // not inherit the color. Using caretRange.insertNode would
+                    // leave it inside the (now truncated) left ancestor.
+                    const parent = coloredAncestor.parentNode;
+                    if (parent) {
+                        parent.insertBefore(placeholder, coloredAncestor.nextSibling);
+                        if (rightFrag.childNodes.length > 0) {
+                            parent.insertBefore(rightFrag, placeholder.nextSibling);
+                        }
+                    } else {
+                        // Fallback — should not happen (ancestor always has parent)
+                        caretRange.insertNode(placeholder);
+                        if (rightFrag.childNodes.length > 0) placeholder.after(rightFrag);
+                    }
+                    // Collapse selection inside the placeholder (after the ZWS)
+                    const newRange = document.createRange();
+                    newRange.setStart(placeholder.firstChild, 1);
+                    newRange.collapse(true);
+                    selection.removeAllRanges();
+                    selection.addRange(newRange);
+                    this.savedRange = newRange.cloneRange();
+                    // Clean up an empty left ancestor (caret at start of colored range)
+                    if (coloredAncestor.childNodes.length === 0) {
+                        // Leave empty wrapper removal to the generic cleanup below
+                        if (!coloredAncestor.textContent) {
+                            // Remove only if it carries no other meaningful styling
+                            const hasOtherStyle = coloredAncestor.getAttribute('style') && coloredAncestor.getAttribute('style').trim() !== '';
+                            const hasOtherAttrs = coloredAncestor.className || Array.from(coloredAncestor.attributes).some(a => a.name !== 'style' && a.name !== 'color');
+                            if (!hasOtherStyle && !hasOtherAttrs) coloredAncestor.remove();
+                        }
+                    }
+                } catch (e) {
+                    // Fallback: just clear the ancestor's color
+                    coloredAncestor.style.color = '';
+                    if (coloredAncestor.getAttribute('style') === '') coloredAncestor.removeAttribute('style');
+                    if (coloredAncestor.tagName === 'FONT') coloredAncestor.removeAttribute('color');
+                    const fallbackRange = range.cloneRange();
+                    fallbackRange.collapse(true);
+                    selection.removeAllRanges();
+                    selection.addRange(fallbackRange);
+                    this.savedRange = fallbackRange.cloneRange();
+                }
+            } else {
+                const fragment = range.extractContents();
+                clearColorRecursive(fragment);
+                unwrapEmpty(fragment);
                 range.insertNode(fragment);
-                // Place caret after the cleaned fragment
+                // Also clear color that lives on a partially-selected ancestor
+                // that extractContents cloned but didn't fully include — e.g.
+                // selecting inside "<span style=color>hello</span>" leaves the
+                // outer span in the DOM with its color; the fragment's clone was
+                // cleared but the remaining outer still has color on the selected
+                // portion's original wrapper. Walk up from fragment's inserted
+                // nodes and clear any colored ancestor that is now empty or fully
+                // covered by the selection.
+                // For the common case the extraction already split wrappers, so
+                // just normalise and clean empty wrappers.
+                try { editor.normalize(); } catch (e) {}
+                // Clean empty font/span wrappers left behind
+                editor.querySelectorAll('font, span').forEach(el => {
+                    if (el.childNodes.length === 0 && el.textContent === '') {
+                        el.remove();
+                    } else if (el.tagName === 'FONT' && !el.getAttribute('color') && !el.style.color) {
+                        // Unwrap font that lost its color
+                        while (el.firstChild) el.parentNode.insertBefore(el.firstChild, el);
+                        el.remove();
+                    } else if (el.tagName === 'SPAN' && !el.getAttribute('style') && !el.className && el.attributes.length === 0) {
+                        while (el.firstChild) el.parentNode.insertBefore(el.firstChild, el);
+                        el.remove();
+                    }
+                });
                 range.collapse(false);
                 selection.removeAllRanges();
                 selection.addRange(range);
