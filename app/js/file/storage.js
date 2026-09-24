@@ -109,10 +109,10 @@ async function loadFromLocalStorage() {
         }
 
         // Derive pagination mode from the saved draft itself — same logic as applyLoadedData.
-        // This handles old drafts (no 'pages' field) correctly without checking localStorage.
+        // A paginated draft with a single page (fresh empty paginated doc) must stay paginated.
         if (window.PageManager) {
-            const hasMultiplePages = data.pages && data.pages.length > 1;
-            if (hasMultiplePages) {
+            const isPaginatedDraft = Array.isArray(data.pages) && data.pages.length > 0;
+            if (isPaginatedDraft) {
                 localStorage.setItem('summie_pagination_mode', '1');
                 if (!window.PageManager.isPaginationEnabled()) window.PageManager.enablePagination();
                 window.PageManager.loadPagesData(data.pages);

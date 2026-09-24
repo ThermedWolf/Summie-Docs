@@ -12,14 +12,34 @@ document.addEventListener('DOMContentLoaded', async () => {
     state.initRefs();
 
     // 1b. Init page manager early so it's ready before data is loaded
+    // For a fresh new-document (created from the landing page chooser),
+    // remember the requested pagination mode BEFORE init reads it, then
+    // clear any stale draft. This guarantees a paginated new doc actually
+    // starts paginated — even with a single empty page.
+    const isNewDocRaw = localStorage.getItem('summie_new_document');
+    const newDocWantsPaginated = isNewDocRaw ? localStorage.getItem('summie_pagination_mode') === '1' : null;
+
     window.PageManager && window.PageManager.init();
 
     // 2. Decide what to load
-    const isNewDoc = localStorage.getItem('summie_new_document');
+    const isNewDoc = isNewDocRaw;
     if (isNewDoc) {
         localStorage.removeItem('summie_new_document');
         localStorage.removeItem('summaryData');
         localStorage.removeItem('summie_current_file_path');
+        localStorage.removeItem('summie_saved_content');
+        localStorage.removeItem('summie_saved_begrippen');
+        localStorage.removeItem('summie_saved_fingerprint');
+        // Ensure the freshly chosen pagination mode is Honoured even if
+        // PageManager.init raced with stale storage, and ensure an empty
+        // paginated doc really starts with pages-multi / badge / status.
+        if (window.PageManager) {
+            if (newDocWantsPaginated && !window.PageManager.isPaginationEnabled()) {
+                window.PageManager.enablePagination();
+            } else if (!newDocWantsPaginated && window.PageManager.isPaginationEnabled()) {
+                window.PageManager.disablePagination();
+            }
+        }
     }
 
     const initialOpen = window.electron?.getInitialSumdFile

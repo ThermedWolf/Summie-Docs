@@ -191,25 +191,26 @@ function applyLoadedData(data) {
 
     // Derive pagination mode from the file itself — never rely on localStorage for this.
     // Old docs (v3.2.3 and earlier) have no 'pages' field → always single page mode.
+    // A paginated doc with a single page (e.g. a fresh empty paginated document)
+    // must stay paginated — it is still a paginated file, not a single-page one.
     const hasPageData = Array.isArray(data.pages) && data.pages.length > 0;
-    const hasMultiplePages = hasPageData && data.pages.length > 1;
+    const isPaginatedFile = hasPageData;
     if (window.PageManager) {
-        if (hasMultiplePages) {
-            // File was saved with pagination on
+        if (isPaginatedFile) {
+            // File was saved with pagination on (may be a single empty page)
             localStorage.setItem('summie_pagination_mode', '1');
             if (!window.PageManager.isPaginationEnabled()) window.PageManager.enablePagination();
             window.PageManager.loadPagesData(data.pages);
             state.editor = document.getElementById('editor');
         } else {
-            // Single-page file (old or new, including a paginated file that
-            // contains exactly one page) — force pagination off
+            // Single-page file (no pages array)
             localStorage.setItem('summie_pagination_mode', '0');
             if (window.PageManager.isPaginationEnabled()) window.PageManager.disablePagination();
         }
     }
 
     let loadedHtml = '';
-    if (!hasMultiplePages) {
+    if (!isPaginatedFile) {
         // For a one-page paginated file, pages[0] is the authoritative copy of
         // the content — loading nothing here used to drop the whole document.
         const rawHtml = hasPageData ? data.pages[0] : (data.content || '');
@@ -219,7 +220,7 @@ function applyLoadedData(data) {
     }
     setPendingEmptyEditorStyle('normal');
     state.editor.querySelectorAll('.placeholder-text').forEach(el => el.remove());
-    if (!hasMultiplePages && (!loadedHtml.trim() || loadedHtml === '<p>Begin hier met typen...</p>')) {
+    if (!isPaginatedFile && (!loadedHtml.trim() || loadedHtml === '<p>Begin hier met typen...</p>')) {
         setEditorPlaceholder();
     } else {
         updateEditorPlaceholder();

@@ -102,15 +102,16 @@
         const paginated = isPaginationEnabled();
         const pagesArr = paginated ? window.PageManager.getPagesData() : null;
 
-        // Collapse the degenerate "paginated but only one page" case into the
-        // single-page representation, otherwise applyLoadedData() would neither
-        // load pages nor content for it.
+        // When pagination is on, always snapshot as pages — even for a single
+        // empty page. Collapsing a one-page paginated doc into the single-page
+        // representation used to silently turn a paginated new document into a
+        // continuous one the moment it was undone / auto-saved / reloaded.
         let content = null;
         let pages = null;
-        if (pagesArr && pagesArr.length > 1) {
+        if (paginated && pagesArr) {
             pages = pagesArr;
         } else {
-            content = pagesArr && pagesArr.length === 1 ? pagesArr[0] : state.editor.innerHTML;
+            content = state.editor.innerHTML;
         }
 
         return {
