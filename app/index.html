@@ -29,6 +29,7 @@
     <link rel="stylesheet" href="element-controls.css">
     <link rel="stylesheet" href="tabruler.css">
     <link rel="stylesheet" href="read-aloud.css">
+    <link rel="stylesheet" href="zoom.css">
 </head>
 
 <body>
@@ -1070,6 +1071,31 @@
                         </button>
                     </div>
                 </div>
+                <div class="toolbar-separator animate-item" style="animation-delay: 0.12s"></div>
+                <div class="toolbar-group animate-item toolbar-group--zoom" style="animation-delay: 0.15s">
+                    <label class="toolbar-label">Zoom</label>
+                    <div class="toolbar-buttons">
+                        <div class="zoom-toolbar-group" title="Zoom — Ctrl + / Ctrl − / Ctrl 0 · Ctrl + scroll">
+                            <button data-zoom-out aria-label="Uitzoomen" title="Uitzoomen (Ctrl+−)">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                            </button>
+                            <select id="zoomSelect" class="zoom-toolbar-select" title="Zoomniveau">
+                                <option value="50">50%</option>
+                                <option value="75">75%</option>
+                                <option value="90">90%</option>
+                                <option value="100">100%</option>
+                                <option value="110">110%</option>
+                                <option value="125">125%</option>
+                                <option value="150">150%</option>
+                                <option value="175">175%</option>
+                                <option value="200">200%</option>
+                            </select>
+                            <button data-zoom-in aria-label="Inzoomen" title="Inzoomen (Ctrl++)">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Wiskunde Section -->
@@ -1353,6 +1379,11 @@
                         </div>
                     </div>
                     <div class="bottom-bar-right">
+                        <div class="zoom-controls" id="zoomControls" title="Zoom — Ctrl + / Ctrl − / Ctrl 0 · Ctrl + scroll">
+                            <button data-zoom-out aria-label="Uitzoomen" title="Uitzoomen (Ctrl+−)">−</button>
+                            <span class="zoom-level-display" data-zoom-display data-zoom-reset role="button" tabindex="0" title="Klik om te resetten (Ctrl+0)">100%</span>
+                            <button data-zoom-in aria-label="Inzoomen" title="Inzoomen (Ctrl++)">+</button>
+                        </div>
                         <span id="fileSizeDisplay" class="file-size-display"></span>
                     </div>
                 </div>
@@ -1747,6 +1778,7 @@
     <script src="js/ui/sidebar.js"></script>
     <script src="js/ui/search.js"></script>
     <script src="js/ui/find-replace.js"></script>
+    <script src="js/ui/zoom.js"></script>
 
     <!-- File -->
     <script src="js/file/storage.js"></script>

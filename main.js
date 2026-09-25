@@ -417,6 +417,11 @@ function createWindow(filePathToOpen = null, options = {}) {
 
     win.setMenu(null);
 
+    // Lock Chromium's built-in page zoom — Summie has its own
+    // document-only zoom (ZoomManager) so the whole window must stay at 1×.
+    try { win.webContents.setVisualZoomLevelLimits(1, 1); } catch (_) { /* older Electron */ }
+    try { win.webContents.setZoomFactor(1); } catch (_) {}
+
     // Hidden devtools shortcut: Ctrl+Shift+I
     win.webContents.on('before-input-event', (event, input) => {
         if (input.type === 'keyDown' &&
@@ -426,6 +431,18 @@ function createWindow(filePathToOpen = null, options = {}) {
                 win.webContents.closeDevTools();
             } else {
                 win.webContents.openDevTools({ mode: 'detach' });
+            }
+            return;
+        }
+        // Prevent Chromium's native zoom (Ctrl/Cmd + Plus/Minus/0 / wheel).
+        // Those combos are handled by ZoomManager in the renderer — if we let
+        // them through the whole window would zoom, not just the document.
+        if (input.type === 'keyDown' && (input.control || input.meta) && !input.alt) {
+            const k = (input.key || '').toLowerCase();
+            if (k === '=' || k === '+' || k === '-' || k === '_' || k === '0' ||
+                input.code === 'Equal' || input.code === 'Minus' || input.code === 'Digit0' ||
+                input.code === 'NumpadAdd' || input.code === 'NumpadSubtract' || input.code === 'Numpad0') {
+                event.preventDefault();
             }
         }
     });

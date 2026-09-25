@@ -1,0 +1,183 @@
+/* ==================== ZOOM ==================== */
+
+/* Bottom-bar zoom widget — lives in .bottom-bar-right */
+.zoom-controls {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    background: var(--bg-white);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 2px;
+    margin-right: 8px;
+    flex-shrink: 0;
+    user-select: none;
+}
+
+.zoom-controls button {
+    width: 26px;
+    height: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1;
+    transition: background 0.15s, color 0.15s;
+}
+
+.zoom-controls button:hover:not(:disabled) {
+    background: var(--bg-light);
+    color: var(--text-primary);
+}
+
+.zoom-controls button:active:not(:disabled) {
+    background: var(--border-color);
+}
+
+.zoom-controls button:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
+.zoom-level-display {
+    min-width: 44px;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+    padding: 0 2px;
+    border-radius: 4px;
+    transition: background 0.12s, color 0.12s;
+}
+
+.zoom-level-display:hover {
+    background: var(--bg-light);
+    color: var(--primary-color);
+}
+
+.zoom-level-display:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(59,130,246,0.2);
+}
+
+/* Dropdown for zoom presets — bottom bar style */
+.zoom-select {
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+    outline: none;
+    text-align: center;
+    text-align-last: center;
+    min-width: 52px;
+    padding: 0 2px;
+    appearance: none;
+    -webkit-appearance: none;
+}
+
+.zoom-select:hover {
+    color: var(--text-primary);
+}
+
+/* ==================== WEERGAVE TOOLBAR — Zoom group ==================== */
+
+.toolbar-group--zoom .toolbar-buttons {
+    gap: 4px;
+}
+
+.zoom-toolbar-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--bg-white);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 3px;
+}
+
+.zoom-toolbar-group button {
+    width: 32px;
+    height: 30px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+
+.zoom-toolbar-group button:hover:not(:disabled) {
+    background: var(--bg-light);
+    color: var(--primary-color);
+}
+
+.zoom-toolbar-group button:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
+.zoom-toolbar-select {
+    border: none;
+    background: var(--bg-light);
+    color: var(--text-primary);
+    font-size: 13px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    border-radius: 6px;
+    padding: 4px 8px;
+    cursor: pointer;
+    outline: none;
+    min-width: 72px;
+    text-align: center;
+    text-align-last: center;
+}
+
+.zoom-toolbar-select:hover {
+    background: var(--border-color);
+}
+
+.zoom-toolbar-select:focus {
+    box-shadow: 0 0 0 2px rgba(59,130,246,0.2);
+}
+
+/* Keep horizontal scrolling available when zoom >100% */
+.document-section {
+    overflow: auto;
+}
+
+/* Ensure bottom bar stays crisp while document is zoomed */
+.bottom-bar .zoom-controls,
+.bottom-bar .zoom-level-display {
+    zoom: 1 !important;
+    transform: none !important;
+}
+
+/* Pages container zoom — smooth transition for a polished feel */
+#pagesContainer {
+    transition: zoom 0.18s ease, transform 0.18s ease;
+}
+
+/* Print / PDF export — always render at 100% */
+html.printing-mode #pagesContainer {
+    zoom: 1 !important;
+    transform: none !important;
+}
+
+/* When the user prefers reduced motion, cut the animation */
+@media (prefers-reduced-motion: reduce) {
+    #pagesContainer { transition: none; }
+}
