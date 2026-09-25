@@ -465,6 +465,16 @@ class TopbarManager {
                 return null;
             };
 
+            const findOutermostColoredAncestor = (node) => {
+                let el = node.nodeType === 3 ? node.parentElement : node;
+                let outermost = null;
+                while (el && el !== editor) {
+                    if (isColoredElement(el)) outermost = el;
+                    el = el.parentElement;
+                }
+                return outermost;
+            };
+
             // Recurses through DocumentFragment as well — the old version
             // checked nodeType === 1 before recursing, so a DocumentFragment
             // (type 11) was never visited and its colored children were skipped,
@@ -505,7 +515,7 @@ class TopbarManager {
             };
 
             if (range.collapsed) {
-                const coloredAncestor = findColoredAncestor(range.startContainer);
+                let coloredAncestor = findOutermostColoredAncestor(range.startContainer) || findColoredAncestor(range.startContainer);
                 if (!coloredAncestor) {
                     this.savedRange = range.cloneRange();
                     this.currentTextColor = 'default';
@@ -513,12 +523,9 @@ class TopbarManager {
                     window.updateUnsavedIndicator && window.updateUnsavedIndicator();
                     return;
                 }
-                // Split the colored ancestor at the caret so next typing
-                // inherits the default color. The old code inserted a ZWS
-                // <span> *inside* the colored ancestor, so the new text
-                // still inherited the color. We instead extract the content
-                // after the caret that lives inside the ancestor and move
-                // it to a clone after the caret, leaving the caret outside.
+                // Split the *outermost* colored ancestor at the caret so next typing
+                // inherits the default color. Splitting only the inner wrapper would
+                // leave the caret still inside an outer colored span/font.
                 try {
                     const caretRange = range.cloneRange();
                     const rightRange = document.createRange();
@@ -531,7 +538,7 @@ class TopbarManager {
                     placeholder.style.color = '';
                     if (placeholder.getAttribute('style') === '') placeholder.removeAttribute('style');
 
-                    // Insert placeholder *outside* the colored ancestor so it does
+                    // Insert placeholder *outside* the outermost colored ancestor so it does
                     // not inherit the color. Using caretRange.insertNode would
                     // leave it inside the (now truncated) left ancestor.
                     const parent = coloredAncestor.parentNode;
@@ -574,27 +581,78 @@ class TopbarManager {
                     this.savedRange = fallbackRange.cloneRange();
                 }
             } else {
+                // Non-collapsed selection: remove color from the selected range.
+                // The previous version cleared colors only *inside* the extracted
+                // fragment. If the selection was inside a colored ancestor
+                // (e.g. "<span style=color>hello world</span>" with "world"
+                // selected), the fragment was just a text node — clearing it did
+                // nothing — and re-inserting it still left it *inside* the red
+                // span, so it stayed red (reported bug).
                 const fragment = range.extractContents();
                 clearColorRecursive(fragment);
                 unwrapEmpty(fragment);
-                range.insertNode(fragment);
-                // Also clear color that lives on a partially-selected ancestor
-                // that extractContents cloned but didn't fully include — e.g.
-                // selecting inside "<span style=color>hello</span>" leaves the
-                // outer span in the DOM with its color; the fragment's clone was
-                // cleared but the remaining outer still has color on the selected
-                // portion's original wrapper. Walk up from fragment's inserted
-                // nodes and clear any colored ancestor that is now empty or fully
-                // covered by the selection.
-                // For the common case the extraction already split wrappers, so
-                // just normalise and clean empty wrappers.
+
+                // If the insertion point is still inside an (outermost) colored
+                // ancestor, split that ancestor so the cleared fragment ends up
+                // *outside* it (between left and right parts).
+                const outermost = findOutermostColoredAncestor(range.startContainer) || findColoredAncestor(range.startContainer);
+                if (outermost) {
+                    const rightRange = document.createRange();
+                    rightRange.setStart(range.startContainer, range.startOffset);
+                    rightRange.setEnd(outermost, outermost.childNodes.length);
+                    const rightFrag = rightRange.extractContents();
+                    const parent = outermost.parentNode;
+                    if (parent) {
+                        const nextAfterLeft = outermost.nextSibling;
+                        // Keep references to first/last nodes of the fragment before it empties
+                        const fragFirst = fragment.firstChild;
+                        const fragLast = fragment.lastChild;
+                        const hadFrag = !!fragFirst;
+                        parent.insertBefore(fragment, nextAfterLeft);
+                        if (rightFrag.childNodes.length > 0) {
+                            parent.insertBefore(rightFrag, nextAfterLeft);
+                        }
+                        // Place caret after the cleared fragment (before the right tail)
+                        const afterFragRange = document.createRange();
+                        if (hadFrag && fragLast && fragLast.parentNode === parent) {
+                            afterFragRange.setStartAfter(fragLast);
+                        } else if (hadFrag && fragFirst && fragFirst.parentNode === parent) {
+                            afterFragRange.setStartAfter(fragFirst);
+                        } else if (nextAfterLeft) {
+                            afterFragRange.setStartBefore(nextAfterLeft);
+                        } else {
+                            afterFragRange.setStart(parent, parent.childNodes.length);
+                        }
+                        afterFragRange.collapse(true);
+                        selection.removeAllRanges();
+                        selection.addRange(afterFragRange);
+                        this.savedRange = afterFragRange.cloneRange();
+                    } else {
+                        range.insertNode(fragment);
+                        if (rightFrag.childNodes.length > 0) fragment.after(rightFrag);
+                        range.collapse(false);
+                        selection.removeAllRanges();
+                        selection.addRange(range);
+                        this.savedRange = range.cloneRange();
+                    }
+                    if (outermost.childNodes.length === 0 && !outermost.textContent) {
+                        const hasOtherStyle = outermost.getAttribute('style') && outermost.getAttribute('style').trim() !== '';
+                        const hasOtherAttrs = outermost.className || Array.from(outermost.attributes).some(a => a.name !== 'style' && a.name !== 'color');
+                        if (!hasOtherStyle && !hasOtherAttrs) outermost.remove();
+                    }
+                } else {
+                    range.insertNode(fragment);
+                    range.collapse(false);
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                    this.savedRange = range.cloneRange();
+                }
                 try { editor.normalize(); } catch (e) {}
                 // Clean empty font/span wrappers left behind
                 editor.querySelectorAll('font, span').forEach(el => {
                     if (el.childNodes.length === 0 && el.textContent === '') {
                         el.remove();
                     } else if (el.tagName === 'FONT' && !el.getAttribute('color') && !el.style.color) {
-                        // Unwrap font that lost its color
                         while (el.firstChild) el.parentNode.insertBefore(el.firstChild, el);
                         el.remove();
                     } else if (el.tagName === 'SPAN' && !el.getAttribute('style') && !el.className && el.attributes.length === 0) {
@@ -602,10 +660,6 @@ class TopbarManager {
                         el.remove();
                     }
                 });
-                range.collapse(false);
-                selection.removeAllRanges();
-                selection.addRange(range);
-                this.savedRange = range.cloneRange();
             }
             this.currentTextColor = 'default';
             const def = this.getDefaultTextColor();
