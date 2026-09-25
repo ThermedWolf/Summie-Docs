@@ -31,6 +31,7 @@ jobs:
 
       - name: Build Windows
         if: matrix.os == 'windows-latest'
+        shell: bash
         run: |
           rm -rf dist dist-installer
           npm run build:win:full:ci
