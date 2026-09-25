@@ -26,6 +26,7 @@
     <link rel="stylesheet" href="bibliography.css">
     <link rel="stylesheet" href="tables.css">
     <link rel="stylesheet" href="wiskunde.css">
+    <link rel="stylesheet" href="symbols.css">
     <link rel="stylesheet" href="element-controls.css">
     <link rel="stylesheet" href="tabruler.css">
     <link rel="stylesheet" href="read-aloud.css">
@@ -1001,6 +1002,18 @@
 
                 <div class="toolbar-separator animate-item" style="animation-delay: 0.4s"></div>
 
+                <div class="toolbar-group animate-item" style="animation-delay: 0.42s">
+                    <label class="toolbar-label">Symbolen</label>
+                    <div class="toolbar-buttons">
+                        <button class="btn-toolbar" id="insertSymbolBtn" title="Symbool invoegen — Griekse letters, wiskunde, pijlen en meer">
+                            <span class="sym-toolbar-icon" aria-hidden="true">Ω</span>
+                            <span>Symbool invoegen</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="toolbar-separator animate-item" style="animation-delay: 0.44s"></div>
+
                 <div class="toolbar-group animate-item" style="animation-delay: 0.48s">
                     <label class="toolbar-label">Verwijzingen</label>
                     <div class="toolbar-buttons">
@@ -1834,6 +1847,7 @@
     <!-- Chart.js library (local, no network required) -->
     <script src="js/lib/chart.umd.min.js"></script>
     <script src="js/features/wiskunde.js"></script>
+    <script src="js/features/symbols.js"></script>
     <script src="js/features/headerfooter.js"></script>
     <script src="js/features/marginclick.js"></script>
     <script src="js/features/tts.js"></script>
