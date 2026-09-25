@@ -64,7 +64,8 @@ jobs:
           mkdir -p ./artifacts
           # Windows: only the branded Setup.exe (portable) from dist-installer; classic NSIS is deprecated
           # macOS/Linux: dmg / AppImage / deb from dist
-          find "${GITHUB_WORKSPACE}" -maxdepth 5 -type f \( -name "*-Setup.exe" -o -name "*.dmg" -o -name "*.AppImage" -o -name "*.deb" \) \
+          # Match both Summie-<version>-Setup.exe and Summie-windows-x64-<version>-Setup.exe
+          find "${GITHUB_WORKSPACE}" -maxdepth 5 -type f \( -name "Summie*-Setup.exe" -o -name "*.dmg" -o -name "*.AppImage" -o -name "*.deb" \) \
             \( -path "*/dist/*" -o -path "*/dist-installer/*" -o -path "*/release/*" \) \
             -not -path "*/node_modules/*" \
             -not -path "*/win-unpacked/*" \
