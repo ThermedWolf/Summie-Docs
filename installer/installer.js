@@ -9,6 +9,7 @@
     let selectedAction = 'update'; // update | repair | uninstall
     let installDir = '';
     let lastInstallPath = '';
+    let isUpdateFlow = false; // true when user explicitly chose "Update" -> triggers clean uninstall before install
 
     const VIEWS = ['welcome', 'existing', 'directory', 'progress', 'success'];
 
@@ -202,10 +203,14 @@
 
     function handleExistingContinue() {
         if (selectedAction === 'uninstall' || selectedAction === 'repair') {
+            isUpdateFlow = false;
             // Run that flow directly
             runAction(selectedAction);
         } else {
-            // Update → go to directory (prefill existing path)
+            // Update → completely remove old version first, then install new.
+            // Settings/recents (in app.getPath('userData')) are kept — only the
+            // InstallLocation directory is wiped.
+            isUpdateFlow = true;
             if (appInfo.existing && appInfo.existing.path) {
                 installDir = appInfo.existing.path;
                 const dirInput = $('#dirInput');
@@ -230,7 +235,7 @@
         const desktopShortcut = $('#desktopShortcutToggle') ? $('#desktopShortcutToggle').checked : true;
         const dir = ($('#dirInput') ? $('#dirInput').value.trim() : installDir) || installDir;
         installDir = dir;
-        runAction('install', { directory: dir, desktopShortcut });
+        runAction('install', { directory: dir, desktopShortcut, isUpdate: isUpdateFlow });
     }
 
     async function runAction(kind, opts) {

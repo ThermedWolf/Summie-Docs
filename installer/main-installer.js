@@ -118,6 +118,71 @@ function getSystemLanguage() {
     return 'en';
 }
 
+// ── Install-path safety + clean-uninstall helpers ────────────────────────
+
+function isSafeToDelete(installPath) {
+    if (!installPath || typeof installPath !== 'string') return false;
+    const normalized = path.resolve(installPath);
+    // Never delete home, root, or suspiciously short paths
+    if (normalized === os.homedir() || normalized === '/' || normalized.length <= 10) return false;
+    // Never delete the userData folder (settings, recents, favourites live there)
+    // userData is typically %APPDATA%\Summie or ~/.config/Summie — keep it intact
+    try {
+        const userData = app.getPath('userData');
+        if (normalized === path.resolve(userData)) return false;
+        // Also guard against deleting a parent of userData
+        if (path.resolve(userData).startsWith(normalized + path.sep)) return false;
+    } catch {}
+    return true;
+}
+
+async function performCleanUninstall(existingPath, win, send) {
+    if (!existingPath || !isSafeToDelete(existingPath)) return;
+
+    const uninst = path.join(existingPath, 'Uninstall Summie.exe');
+
+    // 1) Try the NSIS silent uninstaller if present — it cleans registry/shortcuts/files
+    if (process.platform === 'win32' && fs.existsSync(uninst)) {
+        try {
+            await new Promise((resolve) => {
+                let done = false;
+                const finish = () => { if (!done) { done = true; resolve(); } };
+                try {
+                    const proc = spawn(uninst, ['/S', `_?=${existingPath}`], { stdio: 'ignore' });
+                    proc.on('close', finish);
+                    proc.on('error', finish);
+                    setTimeout(finish, 8000);
+                } catch { finish(); }
+            });
+            // Give the uninstaller a moment to release file handles
+            await new Promise(r => setTimeout(r, 400));
+        } catch {}
+    }
+
+    // 2) Clean shortcuts + registry (idempotent — safe even if uninstaller already did it)
+    if (process.platform === 'win32') {
+        try { fs.unlinkSync(path.join(os.homedir(), 'Desktop', 'Summie.lnk')); } catch {}
+        try { fs.unlinkSync(path.join(os.homedir(), 'AppData', 'Roaming', 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Summie', 'Summie.lnk')); } catch {}
+        try { fs.unlinkSync(path.join(os.homedir(), 'AppData', 'Roaming', 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Summie.lnk')); } catch {}
+        try { execSync('reg delete "HKCU\\Software\\Classes\\.sumd" /f', { stdio: 'ignore' }); } catch {}
+        try { execSync('reg delete "HKCU\\Software\\Classes\\SummieDocument" /f', { stdio: 'ignore' }); } catch {}
+        try { execSync('reg delete "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\com.summie.app" /f', { stdio: 'ignore' }); } catch {}
+        // Legacy keys
+        try { execSync('reg delete "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Summie" /f', { stdio: 'ignore' }); } catch {}
+        try { execSync('reg delete "HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\com.summie.app" /f', { stdio: 'ignore' }); } catch {}
+        try { execSync('reg delete "HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Summie" /f', { stdio: 'ignore' }); } catch {}
+    }
+
+    // 3) Remove remaining files if the uninstaller left anything behind — or if there was no uninstaller.
+    // This is the "completely remove" part. User data in app.getPath('userData') is NOT inside
+    // InstallLocation, so it is never touched here.
+    try {
+        if (fs.existsSync(existingPath)) {
+            fs.rmSync(existingPath, { recursive: true, force: true });
+        }
+    } catch {}
+}
+
 // ── Window ────────────────────────────────────────────────────────────────
 
 function createInstallerWindow() {
@@ -216,13 +281,31 @@ ipcMain.handle('installer:start-install', async (e, opts) => {
     const win = BrowserWindow.fromWebContents(e.sender);
     const targetDir = opts.directory || defaultInstallDir();
     const createDesktopShortcut = opts.desktopShortcut !== false;
+    const isUpdate = opts.isUpdate === true;
 
     const send = (pct, status) => {
         try { win.webContents.send('installer:progress', { pct, status }); } catch {}
     };
 
-    // Step 1: prepare directory
-    send(5, 'preparing');
+    // Step 0: when "Update to new version" was chosen, completely remove the
+    // current install first. User data (app.getPath('userData') — settings,
+    // recents, favourites, window-state) lives outside InstallLocation and is
+    // never deleted, so documents + preferences survive the reinstall.
+    if (isUpdate) {
+        const existing = getExistingInstall();
+        if (existing && existing.path) {
+            send(3, 'uninstalling');
+            // Small pause so the "Removing…" text is visible
+            await new Promise(r => setTimeout(r, 250));
+            await performCleanUninstall(existing.path, win, send);
+            send(12, 'uninstalling');
+            await new Promise(r => setTimeout(r, 200));
+        }
+    }
+
+    // Step 1: prepare directory (re-create after the clean uninstall if target
+    // was the same path that was just deleted)
+    send(15, 'preparing');
     await new Promise(r => setTimeout(r, 180));
     try { fs.mkdirSync(targetDir, { recursive: true }); } catch (e) {
         return { success: false, error: e.message };
@@ -390,41 +473,9 @@ ipcMain.handle('installer:uninstall', async (e) => {
     send(20, 'uninstalling');
     await new Promise(r => setTimeout(r, 400));
     try {
-        // Try silent uninstaller if present
-        const uninst = path.join(existing.path, 'Uninstall Summie.exe');
-        if (fs.existsSync(uninst)) {
-            // Spawn silent and wait
-            await new Promise((resolve) => {
-                try {
-                    const proc = spawn(uninst, ['/S', `_?=${existing.path}`], { stdio: 'ignore' });
-                    proc.on('close', resolve);
-                    proc.on('error', resolve);
-                    setTimeout(resolve, 5000);
-                } catch { resolve(); }
-            });
-        } else if (process.platform !== 'win32') {
-            // Linux/mac fallback: remove dir
-            // Don't actually delete in dev preview
-        }
-        // Clean shortcuts + registry
-        if (process.platform === 'win32') {
-            try { fs.unlinkSync(path.join(os.homedir(), 'Desktop', 'Summie.lnk')); } catch {}
-            try { fs.unlinkSync(path.join(os.homedir(), 'AppData', 'Roaming', 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Summie', 'Summie.lnk')); } catch {}
-            try { execSync('reg delete "HKCU\\Software\\Classes\\.sumd" /f', { stdio: 'ignore' }); } catch {}
-            try { execSync('reg delete "HKCU\\Software\\Classes\\SummieDocument" /f', { stdio: 'ignore' }); } catch {}
-            try { execSync('reg delete "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\com.summie.app" /f', { stdio: 'ignore' }); } catch {}
-        }
-        // Remove installed files (branded install — no NSIS uninstaller in payload)
-        try {
-            const marker = path.join(existing.path, '.summie-install-marker.json');
-            const exe = path.join(existing.path, 'Summie.exe');
-            const isBranded = fs.existsSync(marker) || fs.existsSync(exe);
-            if (isBranded && fs.existsSync(existing.path)) {
-                // Don't delete if path looks dangerous (root, home)
-                const safe = existing.path !== os.homedir() && existing.path !== '/' && existing.path.length > 10;
-                if (safe) fs.rmSync(existing.path, { recursive: true, force: true });
-            }
-        } catch {}
+        // Reuse the same clean-uninstall path as the update flow — ensures
+        // complete removal while never touching userData (settings/recents).
+        await performCleanUninstall(existing.path, win, send);
     } catch {}
     send(100, 'done');
     return { success: true };

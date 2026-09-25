@@ -112,10 +112,20 @@
     do_cancel:
       Quit
 
-    ; ---- UPDATE: silent-uninstall old version, then let installer continue ----
+    ; ---- UPDATE: completely remove old version, then let installer continue ----
+    ; User data (settings, recent-docs.json, favourites etc) lives in
+    ; %APPDATA%\Summie (= app.getPath('userData')) and is NOT inside $R0, so
+    ; wiping $R0 never touches it — documents + preferences survive.
     do_update:
-      IfFileExists "$R0\Uninstall Summie.exe" 0 update_done
+      IfFileExists "$R0\Uninstall Summie.exe" 0 no_uninstaller
         ExecWait '"$R0\Uninstall Summie.exe" /S _?=$R0'
+        Sleep 400
+      no_uninstaller:
+      ; Fallback: ensure InstallLocation is fully removed — the uninstaller may
+      ; leave files behind (locked DLLs, stale resources). This gives the
+      ; "remove completely, then install new" behaviour requested for Update.
+      IfFileExists "$R0\*.*" 0 update_done
+        RMDir /r "$R0"
       update_done:
       Goto install_done   ; fall through to normal install
 
