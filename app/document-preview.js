@@ -22,6 +22,7 @@ class DocumentPreview {
         this._iframe = null;
         this._loader = null;
         this._resizeObserver = null;
+        this._themeObserver = null;
         this._ready = false;
         this._pendingData = null;
         this._renderToken = 0;
@@ -124,6 +125,7 @@ ${cssLinks}
         margin: 0; padding: 0;
         background: #f1f5f9;
         overflow-x: hidden;
+        transition: background 0.2s ease;
     }
     body {
         display: flex;
@@ -143,6 +145,15 @@ ${cssLinks}
         line-height: 1.6;
         position: relative;
         overflow: hidden;
+        transition: background 0.2s ease, color 0.2s ease;
+    }
+    /* Dark mode — mirrors [data-theme='dark'] .a4-page in styles.css */
+    html[data-theme='dark'], html[data-theme='dark'] body {
+        background: #08081a;
+    }
+    html[data-theme='dark'] .preview-page {
+        background: #16163a;
+        color: #eee8ff;
     }
     /* Disable interactive elements */
     a { pointer-events: none; }
@@ -163,9 +174,14 @@ ${cssLinks}
 
         this._iframe.srcdoc = html;
 
+        // Sync loader theme immediately and watch for parent theme changes
+        this._updateLoaderTheme();
+        this._observeTheme();
+
         // Wait for iframe to load before rendering content
         this._iframe.addEventListener('load', () => {
             this._ready = true;
+            this._syncIframeTheme();
             if (this._pendingData) {
                 this._render(this._pendingData);
                 this._pendingData = null;
@@ -179,6 +195,49 @@ ${cssLinks}
 
         this._container.appendChild(this._iframe);
         this._container.appendChild(this._loader);
+    }
+
+    // ── Theme sync ────────────────────────────────────────────────────────
+    _updateLoaderTheme() {
+        if (!this._loader) return;
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        const spinner = this._loader.querySelector('.doc-preview-loader-spinner');
+        if (isDark) {
+            this._loader.style.background = 'linear-gradient(180deg, #12122a 0%, #08081a 100%)';
+            this._loader.style.color = '#8a83ab';
+            if (spinner) {
+                spinner.style.borderColor = 'rgba(138, 131, 171, 0.22)';
+                spinner.style.borderTopColor = '#3b82f6';
+            }
+        } else {
+            this._loader.style.background = 'linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%)';
+            this._loader.style.color = '#64748b';
+            if (spinner) {
+                spinner.style.borderColor = 'rgba(100, 116, 139, 0.22)';
+                spinner.style.borderTopColor = '#3b82f6';
+            }
+        }
+    }
+
+    _syncIframeTheme() {
+        if (!this._iframe || !this._iframe.contentDocument) return;
+        const theme = document.documentElement.getAttribute('data-theme') || 'light';
+        const idoc = this._iframe.contentDocument;
+        if (idoc.documentElement) {
+            idoc.documentElement.setAttribute('data-theme', theme);
+        }
+    }
+
+    _observeTheme() {
+        if (this._themeObserver) return;
+        this._themeObserver = new MutationObserver(() => {
+            this._updateLoaderTheme();
+            this._syncIframeTheme();
+        });
+        this._themeObserver.observe(document.documentElement, {
+            attributes: true,
+            attributeFilter: ['data-theme']
+        });
     }
 
     // ── Resize scaling ────────────────────────────────────────────────────
@@ -421,6 +480,7 @@ ${cssLinks}
         if (this._loaderDelayTimer) clearTimeout(this._loaderDelayTimer);
         if (this._revealTimer) clearTimeout(this._revealTimer);
         if (this._resizeObserver) this._resizeObserver.disconnect();
+        if (this._themeObserver) this._themeObserver.disconnect();
         if (this._iframe && this._iframe.parentNode) {
             this._iframe.parentNode.removeChild(this._iframe);
         }
@@ -429,6 +489,7 @@ ${cssLinks}
         }
         this._iframe = null;
         this._loader = null;
+        this._themeObserver = null;
         this._ready = false;
         this._loadingActive = false;
     }

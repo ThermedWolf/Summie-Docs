@@ -382,6 +382,10 @@ body {
     width: 100%;
 }
 
+[data-theme='dark'] .doc-preview-container {
+    background: var(--bg);
+}
+
 .current-doc-meta {
     display: flex;
     flex-direction: column;
