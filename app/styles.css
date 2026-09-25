@@ -736,6 +736,7 @@ body {
     gap: 0;
     border-bottom: 2px solid var(--border-color);
     background: var(--bg-white);
+    position: relative;
 }
 
 .tab {
@@ -760,29 +761,47 @@ body {
     color: var(--primary-color);
 }
 
+/* Old per-tab underline — kept for backwards compat but no longer drawn.
+   Superseded by the single shared .sidebar-indicator below, which slides /
+   stretches between tabs instead of each tab animating its own ::after
+   independently (same pattern as .topbar-indicator in topbar.css). */
 .tab::after {
-    content: '';
+    display: none;
+}
+
+/* ==================== UNIFIED SIDEBAR TAB INDICATOR ====================
+   One shared underline for the entire sidebar tab row, positioned by JS —
+   see js/ui/sidebar-indicator.js.  Mirrors the topbar indicator: resting
+   under the active tab, shrinking toward the active tab on hover, and on
+   an actual tab switch stretching to ~2 buttons wide while sliding to the
+   new tab before shrinking back. */
+.sidebar-indicator {
     position: absolute;
     bottom: 0;
-    left: 50%;
+    left: 0;
     height: 3px;
-    width: 0%;
-    background: linear-gradient(90deg, #06b6d4, var(--primary-color));
+    width: 0;
+    background: linear-gradient(90deg, var(--cyan-gradient-start, #06b6d4), var(--primary-color));
     border-radius: 2px 2px 0 0;
-    transform: translateX(-50%);
-    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(0);
+    transition:
+        transform var(--sidebar-indicator-duration, 0.28s) var(--sidebar-indicator-easing, cubic-bezier(0.4, 0, 0.2, 1)),
+        width var(--sidebar-indicator-duration, 0.28s) var(--sidebar-indicator-easing, cubic-bezier(0.4, 0, 0.2, 1)),
+        opacity 0.2s ease;
+    will-change: transform, width;
+    z-index: 1;
 }
 
-.tab:hover::after {
-    width: 30%;
+.sidebar-indicator.visible {
+    opacity: 1;
 }
 
-.tab.active::after {
-    width: 50%;
-}
-
-.tab.active:hover::after {
-    width: 40%;
+/* Used briefly by JS to snap into position without animating (initial
+   load, window resize) */
+.sidebar-indicator.no-anim {
+    transition: none !important;
 }
 
 .tab-content {

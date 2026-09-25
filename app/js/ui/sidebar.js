@@ -307,12 +307,18 @@ function updateActiveInhoudItem(opts = {}) {
 }
 
 function switchTab(tabName) {
+    let activatedTab = null;
     document.querySelectorAll('.tab').forEach(tab => {
-        tab.classList.toggle('active', tab.dataset.tab === tabName);
+        const isActive = tab.dataset.tab === tabName;
+        tab.classList.toggle('active', isActive);
+        if (isActive) activatedTab = tab;
     });
     document.querySelectorAll('.tab-panel').forEach(panel => {
         panel.classList.toggle('active', panel.id === `${tabName}-panel`);
     });
+    if (activatedTab && window.SidebarIndicator) {
+        window.SidebarIndicator.onActivate(activatedTab);
+    }
 }
 
 // Scroll tracking — set up once after DOM is ready
