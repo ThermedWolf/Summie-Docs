@@ -79,3 +79,11 @@ exports.afterAllArtifactBuild = async function afterAllArtifactBuild(context) {
     const roots = [context.outDir, context.buildOutDir, path.join(process.cwd(), 'dist')].filter(Boolean);
     for (const r of roots) patchDesktopFiles(r);
 };
+
+// Allow running directly: `node build/afterPack.js` patches ./dist
+if (require.main === module) {
+    patchDesktopFiles(path.join(__dirname, '../dist'));
+    // Also walk common unpacked locations
+    patchDesktopFiles(path.join(__dirname, '../dist/win-unpacked'));
+    patchDesktopFiles(path.join(__dirname, '../dist/linux-unpacked'));
+}

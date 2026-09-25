@@ -14,12 +14,11 @@
     "build:win:full": "npm run build:win:dir && npm run build:win:installer",
     "build:win:full:ci": "npm run build:win:dir && npm run build:win:installer:ci",
     "build:mac": "electron-builder --mac",
-    "build:linux": "electron-builder --linux"
+    "build:linux": "electron-builder --linux && node build/afterPack.js"
   },
   "build": {
     "appId": "com.summie.app",
     "productName": "Summie",
-    "afterPack": "./build/afterPack.js",
     "directories": {
       "output": "dist"
     },
