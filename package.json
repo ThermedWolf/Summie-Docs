@@ -9,8 +9,10 @@
     "build": "electron-builder",
     "build:win": "npm run build:win:full",
     "build:win:dir": "electron-builder --win --dir",
-    "build:win:installer": "electron-builder --config installer/electron-builder.installer.json",
+    "build:win:installer": "electron-builder --win --config installer/electron-builder.installer.json",
+    "build:win:installer:ci": "electron-builder --win --config installer/electron-builder.installer.json --publish never",
     "build:win:full": "npm run build:win:dir && npm run build:win:installer",
+    "build:win:full:ci": "npm run build:win:dir && npm run build:win:installer:ci",
     "build:mac": "electron-builder --mac",
     "build:linux": "electron-builder --linux"
   },

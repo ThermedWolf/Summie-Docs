@@ -4,19 +4,22 @@
   "directories": {
     "output": "../dist-installer"
   },
+  "extraMetadata": {
+    "main": "installer/main-installer.js"
+  },
   "files": [
-    "main-installer.js",
-    "preload-installer.js",
-    "installer.html",
-    "installer.css",
-    "installer.js",
-    "i18n.js"
+    "installer/main-installer.js",
+    "installer/preload-installer.js",
+    "installer/installer.html",
+    "installer/installer.css",
+    "installer/installer.js",
+    "installer/i18n.js"
   ],
   "extraResources": [
     {
       "from": "dist/win-unpacked",
       "to": "payload",
-      "filter": ["**/*"]
+      "filter": ["**/*", "!**/piper-bin/**", "!**/*.so", "!**/*.so.*"]
     },
     {
       "from": "app/icon.png",
@@ -37,5 +40,7 @@
     "artifactName": "Summie-windows-x64-${version}-Setup.${ext}",
     "requestExecutionLevel": "user"
   },
-  "publish": null
+  "publish": null,
+  "forceCodeSigning": false,
+  "compression": "store"
 }

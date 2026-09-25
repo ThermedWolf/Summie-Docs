@@ -33,7 +33,7 @@ jobs:
         if: matrix.os == 'windows-latest'
         run: |
           rm -rf dist dist-installer
-          npm run build:win -- --publish never
+          npm run build:win:full:ci
 
       - name: Build macOS
         if: matrix.os == 'macos-latest'
