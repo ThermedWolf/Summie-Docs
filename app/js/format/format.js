@@ -22,20 +22,224 @@ function createList(type) {
 function createChecklist() {
     const { editor } = window.AppState;
     const selection = window.getSelection();
-    if (!selection.rangeCount) return;
+    if (!selection || !selection.rangeCount) return;
     const range = selection.getRangeAt(0);
+
+    // Helper: find the nearest block element for a node
+    const getBlock = (node) => {
+        if (!node) return null;
+        if (node.nodeType === 3) node = node.parentElement;
+        const tags = ['P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'BLOCKQUOTE', 'LI', 'PRE'];
+        let el = node;
+        while (el && el !== editor && !tags.includes(el.tagName)) el = el.parentElement;
+        return (el && el !== editor) ? el : null;
+    };
+
+    // 1) If caret is inside an existing list, toggle/convert that list
+    let containerLi = getBlock(range.startContainer);
+    if (containerLi && containerLi.tagName === 'LI') {
+        const parentList = containerLi.closest('ul, ol');
+        if (parentList && parentList.classList.contains('checklist')) {
+            // Already a checklist -> unwrap to normal paragraph(s) on this line
+            // Collect which checklist items are selected (supports multi-select inside same list)
+            let toUnwrap = [];
+            if (range.collapsed) {
+                toUnwrap = [containerLi];
+            } else {
+                const startBlock = getBlock(range.startContainer);
+                const endBlock = getBlock(range.endContainer);
+                if (startBlock && endBlock) {
+                    if (startBlock === endBlock && startBlock.tagName === 'LI') {
+                        toUnwrap = [startBlock];
+                    } else {
+                        const allBlocks = Array.from(editor.querySelectorAll('p, div, li, h1, h2, h3, h4, h5, h6, blockquote, pre'));
+                        let inside = false;
+                        for (const b of allBlocks) {
+                            if (b === startBlock) inside = true;
+                            if (inside && b.tagName === 'LI' && b.closest('ul.checklist, ol.checklist') === parentList) {
+                                toUnwrap.push(b);
+                            }
+                            if (b === endBlock) break;
+                        }
+                        if (toUnwrap.length === 0) toUnwrap = [containerLi];
+                    }
+                } else {
+                    toUnwrap = [containerLi];
+                }
+            }
+
+            const selectedSet = new Set(toUnwrap);
+            const originalLis = Array.from(parentList.children);
+            const fragment = document.createDocumentFragment();
+            let currentUl = null;
+            let firstP = null;
+            for (const li of originalLis) {
+                if (selectedSet.has(li)) {
+                    const p = document.createElement('p');
+                    while (li.firstChild) p.appendChild(li.firstChild);
+                    if (!p.textContent.trim() && !p.querySelector('br')) p.innerHTML = '<br>';
+                    p.removeAttribute('data-style');
+                    if (currentUl) { fragment.appendChild(currentUl); currentUl = null; }
+                    fragment.appendChild(p);
+                    if (!firstP) firstP = p;
+                } else {
+                    if (!currentUl) {
+                        currentUl = document.createElement('ul');
+                        currentUl.className = 'checklist';
+                    }
+                    currentUl.appendChild(li);
+                }
+            }
+            if (currentUl) fragment.appendChild(currentUl);
+            parentList.replaceWith(fragment);
+            if (firstP) {
+                const newRange = document.createRange();
+                if (firstP.innerHTML === '<br>') { newRange.setStart(firstP, 0); newRange.collapse(true); }
+                else { newRange.selectNodeContents(firstP); newRange.collapse(false); }
+                selection.removeAllRanges();
+                selection.addRange(newRange);
+            }
+            editor.focus();
+            window.saveToLocalStorage && window.saveToLocalStorage();
+            window.updateInhoudList && window.updateInhoudList();
+            return;
+        } else if (parentList) {
+            // Plain bullet/numbered list -> convert the whole list to checklist
+            parentList.classList.add('checklist');
+            if (parentList.tagName === 'OL') {
+                const ul = document.createElement('ul');
+                ul.className = parentList.className;
+                while (parentList.firstChild) ul.appendChild(parentList.firstChild);
+                parentList.replaceWith(ul);
+            }
+            editor.focus();
+            window.saveToLocalStorage && window.saveToLocalStorage();
+            return;
+        }
+    }
+
+    // 2) Not in a list: convert the current block(s) that contain the selection
+    // Handle empty-editor placeholder case (mirrors applyStyle behaviour)
+    if (window.isEditorEmpty && window.isEditorEmpty()) {
+        const ed = window.AppState && window.AppState.editor;
+        if (ed) {
+            while (ed.firstChild) ed.removeChild(ed.firstChild);
+            window.updateEditorPlaceholder && window.updateEditorPlaceholder();
+        }
+        const ul = document.createElement('ul');
+        ul.className = 'checklist';
+        const li = document.createElement('li');
+        li.innerHTML = '<br>';
+        ul.appendChild(li);
+        ed.appendChild(ul);
+        const newRange = document.createRange();
+        newRange.setStart(li, 0);
+        newRange.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(newRange);
+        editor.focus();
+        window.saveToLocalStorage && window.saveToLocalStorage();
+        return;
+    }
+
+    let blocks = [];
+    if (range.collapsed) {
+        const b = getBlock(range.startContainer);
+        if (b) blocks = [b];
+    } else {
+        const startBlock = getBlock(range.startContainer);
+        const endBlock = getBlock(range.endContainer);
+        if (startBlock && endBlock) {
+            if (startBlock === endBlock) {
+                blocks = [startBlock];
+            } else {
+                const allBlocks = Array.from(editor.querySelectorAll('p, div, li, h1, h2, h3, h4, h5, h6, blockquote, pre'));
+                let inside = false;
+                for (const b of allBlocks) {
+                    if (b === startBlock) inside = true;
+                    if (inside) blocks.push(b);
+                    if (b === endBlock) break;
+                }
+                if (blocks.length === 0) blocks = [startBlock];
+            }
+        } else if (startBlock) {
+            blocks = [startBlock];
+        }
+    }
+    blocks = blocks.filter(b => b && b.tagName !== 'LI');
+
+    if (blocks.length === 0) {
+        // Fallback: insert empty checklist at caret (e.g. caret between blocks)
+        const ul = document.createElement('ul');
+        ul.className = 'checklist';
+        const li = document.createElement('li');
+        li.innerHTML = '<br>';
+        ul.appendChild(li);
+        try { range.insertNode(ul); } catch (e) { editor.appendChild(ul); }
+        const newRange = document.createRange();
+        newRange.setStart(li, 0);
+        newRange.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(newRange);
+        editor.focus();
+        window.saveToLocalStorage && window.saveToLocalStorage();
+        return;
+    }
+
+    const hasContent = blocks.some(b => b.textContent.trim() !== '' || b.querySelector('img, .code-block-wrapper, .summie-textbox, .summie-shape-wrapper'));
+
     const ul = document.createElement('ul');
     ul.className = 'checklist';
-    const li = document.createElement('li');
-    li.textContent = SummieI18n.t('Checklist item');
-    ul.appendChild(li);
-    range.insertNode(ul);
-    range.setStartAfter(ul);
-    range.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(range);
+
+    if (!hasContent && blocks.length === 1) {
+        const li = document.createElement('li');
+        li.innerHTML = '<br>';
+        ul.appendChild(li);
+        blocks[0].replaceWith(ul);
+        const newRange = document.createRange();
+        newRange.setStart(li, 0);
+        newRange.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(newRange);
+        editor.focus();
+        window.saveToLocalStorage && window.saveToLocalStorage();
+        window.updateInhoudList && window.updateInhoudList();
+        return;
+    }
+
+    let firstLi = null;
+    for (const block of blocks) {
+        const li = document.createElement('li');
+        if (!block.textContent.trim() && !block.querySelector('img, br, .code-block-wrapper')) {
+            li.innerHTML = '<br>';
+        } else {
+            while (block.firstChild) li.appendChild(block.firstChild);
+            if (!li.textContent.trim() && li.children.length === 0) li.innerHTML = '<br>';
+            li.removeAttribute('data-style');
+        }
+        ul.appendChild(li);
+        if (!firstLi) firstLi = li;
+    }
+    blocks[0].replaceWith(ul);
+    for (let i = 1; i < blocks.length; i++) {
+        if (blocks[i].parentNode) blocks[i].remove();
+    }
+
+    if (firstLi) {
+        const newRange = document.createRange();
+        if (firstLi.innerHTML === '<br>') {
+            newRange.setStart(firstLi, 0);
+            newRange.collapse(true);
+        } else {
+            newRange.selectNodeContents(firstLi);
+            newRange.collapse(false);
+        }
+        selection.removeAllRanges();
+        selection.addRange(newRange);
+    }
     editor.focus();
     window.saveToLocalStorage && window.saveToLocalStorage();
+    window.updateInhoudList && window.updateInhoudList();
 }
 
 function highlightText() {

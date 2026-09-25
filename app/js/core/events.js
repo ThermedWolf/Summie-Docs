@@ -339,12 +339,17 @@ function setupEventListeners() {
     editor.addEventListener('mouseup', () => window.updateWordCounter && window.updateWordCounter());
     editor.addEventListener('keyup', () => window.updateWordCounter && window.updateWordCounter());
 
-    // Checklist toggle
+    // Checklist toggle — only when clicking the box (left ~32px), not the text
     editor.addEventListener('click', (e) => {
-        if (e.target.tagName === 'LI' && e.target.closest('.checklist')) {
-            e.target.classList.toggle('checked');
-            window.saveToLocalStorage && window.saveToLocalStorage();
-        }
+        const li = e.target.closest('li');
+        if (!li || !li.closest('.checklist')) return;
+        const rect = li.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        // 32px = 28px padding + small margin around the box
+        if (x < 0 || x > 32) return;
+        e.preventDefault();
+        li.classList.toggle('checked');
+        window.saveToLocalStorage && window.saveToLocalStorage();
     });
 
     // Highlight removal
