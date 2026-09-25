@@ -34,17 +34,12 @@ jobs:
         shell: bash
         run: |
           mkdir -p piper-bin
-          curl -L -o piper-bin/piper_windows_amd64.zip https://github.com/rhasspy/piper/releases/download/2023.11.14-2/piper_windows_amd64.zip
-          cd piper-bin && unzip -o piper_windows_amd64.zip
-          # Ensure piper.exe is at piper-bin/piper.exe (or piper-bin/win/piper.exe)
-          if [ -f "piper.exe" ]; then
-            # Already in the right place
-            true
-          elif [ -f "win/piper.exe" ]; then
-            # Move from win/ subdirectory
-            mv win/piper.exe .
-            mv win/piper_phonemize.exe . 2>/dev/null || true
-            rmdir win 2>/dev/null || true
+          curl -L -o piper_windows_amd64.zip https://github.com/rhasspy/piper/releases/download/2023.11.14-2/piper_windows_amd64.zip
+          unzip -o piper_windows_amd64.zip -d piper-bin
+          # The zip extracts to piper-bin/piper/ - move contents up one level
+          if [ -d "piper-bin/piper" ]; then
+            mv piper-bin/piper/* piper-bin/
+            rmdir piper-bin/piper
           fi
           ls -la piper-bin/
 
