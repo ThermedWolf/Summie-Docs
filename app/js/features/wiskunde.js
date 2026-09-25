@@ -124,14 +124,14 @@
                 <div class="wiskunde-modal-body">
                     <div style="display:flex;align-items:center;gap:20px;justify-content:center;padding:10px 0">
                         <div class="breuk-input-group">
-                            <span class="breuk-label">Teller</span>
+                            <span class="breuk-label">${escHtml(SummieI18n.t('Teller'))}</span>
                             <input id="wmTeller" type="text" value="${escHtml(initTeller)}" style="width:72px;text-align:center;font-size:18px;font-weight:700;padding:6px">
                             <div class="breuk-divider-line"></div>
                             <input id="wmNoemer" type="text" value="${escHtml(initNoemer)}" style="width:72px;text-align:center;font-size:18px;font-weight:700;padding:6px">
-                            <span class="breuk-label">Noemer</span>
+                            <span class="breuk-label">${escHtml(SummieI18n.t('Noemer'))}</span>
                         </div>
                         <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
-                            <span style="font-size:11px;color:var(--text-secondary);margin-bottom:4px">Voorbeeld</span>
+                            <span style="font-size:11px;color:var(--text-secondary);margin-bottom:4px">${escHtml(SummieI18n.t('Voorbeeld'))}</span>
                             <div class="breuk-preview" id="wmBreukPreview">
                                 <span class="breuk-teller">${escHtml(initTeller)}</span>
                                 <span class="breuk-lijn"></span>
@@ -141,7 +141,7 @@
                     </div>
                 </div>
                 <div class="wiskunde-modal-footer">
-                    <button class="btn" id="wmBreukCancel">Annuleren</button>
+                    <button class="btn" id="wmBreukCancel">${escHtml(SummieI18n.t('Annuleren'))}</button>
                     <button class="btn btn-primary" id="wmBreukInsert">${isEdit ? SummieI18n.t('Opslaan') : SummieI18n.t('Invoegen')}</button>
                 </div>
             </div>
@@ -210,10 +210,96 @@
         { id: 'taart', label: SummieI18n.t('Taartdiagram'), icon: '◔' },
     ];
 
+    // Expanded palette — 24 distinct, color-blind-friendly-ish hues for taartdiagram
+    // Covers blue, red, green, amber, purple, pink, cyan, lime, orange, teal, etc.
     const CHART_COLORS = [
         '#3b82f6', '#ef4444', '#22c55e', '#f59e0b',
         '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16',
+        '#f97316', '#14b8a6', '#eab308', '#6366f1',
+        '#d946ef', '#0ea5e9', '#10b981', '#f43f5e',
+        '#a855f7', '#e11d48', '#0d9488', '#ca8a04',
+        '#7c3aed', '#be123c', '#0891b2', '#65a30d',
     ];
+
+    // ── Pie percentage plugin (draws % inside each slice) ────────────────
+    const piePercentagePlugin = {
+        id: 'summiePiePercentages',
+        afterDatasetsDraw(chart, _args, opts) {
+            if (!opts || !opts.enabled) return;
+            if (chart.config.type !== 'pie' && chart.config.type !== 'doughnut') return;
+            const ctx = chart.ctx;
+            const dataset = chart.data.datasets[0];
+            if (!dataset || !dataset.data || dataset.data.length === 0) return;
+            const meta = chart.getDatasetMeta(0);
+            if (!meta || !meta.data) return;
+            const total = dataset.data.reduce((sum, v) => sum + (Number(v) || 0), 0);
+            if (!total) return;
+            ctx.save();
+            meta.data.forEach((element, i) => {
+                const value = Number(dataset.data[i]) || 0;
+                if (value <= 0) return;
+                const pct = (value / total) * 100;
+                // Hide label on extremely tiny slices where text would overflow
+                if (pct < 2.2) return;
+                const label = pct.toFixed(pct >= 10 ? 0 : 1).replace(/\.0$/, '') + '%';
+                // getCenterPoint is the visual center of the slice (accounts for offset)
+                let x, y;
+                try { const p = element.getCenterPoint(); x = p.x; y = p.y; } catch { return; }
+                // Also skip if slice is geometrically too narrow (approx via angle)
+                if (element.circumference !== undefined && Math.abs(element.circumference) < 0.18) return;
+                ctx.font = '700 12px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                // Halo for contrast on any slice color
+                ctx.lineWidth = 4;
+                ctx.strokeStyle = 'rgba(0,0,0,0.32)';
+                ctx.lineJoin = 'round';
+                ctx.miterLimit = 2;
+                ctx.strokeText(label, x, y);
+                ctx.fillStyle = '#ffffff';
+                ctx.fillText(label, x, y);
+            });
+            ctx.restore();
+        }
+    };
+
+    let _piePluginRegistered = false;
+    function ensurePiePluginRegistered() {
+        const Chart = getChart();
+        if (!Chart || _piePluginRegistered) return;
+        try {
+            // Chart.js v4 uses Chart.register
+            if (Chart.register) Chart.register(piePercentagePlugin);
+            _piePluginRegistered = true;
+        } catch (e) {
+            console.warn('Failed to register pie percentage plugin', e);
+        }
+    }
+
+    function getPieColors(count, rows) {
+        // If rows have explicit colors, prefer those; otherwise cycle the extended palette
+        const out = [];
+        for (let i = 0; i < count; i++) {
+            const custom = rows && rows[i] && rows[i].color;
+            if (custom && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(custom)) {
+                out.push(custom);
+            } else {
+                out.push(CHART_COLORS[i % CHART_COLORS.length]);
+            }
+        }
+        return out;
+    }
+
+    function normalizeDataRows(rows) {
+        if (!Array.isArray(rows)) return [];
+        return rows.map((r, i) => ({
+            label: r.label != null ? String(r.label) : '',
+            value: r.value != null ? r.value : 0,
+            color: r.color && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(r.color)
+                ? r.color
+                : CHART_COLORS[i % CHART_COLORS.length],
+        }));
+    }
 
     // Small, dependency-free recursive-descent parser/evaluator for the
     // limited formula grammar this feature supports (numbers, x, + - * / **,
@@ -374,7 +460,7 @@
                 labels,
                 datasets: [{
                     data: values,
-                    backgroundColor: CHART_COLORS.slice(0, values.length),
+                    backgroundColor: getPieColors(values.length, rows),
                     borderColor: '#fff',
                     borderWidth: 2,
                 }]
@@ -388,7 +474,7 @@
                 label: SummieI18n.t('Waarde'),
                 data: values,
                 backgroundColor: grafiekType === 'staaf'
-                    ? CHART_COLORS.slice(0, values.length)
+                    ? getPieColors(values.length, rows)
                     : color + '33',
                 borderColor: color,
                 borderWidth: 2,
@@ -412,6 +498,7 @@
 
         const Chart = getChart();
         if (!Chart) { console.warn('Chart.js not loaded'); return; }
+        ensurePiePluginRegistered();
 
         if (wrapper._chartInstance) {
             wrapper._chartInstance.destroy();
@@ -435,7 +522,7 @@
                 <span class="summie-grafiek-title">${escHtml(title)}</span>
                 <button class="summie-grafiek-btn" data-action="edit">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                    Bewerken
+                    ${escHtml(SummieI18n.t('Bewerken'))}
                 </button>
             </div>
             <canvas height="280"></canvas>
@@ -472,34 +559,34 @@
                 <div class="wiskunde-modal-body">
                     <!-- Type selector -->
                     <div class="wm-field">
-                        <label>Type grafiek</label>
+                        <label>${escHtml(SummieI18n.t('Type grafiek'))}</label>
                         <div class="wm-type-tabs" id="wmTypeTabs">
-                            <button class="wm-type-tab ${type === 'lijn' ? 'active' : ''}"  data-type="lijn">📈 Lijn (formule)</button>
-                            <button class="wm-type-tab ${type === 'data' ? 'active' : ''}"  data-type="data">📊 Lijn (data)</button>
-                            <button class="wm-type-tab ${type === 'staaf' ? 'active' : ''}" data-type="staaf">▮ Staaf</button>
-                            <button class="wm-type-tab ${type === 'taart' ? 'active' : ''}" data-type="taart">◔ Taart</button>
+                            <button class="wm-type-tab ${type === 'lijn' ? 'active' : ''}"  data-type="lijn">📈 ${escHtml(SummieI18n.t('Lijn (formule)'))}</button>
+                            <button class="wm-type-tab ${type === 'data' ? 'active' : ''}"  data-type="data">📊 ${escHtml(SummieI18n.t('Lijn (data)'))}</button>
+                            <button class="wm-type-tab ${type === 'staaf' ? 'active' : ''}" data-type="staaf">▮ ${escHtml(SummieI18n.t('Staafdiagram'))}</button>
+                            <button class="wm-type-tab ${type === 'taart' ? 'active' : ''}" data-type="taart">◔ ${escHtml(SummieI18n.t('Taartdiagram'))}</button>
                         </div>
                     </div>
 
                     <!-- Title -->
                     <div class="wm-field">
-                        <label>Titel (optioneel)</label>
-                        <input id="wmGrafiekTitle" type="text" value="${escHtml(initData.title || '')}" placeholder="bijv. Kosten per maand">
+                        <label>${escHtml(SummieI18n.t('Titel (optioneel)'))}</label>
+                        <input id="wmGrafiekTitle" type="text" value="${escHtml(initData.title || '')}" placeholder="${escHtml(SummieI18n.t('bijv. Kosten per maand'))}">
                     </div>
 
                     <!-- Formula fields (lijn only) -->
                     <div id="wmFormulaFields" style="display:${type === 'lijn' ? 'flex' : 'none'};flex-direction:column;gap:10px">
                         <div class="wm-field">
-                            <label>Formule (bijv. y = 2x + 1 of x^2 - 3)</label>
+                            <label>${escHtml(SummieI18n.t('Formule (bijv. y = 2x + 1 of x^2 - 3)'))}</label>
                             <input id="wmFormula" type="text" value="${escHtml(initData.formula || 'y = x')}" placeholder="y = 2x + 1">
                         </div>
                         <div class="wm-row">
                             <div class="wm-field">
-                                <label>X van</label>
+                                <label>${escHtml(SummieI18n.t('X van'))}</label>
                                 <input id="wmXMin" type="number" value="${initData.xMin ?? -10}" step="1">
                             </div>
                             <div class="wm-field">
-                                <label>X tot</label>
+                                <label>${escHtml(SummieI18n.t('X tot'))}</label>
                                 <input id="wmXMax" type="number" value="${initData.xMax ?? 10}" step="1">
                             </div>
                         </div>
@@ -507,21 +594,28 @@
 
                     <!-- Data fields (data, staaf, taart) -->
                     <div id="wmDataFields" style="display:${type !== 'lijn' ? 'flex' : 'none'};flex-direction:column;gap:10px">
-                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11px;font-weight:700;color:var(--text-secondary);padding:0 4px">
-                            <span>Label</span><span>Waarde</span>
+                        <div class="wm-data-header" id="wmDataHeader">
+                            <span>${escHtml(SummieI18n.t('Label'))}</span><span>${escHtml(SummieI18n.t('Waarde'))}</span><span class="wm-col-color">${escHtml(SummieI18n.t('Kleur'))}</span>
                         </div>
                         <div class="wm-data-rows" id="wmDataRows"></div>
-                        <button class="wm-add-row-btn" id="wmAddDataRow">+ Rij toevoegen</button>
+                        <button class="wm-add-row-btn" id="wmAddDataRow">${escHtml(SummieI18n.t('+ Rij toevoegen'))}</button>
+                        <div id="wmTaartOptions" class="wm-taart-options" style="display:${type === 'taart' ? 'flex' : 'none'}">
+                            <label class="wm-checkbox">
+                                <input type="checkbox" id="wmShowPercentages" ${initData.showPercentages !== false ? 'checked' : ''}>
+                                <span>${escHtml(SummieI18n.t('Toon percentages in elk stuk'))}</span>
+                            </label>
+                            <p class="wm-hint">${escHtml(SummieI18n.t('Toont het percentage van elk stuk direct in de taart, naast de legenda en tooltip.'))}</p>
+                        </div>
                     </div>
 
                     <!-- Live preview -->
                     <div class="wm-field">
-                        <label>Voorbeeld</label>
+                        <label>${escHtml(SummieI18n.t('Voorbeeld'))}</label>
                         <canvas id="wmPreviewCanvas" class="wm-preview-canvas" height="180"></canvas>
                     </div>
                 </div>
                 <div class="wiskunde-modal-footer">
-                    <button class="btn" id="wmGrafiekCancel">Annuleren</button>
+                    <button class="btn" id="wmGrafiekCancel">${escHtml(SummieI18n.t('Annuleren'))}</button>
                     <button class="btn btn-primary" id="wmGrafiekInsert">${isEdit ? SummieI18n.t('Bijwerken') : SummieI18n.t('Invoegen')}</button>
                 </div>
             </div>
@@ -531,36 +625,63 @@
 
         // ── State inside modal ──
         let currentType = type;
-        const dataRows = initData.dataRows || [
+        let showPercentages = initData.showPercentages !== false;
+        const rawRows = initData.dataRows || [
             { label: SummieI18n.t('Jan'), value: 10 },
             { label: SummieI18n.t('Feb'), value: 20 },
             { label: SummieI18n.t('Mar'), value: 15 },
         ];
+        const dataRows = normalizeDataRows(rawRows);
+        // Ensure at least one color per row even for non-taart types (harmless)
+        dataRows.forEach((r, i) => {
+            if (!r.color) r.color = CHART_COLORS[i % CHART_COLORS.length];
+        });
 
         const previewCanvas = overlay.querySelector('#wmPreviewCanvas');
         let previewChart = null;
 
         // ── Data row management ──
         const rowsContainer = overlay.querySelector('#wmDataRows');
+        const dataHeader = overlay.querySelector('#wmDataHeader');
+        const taartOptions = overlay.querySelector('#wmTaartOptions');
+        const showPctCheckbox = overlay.querySelector('#wmShowPercentages');
+
+        function syncTaartUiVisibility() {
+            const isTaart = currentType === 'taart';
+            if (taartOptions) taartOptions.style.display = isTaart ? 'flex' : 'none';
+            if (dataHeader) dataHeader.classList.toggle('is-taart', isTaart);
+            rowsContainer.classList.toggle('is-taart', isTaart);
+            // Show/hide color column header handled via CSS .is-taart
+        }
 
         function renderDataRows() {
+            const isTaart = currentType === 'taart';
             rowsContainer.innerHTML = '';
             dataRows.forEach((row, i) => {
                 const div = document.createElement('div');
-                div.className = 'wm-data-row';
+                div.className = 'wm-data-row' + (isTaart ? ' has-color' : '');
+                const safeColor = row.color || CHART_COLORS[i % CHART_COLORS.length];
                 div.innerHTML = `
-                    <input type="text" value="${escHtml(String(row.label))}" placeholder="Label" data-idx="${i}" data-field="label">
-                    <input type="text" value="${escHtml(String(row.value))}" placeholder="0" data-idx="${i}" data-field="value">
-                    <button class="wm-data-row-del" data-idx="${i}" title="Verwijderen">✕</button>
+                    <input type="text" value="${escHtml(String(row.label))}" placeholder="${escHtml(SummieI18n.t('Label'))}" data-idx="${i}" data-field="label">
+                    <input type="text" value="${escHtml(String(row.value))}" placeholder="${escHtml(SummieI18n.t('0'))}" data-idx="${i}" data-field="value">
+                    ${isTaart ? `<input type="color" value="${escHtml(safeColor)}" data-idx="${i}" data-field="color" title="${escHtml(SummieI18n.t('Kleur voor dit stuk'))}" class="wm-color-input">` : ''}
+                    <button class="wm-data-row-del" data-idx="${i}" title="${escHtml(SummieI18n.t('Verwijderen'))}">✕</button>
                 `;
                 rowsContainer.appendChild(div);
             });
 
-            rowsContainer.querySelectorAll('input').forEach(inp => {
+            rowsContainer.querySelectorAll('input[data-field="label"], input[data-field="value"]').forEach(inp => {
                 inp.addEventListener('input', () => {
                     const idx = parseInt(inp.dataset.idx);
                     const field = inp.dataset.field;
                     dataRows[idx][field] = inp.value;
+                    updatePreview();
+                });
+            });
+            rowsContainer.querySelectorAll('input[data-field="color"]').forEach(inp => {
+                inp.addEventListener('input', () => {
+                    const idx = parseInt(inp.dataset.idx);
+                    dataRows[idx].color = inp.value;
                     updatePreview();
                 });
             });
@@ -574,12 +695,21 @@
             });
         }
         renderDataRows();
+        syncTaartUiVisibility();
 
         overlay.querySelector('#wmAddDataRow').addEventListener('click', () => {
-            dataRows.push({ label: '', value: 0 });
+            const nextColor = CHART_COLORS[dataRows.length % CHART_COLORS.length];
+            dataRows.push({ label: '', value: 0, color: nextColor });
             renderDataRows();
             updatePreview();
         });
+
+        if (showPctCheckbox) {
+            showPctCheckbox.addEventListener('change', () => {
+                showPercentages = showPctCheckbox.checked;
+                updatePreview();
+            });
+        }
 
         // ── Type tab switching ──
         overlay.querySelectorAll('.wm-type-tab').forEach(btn => {
@@ -589,6 +719,8 @@
                 currentType = btn.dataset.type;
                 overlay.querySelector('#wmFormulaFields').style.display = currentType === 'lijn' ? 'flex' : 'none';
                 overlay.querySelector('#wmDataFields').style.display = currentType !== 'lijn' ? 'flex' : 'none';
+                syncTaartUiVisibility();
+                renderDataRows();
                 updatePreview();
             });
         });
@@ -602,6 +734,7 @@
         function updatePreview() {
             const Chart = getChart();
             if (!Chart) return;
+            ensurePiePluginRegistered();
             if (previewChart) { previewChart.destroy(); previewChart = null; }
 
             const config = buildChartConfig();
@@ -641,6 +774,19 @@
 
             const isTaart = currentType === 'taart';
 
+            // Tooltip: for taart always show value + percentage
+            const tooltipCallbacks = isTaart ? {
+                callbacks: {
+                    label(ctx) {
+                        const val = ctx.parsed;
+                        const total = ctx.dataset.data.reduce((a, b) => a + (Number(b) || 0), 0);
+                        const pct = total ? ((val / total) * 100).toFixed(1).replace(/\.0$/, '') : '0';
+                        const label = ctx.label ? ctx.label + ': ' : '';
+                        return `${label}${val} (${pct}%)`;
+                    }
+                }
+            } : {};
+
             return {
                 type: chartType,
                 data: chartData,
@@ -651,6 +797,59 @@
                     plugins: {
                         title: { display: !!title, text: title, font: { size: 14, weight: '700' } },
                         legend: { display: isTaart, position: 'bottom' },
+                        tooltip: { ...tooltipCallbacks },
+                        summiePiePercentages: { enabled: isTaart && showPercentages },
+                    },
+                    scales: isTaart ? {} : {
+                        x: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 11 } } },
+                        y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 11 } } },
+                    },
+                }
+            };
+        }
+
+        function buildChartConfigForStoredData(grafiekData) {
+            const type = grafiekData.type || 'lijn';
+            const title = grafiekData.title || '';
+            let chartData, chartType;
+            if (type === 'lijn') {
+                const formula = grafiekData.formula || 'y = x';
+                const xMin = grafiekData.xMin ?? -10;
+                const xMax = grafiekData.xMax ?? 10;
+                const result = buildFormulaDatasets(formula, xMin, xMax, 200);
+                if (!result) return null;
+                chartData = result;
+                chartType = 'line';
+            } else {
+                const rows = normalizeDataRows(grafiekData.dataRows || []);
+                if (rows.length === 0) return null;
+                chartData = buildDataDatasets(rows, type);
+                chartType = chartTypeForGrafiek(type);
+            }
+            const isTaart = type === 'taart';
+            const shouldShowPct = grafiekData.showPercentages !== false;
+            return {
+                type: chartType,
+                data: chartData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    animation: { duration: 400 },
+                    plugins: {
+                        title: { display: !!title, text: title, font: { size: 14, weight: '700' } },
+                        legend: { display: isTaart, position: 'bottom' },
+                        tooltip: isTaart ? {
+                            callbacks: {
+                                label(ctx) {
+                                    const val = ctx.parsed;
+                                    const total = ctx.dataset.data.reduce((a, b) => a + (Number(b) || 0), 0);
+                                    const pct = total ? ((val / total) * 100).toFixed(1).replace(/\.0$/, '') : '0';
+                                    const label = ctx.label ? ctx.label + ': ' : '';
+                                    return `${label}${val} (${pct}%)`;
+                                }
+                            }
+                        } : {},
+                        summiePiePercentages: { enabled: isTaart && shouldShowPct },
                     },
                     scales: isTaart ? {} : {
                         x: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 11 } } },
@@ -692,6 +891,7 @@
                 xMin: parseFloat(overlay.querySelector('#wmXMin')?.value) || -10,
                 xMax: parseFloat(overlay.querySelector('#wmXMax')?.value) || 10,
                 dataRows: JSON.parse(JSON.stringify(dataRows)),
+                showPercentages: currentType === 'taart' ? showPercentages : false,
             };
 
             if (isEdit && existingWrapper) {
@@ -707,6 +907,125 @@
             close();
         });
     }
+
+    // ── Restore charts after document load (e.g. reopen) ────────────────
+    function buildConfigFromStoredWrapperData(grafiekData) {
+        const type = grafiekData.type || 'lijn';
+        const title = grafiekData.title || '';
+        let chartData, chartType;
+        if (type === 'lijn') {
+            const formula = grafiekData.formula || 'y = x';
+            const xMin = grafiekData.xMin ?? -10;
+            const xMax = grafiekData.xMax ?? 10;
+            const result = buildFormulaDatasets(formula, xMin, xMax, 200);
+            if (!result) return null;
+            chartData = result;
+            chartType = 'line';
+        } else {
+            const rows = normalizeDataRows(grafiekData.dataRows || []);
+            if (rows.length === 0) return null;
+            chartData = buildDataDatasets(rows, type);
+            chartType = chartTypeForGrafiek(type);
+        }
+        const isTaart = type === 'taart';
+        const shouldShowPct = grafiekData.showPercentages !== false;
+        return {
+            type: chartType,
+            data: chartData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                animation: { duration: 400 },
+                plugins: {
+                    title: { display: !!title, text: title, font: { size: 14, weight: '700' } },
+                    legend: { display: isTaart, position: 'bottom' },
+                    tooltip: isTaart ? {
+                        callbacks: {
+                            label(ctx) {
+                                const val = ctx.parsed;
+                                const total = ctx.dataset.data.reduce((a, b) => a + (Number(b) || 0), 0);
+                                const pct = total ? ((val / total) * 100).toFixed(1).replace(/\.0$/, '') : '0';
+                                const label = ctx.label ? ctx.label + ': ' : '';
+                                return `${label}${val} (${pct}%)`;
+                            }
+                        }
+                    } : {},
+                    summiePiePercentages: { enabled: isTaart && shouldShowPct },
+                },
+                scales: isTaart ? {} : {
+                    x: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 11 } } },
+                    y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 11 } } },
+                },
+            }
+        };
+    }
+
+    function restoreCharts(root) {
+        const Chart = getChart();
+        if (!Chart) return;
+        ensurePiePluginRegistered();
+        const container = root || document.getElementById('editor') || document;
+        const wrappers = container.querySelectorAll ? container.querySelectorAll('.summie-grafiek-wrapper') : [];
+        wrappers.forEach(wrapper => {
+            try {
+                const raw = wrapper.dataset.grafiekData;
+                if (!raw) return;
+                const data = JSON.parse(raw);
+                // Backfill colors for old documents
+                if (Array.isArray(data.dataRows)) {
+                    data.dataRows = normalizeDataRows(data.dataRows);
+                    // Persist backfill so future edits keep colors
+                    wrapper.dataset.grafiekData = JSON.stringify(data);
+                }
+                const config = buildConfigFromStoredWrapperData(data);
+                if (!config) return;
+                // Re-wire edit button if missing (e.g. after raw innerHTML load)
+                const editBtn = wrapper.querySelector('[data-action="edit"]');
+                if (editBtn && !editBtn._summieBound) {
+                    editBtn._summieBound = true;
+                    editBtn.addEventListener('mousedown', e => e.preventDefault());
+                    editBtn.addEventListener('click', () => {
+                        const d = JSON.parse(wrapper.dataset.grafiekData || '{}');
+                        openGrafiekModal(d, wrapper);
+                    });
+                }
+                renderChart(wrapper, config);
+            } catch (e) {
+                console.warn('Failed to restore grafiek', e);
+            }
+        });
+    }
+
+    // Hook into the canonical load path if available — try multiple timings
+    function hookApplyLoadedData() {
+        if (window.applyLoadedData && !window.applyLoadedData._summieGrafiekHooked) {
+            const orig = window.applyLoadedData;
+            window.applyLoadedData = function (...args) {
+                const res = orig.apply(this, args);
+                setTimeout(() => restoreCharts(), 250);
+                setTimeout(() => restoreCharts(), 700);
+                return res;
+            };
+            window.applyLoadedData._summieGrafiekHooked = true;
+            return true;
+        }
+        return false;
+    }
+    hookApplyLoadedData();
+    // Retry hooking for late-loaded editor.js
+    let hookRetries = 0;
+    const hookInterval = setInterval(() => {
+        if (hookApplyLoadedData() || hookRetries++ > 40) clearInterval(hookInterval);
+    }, 100);
+
+    // Also restore on DOM ready (covers localStorage draft restore)
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => setTimeout(() => restoreCharts(), 400));
+    } else {
+        setTimeout(() => restoreCharts(), 400);
+    }
+    // Extra delayed pass for pagination / async content
+    setTimeout(() => restoreCharts(), 1200);
 
     // ── Toolbar integration ───────────────────────────────────────────────
 
@@ -758,7 +1077,7 @@
 
     // ── Public API ────────────────────────────────────────────────────────
 
-    window.WiskundeModule = { init, openGrafiekModal, openBreukModal };
+    window.WiskundeModule = { init, openGrafiekModal, openBreukModal, restoreCharts, CHART_COLORS };
 
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);

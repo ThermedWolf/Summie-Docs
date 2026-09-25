@@ -335,3 +335,90 @@
     width: 100%;
     max-height: 200px;
 }
+
+/* Data header + taart color column */
+.wm-data-header {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 8px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    padding: 0 4px;
+}
+
+.wm-data-header.is-taart {
+    grid-template-columns: 1fr 1fr 44px auto;
+}
+
+.wm-data-header .wm-col-color {
+    display: none;
+    text-align: center;
+}
+
+.wm-data-header.is-taart .wm-col-color {
+    display: block;
+}
+
+.wm-data-rows.is-taart .wm-data-row {
+    /* overridden per-row via .has-color */
+}
+
+.wm-data-row.has-color {
+    grid-template-columns: 1fr 1fr 44px auto;
+}
+
+.wm-color-input {
+    width: 44px !important;
+    height: 32px;
+    padding: 2px !important;
+    border-radius: 6px;
+    cursor: pointer;
+    justify-self: center;
+}
+
+.wm-color-input::-webkit-color-swatch-wrapper {
+    padding: 2px;
+}
+
+.wm-color-input::-webkit-color-swatch {
+    border-radius: 4px;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+/* Taart options — percentage toggle */
+.wm-taart-options {
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 4px;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-light);
+}
+
+.wm-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    cursor: pointer;
+    user-select: none;
+}
+
+.wm-checkbox input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--primary-color);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.wm-hint {
+    margin: 0;
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--text-secondary);
+}
