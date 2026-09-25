@@ -4,7 +4,7 @@
 # This is the -bin package: repackages the official .deb from GitHub Releases.
 
 pkgname=summie-docs-bin
-pkgver=4.3.0
+pkgver=4.4.0
 pkgrel=1
 pkgdesc="Distraction-free document editor for study summaries — native .sumd format, glossary, references, flashcards, export to docx"
 arch=('x86_64')
