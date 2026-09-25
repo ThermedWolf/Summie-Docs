@@ -21,7 +21,7 @@ function isEditorEmpty() {
     clone.querySelectorAll('.placeholder-text').forEach(el => el.remove());
     clone.querySelectorAll('.page-number-badge, .summie-page-break, #summie-pagination-cursor').forEach(el => el.remove());
 
-    if (clone.querySelector('img, table, .code-block-wrapper, .summie-textbox, .summie-shape-wrapper')) return false;
+    if (clone.querySelector('img, table, .code-block-wrapper, .summie-textbox, .summie-shape-wrapper, .summie-grafiek-wrapper')) return false;
 
     const text = (clone.innerText || clone.textContent || '')
         .replace(/\u00a0/g, ' ')

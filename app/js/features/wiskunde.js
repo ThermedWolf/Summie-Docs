@@ -14,71 +14,164 @@
         const editor = document.getElementById('editor');
         if (sel && sel.rangeCount > 0 && editor && editor.contains(sel.anchorNode)) {
             _savedRange = sel.getRangeAt(0).cloneRange();
+            return;
+        }
+        // Fallback: use the topbar's saved range (set on any toolbar mousedown)
+        if (window.topbarManager && window.topbarManager.savedRange) {
+            try { _savedRange = window.topbarManager.savedRange.cloneRange(); } catch {}
         }
     }
 
     function restoreRange() {
-        if (!_savedRange) return;
+        if (!_savedRange) return false;
         const sel = window.getSelection();
-        sel.removeAllRanges();
-        sel.addRange(_savedRange);
+        try {
+            sel.removeAllRanges();
+            sel.addRange(_savedRange);
+            return true;
+        } catch { return false; }
     }
 
     function insertAtCursor(node) {
         const editor = document.getElementById('editor');
         if (!editor) return;
 
-        restoreRange();
+        const restored = restoreRange();
+        // If we still have no usable range, ask the topbar manager for its saved one
+        if (!restored && window.topbarManager && window.topbarManager.savedRange) {
+            try {
+                const selTmp = window.getSelection();
+                selTmp.removeAllRanges();
+                selTmp.addRange(window.topbarManager.savedRange.cloneRange());
+            } catch {}
+        }
+
         const sel = window.getSelection();
         if (!sel || sel.rangeCount === 0) {
-            // Fallback: append to editor
             editor.appendChild(node);
+            window.saveToLocalStorage?.();
+            window.updateUnsavedIndicator?.();
+            editor.dispatchEvent(new Event('input', { bubbles: true }));
             return;
         }
 
         const range = sel.getRangeAt(0);
-        range.deleteContents();
-        range.insertNode(node);
-        range.setStartAfter(node);
-        range.setEndAfter(node);
-        sel.removeAllRanges();
-        sel.addRange(range);
+        // If the range is inside the editor, do an inline insert at the exact caret
+        if (editor.contains(range.startContainer) || editor.contains(range.endContainer) || range.startContainer === editor) {
+            range.deleteContents();
+            range.insertNode(node);
+            try {
+                range.setStartAfter(node);
+                range.setEndAfter(node);
+                sel.removeAllRanges();
+                sel.addRange(range);
+            } catch {}
+            window.saveToLocalStorage?.();
+            window.updateUnsavedIndicator?.();
+            editor.dispatchEvent(new Event('input', { bubbles: true }));
+            return;
+        }
+
+        // Otherwise treat it as a block insertion after the closest block element
+        let refNode = null;
+        let n = range.startContainer;
+        if (n.nodeType === 3) n = n.parentElement;
+        const blockTags = ['P', 'DIV', 'LI', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6'];
+        while (n && n !== editor && !blockTags.includes(n.tagName)) n = n.parentElement;
+        if (n && n !== editor && editor.contains(n)) refNode = n;
+
+        const after = document.createElement('p');
+        after.innerHTML = '<br>';
+        if (refNode) { refNode.after(node); node.after(after); }
+        else { editor.appendChild(node); editor.appendChild(after); }
 
         window.saveToLocalStorage?.();
         window.updateUnsavedIndicator?.();
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
     }
 
     function insertBlockAtCursor(block) {
         const editor = document.getElementById('editor');
         if (!editor) return;
 
-        restoreRange();
+        const restored = restoreRange();
+        if (!restored && window.topbarManager && window.topbarManager.savedRange) {
+            try {
+                const selTmp = window.getSelection();
+                selTmp.removeAllRanges();
+                selTmp.addRange(window.topbarManager.savedRange.cloneRange());
+            } catch {}
+        }
+
         const sel = window.getSelection();
         let refNode = null;
 
         if (sel && sel.rangeCount > 0) {
-            let node = sel.getRangeAt(0).startContainer;
-            if (node.nodeType === 3) node = node.parentElement;
-            const blockTags = ['P', 'DIV', 'LI', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6'];
-            while (node && node !== editor && !blockTags.includes(node.tagName)) {
-                node = node.parentElement;
+            const range = sel.getRangeAt(0);
+            // Only use the range if it is actually inside the editor
+            if (editor.contains(range.startContainer) || range.startContainer === editor) {
+                let node = range.startContainer;
+                if (node.nodeType === 3) node = node.parentElement;
+                // Walk up until we are a direct child of the editor
+                while (node && node.parentElement && node.parentElement !== editor) {
+                    node = node.parentElement;
+                }
+                if (node && node !== editor && editor.contains(node)) refNode = node;
             }
-            if (node && node !== editor && editor.contains(node)) refNode = node;
+        }
+
+        // Fallback: use the last block child if we still have no ref
+        if (!refNode) {
+            // Try topbarManager's saved range one more time as a direct node lookup
+            if (window.topbarManager && window.topbarManager.savedRange) {
+                try {
+                    let node = window.topbarManager.savedRange.startContainer;
+                    if (node.nodeType === 3) node = node.parentElement;
+                    while (node && node.parentElement && node.parentElement !== editor) node = node.parentElement;
+                    if (node && node !== editor && editor.contains(node)) refNode = node;
+                } catch {}
+            }
         }
 
         const after = document.createElement('p');
         after.innerHTML = '<br>';
+        // Mark the trailing paragraph so keyboard navigation can find it reliably
+        after.setAttribute('data-grafiek-spacer', '1');
 
         if (refNode) {
             refNode.after(block);
             block.after(after);
+            // Place caret inside the spacer so the user can keep typing
+            try {
+                const newRange = document.createRange();
+                newRange.setStart(after, 0);
+                newRange.collapse(true);
+                sel.removeAllRanges();
+                sel.addRange(newRange);
+                _savedRange = newRange.cloneRange();
+                if (window.topbarManager) window.topbarManager.savedRange = newRange.cloneRange();
+            } catch {}
         } else {
+            // No reference block at all (empty document) — append to editor
             editor.appendChild(block);
             editor.appendChild(after);
+            try {
+                const newRange = document.createRange();
+                newRange.setStart(after, 0);
+                newRange.collapse(true);
+                sel.removeAllRanges();
+                sel.addRange(newRange);
+                _savedRange = newRange.cloneRange();
+                if (window.topbarManager) window.topbarManager.savedRange = newRange.cloneRange();
+            } catch {}
         }
+
+        // Ensure the new chart is visible
+        try { block.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch {}
 
         window.saveToLocalStorage?.();
         window.updateUnsavedIndicator?.();
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
     }
 
     // ── BREUKEN ───────────────────────────────────────────────────────────
@@ -511,28 +604,93 @@
         wrapper.dataset.chartConfig = JSON.stringify(config);
     }
 
+    function deleteGrafiekWrapper(wrapper) {
+        if (!wrapper) return;
+        try { if (wrapper._chartInstance) wrapper._chartInstance.destroy(); } catch {}
+        // Remove trailing spacer if we created one and it is still empty
+        const next = wrapper.nextElementSibling;
+        if (next && next.getAttribute && next.getAttribute('data-grafiek-spacer') === '1') {
+            if (!next.textContent.trim() && !next.querySelector('img, table, .summie-grafiek-wrapper, .summie-textbox, .summie-shape-wrapper')) {
+                // Keep at least one block so the editor never becomes completely empty in a weird way,
+                // but removing an empty spacer is fine — the editor will still have the chart's former position
+                // and we leave the spacer only if it has user content. For a clean delete, remove empty spacer.
+                next.remove();
+            } else {
+                next.removeAttribute('data-grafiek-spacer');
+            }
+        }
+        wrapper.remove();
+        const editor = document.getElementById('editor');
+        if (editor) editor.dispatchEvent(new Event('input', { bubbles: true }));
+        window.saveToLocalStorage?.();
+        window.updateUnsavedIndicator?.();
+        _savedRange = null;
+        if (window.topbarManager) window.topbarManager.savedRange = null;
+    }
+
+    function selectGrafiekWrapper(wrapper) {
+        document.querySelectorAll('.summie-grafiek-wrapper.selected').forEach(el => {
+            if (el !== wrapper) el.classList.remove('selected');
+        });
+        wrapper.classList.add('selected');
+        try { wrapper.focus({ preventScroll: true }); } catch { try { wrapper.focus(); } catch {} }
+    }
+
     function buildGrafiekWrapper(config, title, grafiekData) {
         const wrapper = document.createElement('div');
         wrapper.className = 'summie-grafiek-wrapper';
+        wrapper.tabIndex = 0;
         wrapper.dataset.grafiek = '1';
         wrapper.dataset.grafiekData = JSON.stringify(grafiekData);
 
         wrapper.innerHTML = `
             <div class="summie-grafiek-toolbar">
                 <span class="summie-grafiek-title">${escHtml(title)}</span>
-                <button class="summie-grafiek-btn" data-action="edit">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                    ${escHtml(SummieI18n.t('Bewerken'))}
-                </button>
+                <div class="summie-grafiek-actions">
+                    <button class="summie-grafiek-btn" data-action="edit">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                        ${escHtml(SummieI18n.t('Bewerken'))}
+                    </button>
+                    <button class="summie-grafiek-btn summie-grafiek-btn--danger" data-action="delete" title="${escHtml(SummieI18n.t('Verwijderen'))}">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                        ${escHtml(SummieI18n.t('Verwijderen'))}
+                    </button>
+                </div>
             </div>
             <canvas height="280"></canvas>
         `;
 
+        // Click on wrapper selects it (so Backspace/Delete work and the user sees which chart is active)
+        wrapper.addEventListener('mousedown', e => {
+            // Don't steal the click if it's on a button inside the toolbar
+            if (e.target.closest('button')) return;
+            selectGrafiekWrapper(wrapper);
+        });
+        wrapper.addEventListener('click', e => {
+            if (e.target.closest('button')) return;
+            selectGrafiekWrapper(wrapper);
+        });
+        wrapper.addEventListener('focus', () => selectGrafiekWrapper(wrapper));
+
         // Wire edit button
         wrapper.querySelector('[data-action="edit"]').addEventListener('mousedown', e => {
             e.preventDefault();
+            e.stopPropagation();
             const data = JSON.parse(wrapper.dataset.grafiekData || '{}');
             openGrafiekModal(data, wrapper);
+        });
+        wrapper.querySelector('[data-action="edit"]').addEventListener('click', e => {
+            e.preventDefault();
+            e.stopPropagation();
+        });
+
+        // Wire delete button
+        const delBtn = wrapper.querySelector('[data-action="delete"]');
+        delBtn.addEventListener('mousedown', e => { e.preventDefault(); e.stopPropagation(); });
+        delBtn.addEventListener('click', e => {
+            e.preventDefault();
+            e.stopPropagation();
+            deleteGrafiekWrapper(wrapper);
         });
 
         // Render chart after insertion (needs to be in DOM)
@@ -974,21 +1132,81 @@
                 // Backfill colors for old documents
                 if (Array.isArray(data.dataRows)) {
                     data.dataRows = normalizeDataRows(data.dataRows);
-                    // Persist backfill so future edits keep colors
                     wrapper.dataset.grafiekData = JSON.stringify(data);
                 }
                 const config = buildConfigFromStoredWrapperData(data);
                 if (!config) return;
-                // Re-wire edit button if missing (e.g. after raw innerHTML load)
+
+                // Upgrade old wrappers that were saved without the new toolbar/actions
+                if (!wrapper.hasAttribute('tabindex')) wrapper.tabIndex = 0;
+                let toolbar = wrapper.querySelector('.summie-grafiek-toolbar');
+                if (toolbar && !toolbar.querySelector('[data-action="delete"]')) {
+                    // Old wrapper only had a single edit button — rebuild the actions container
+                    const oldEdit = toolbar.querySelector('[data-action="edit"]');
+                    const actions = document.createElement('div');
+                    actions.className = 'summie-grafiek-actions';
+                    if (oldEdit) actions.appendChild(oldEdit);
+                    const delBtn = document.createElement('button');
+                    delBtn.className = 'summie-grafiek-btn summie-grafiek-btn--danger';
+                    delBtn.dataset.action = 'delete';
+                    delBtn.title = SummieI18n.t('Verwijderen');
+                    delBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg> ${escHtml(SummieI18n.t('Verwijderen'))}`;
+                    actions.appendChild(delBtn);
+                    // Remove stray text nodes between toolbar children before appending
+                    toolbar.appendChild(actions);
+                }
+                // Ensure actions wrapper exists for CSS
+                if (toolbar && !toolbar.querySelector('.summie-grafiek-actions')) {
+                    const actions = document.createElement('div');
+                    actions.className = 'summie-grafiek-actions';
+                    toolbar.querySelectorAll('[data-action]').forEach(b => actions.appendChild(b));
+                    toolbar.appendChild(actions);
+                }
+
+                // Wire selection (click / focus on the wrapper itself)
+                if (!wrapper._grafiekSelectBound) {
+                    wrapper._grafiekSelectBound = true;
+                    wrapper.addEventListener('mousedown', e => {
+                        if (e.target.closest('button')) return;
+                        selectGrafiekWrapper(wrapper);
+                    });
+                    wrapper.addEventListener('click', e => {
+                        if (e.target.closest('button')) return;
+                        selectGrafiekWrapper(wrapper);
+                    });
+                    wrapper.addEventListener('focus', () => selectGrafiekWrapper(wrapper));
+                }
+
+                // Re-wire edit button
                 const editBtn = wrapper.querySelector('[data-action="edit"]');
                 if (editBtn && !editBtn._summieBound) {
                     editBtn._summieBound = true;
-                    editBtn.addEventListener('mousedown', e => e.preventDefault());
-                    editBtn.addEventListener('click', () => {
+                    editBtn.addEventListener('mousedown', e => { e.preventDefault(); e.stopPropagation(); });
+                    editBtn.addEventListener('click', e => {
+                        e.preventDefault(); e.stopPropagation();
                         const d = JSON.parse(wrapper.dataset.grafiekData || '{}');
                         openGrafiekModal(d, wrapper);
                     });
+                } else if (editBtn && editBtn._summieBound) {
+                    // Ensure the edit handler opens the correct wrapper (closure may be stale after innerHTML restore)
+                    // Re-bind to be safe if the dataset changed
+                    if (!editBtn._summieEditRewired) {
+                        editBtn._summieEditRewired = true;
+                        editBtn.addEventListener('mousedown', e => { e.preventDefault(); e.stopPropagation(); });
+                    }
                 }
+
+                // Wire delete button (including old wrappers that just got upgraded)
+                const delBtn = wrapper.querySelector('[data-action="delete"]');
+                if (delBtn && !delBtn._summieBound) {
+                    delBtn._summieBound = true;
+                    delBtn.addEventListener('mousedown', e => { e.preventDefault(); e.stopPropagation(); });
+                    delBtn.addEventListener('click', e => {
+                        e.preventDefault(); e.stopPropagation();
+                        deleteGrafiekWrapper(wrapper);
+                    });
+                }
+
                 renderChart(wrapper, config);
             } catch (e) {
                 console.warn('Failed to restore grafiek', e);
@@ -1049,10 +1267,10 @@
             noemerInp.addEventListener('input', updatePreview);
         }
 
-        // Breuk insert button
+        // Breuk insert button — save range on mousedown so insertAtCursor knows where to put it
         const insertBtn = document.getElementById('wsInsertBreukBtn');
         if (insertBtn) {
-            insertBtn.addEventListener('mousedown', e => e.preventDefault());
+            insertBtn.addEventListener('mousedown', e => { e.preventDefault(); saveRange(); });
             insertBtn.addEventListener('click', () => {
                 const t = tellerInp?.value.trim() || '1';
                 const n = noemerInp?.value.trim() || '2';
@@ -1060,11 +1278,92 @@
             });
         }
 
-        // Grafiek buttons in toolbar
+        // Grafiek buttons in toolbar — save range on mousedown BEFORE focus is lost
         document.querySelectorAll('[data-content="wiskunde"] [data-grafiek]').forEach(btn => {
-            btn.addEventListener('mousedown', e => e.preventDefault());
+            btn.addEventListener('mousedown', e => { e.preventDefault(); saveRange(); });
             btn.addEventListener('click', () => openGrafiekModal({ type: btn.dataset.grafiek }));
         });
+
+        // Keyboard handling for selected grafiek: Backspace/Delete removes it
+        // Only acts when the wrapper itself is focused/selected — clicking into
+        // normal text deselects the wrapper, so stray Backspaces don't delete it.
+        document.addEventListener('keydown', e => {
+            if (e.key !== 'Backspace' && e.key !== 'Delete') return;
+            const selected = document.querySelector('.summie-grafiek-wrapper.selected');
+            if (!selected) return;
+            const editor = document.getElementById('editor');
+            if (!editor || !editor.contains(selected)) return;
+
+            const ae = document.activeElement;
+            const sel = window.getSelection();
+            const anchorNode = sel && sel.rangeCount ? sel.getRangeAt(0).startContainer : null;
+            const anchorEl = anchorNode ? (anchorNode.nodeType === 3 ? anchorNode.parentElement : anchorNode) : null;
+            const anchorInside = !!(anchorEl && selected.contains(anchorEl));
+            const focusedInside = !!(ae && (ae === selected || selected.contains(ae)));
+
+            // Don't delete if the user is typing inside a different input/textarea
+            if (ae && ae !== selected && !selected.contains(ae)) {
+                const tag = ae.tagName;
+                const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+                const isEditingText = ae.isContentEditable && !selected.contains(ae);
+                if (isInput || isEditingText) {
+                    // Check if focus is inside another grafiek — don't steal its key
+                    if (ae.closest && ae.closest('.summie-grafiek-wrapper') && ae.closest('.summie-grafiek-wrapper') !== selected) return;
+                    // If the chart is selected but the user is typing in a text field, ignore
+                    // unless the chart is also focused
+                    if (!focusedInside && !anchorInside) return;
+                }
+            }
+
+            if (focusedInside || anchorInside) {
+                e.preventDefault();
+                e.stopPropagation();
+                deleteGrafiekWrapper(selected);
+            }
+        }, true);
+
+        // Clicking outside any grafiek deselects the current selection
+        const editorEl = document.getElementById('editor');
+        if (editorEl) {
+            editorEl.addEventListener('mousedown', e => {
+                if (!e.target.closest('.summie-grafiek-wrapper')) {
+                    document.querySelectorAll('.summie-grafiek-wrapper.selected').forEach(el => el.classList.remove('selected'));
+                }
+            });
+            // Also deselect when focus moves to somewhere else in the editor
+            editorEl.addEventListener('click', e => {
+                if (!e.target.closest('.summie-grafiek-wrapper')) {
+                    // Don't clear if the click was on the toolbar that triggered the grafiek
+                    if (e.target.closest('.section-toolbar')) return;
+                    document.querySelectorAll('.summie-grafiek-wrapper.selected').forEach(el => el.classList.remove('selected'));
+                }
+            });
+        }
+        // Global click deselect when clicking completely outside the editor
+        document.addEventListener('click', e => {
+            const editorNode = document.getElementById('editor');
+            const wrapper = e.target.closest && e.target.closest('.summie-grafiek-wrapper');
+            if (wrapper) return;
+            if (e.target.closest && (e.target.closest('.section-toolbar') || e.target.closest('.topbar') || e.target.closest('.wiskunde-modal-overlay'))) return;
+            if (editorNode && editorNode.contains(e.target)) return;
+            document.querySelectorAll('.summie-grafiek-wrapper.selected').forEach(el => el.classList.remove('selected'));
+        });
+
+        // Keep isEditorEmpty aware of grafieken — they are content, not empty
+        // (editor.js already checks for .summie-grafiek-wrapper via a generic selector,
+        // but older versions of isEditorEmpty did not; this patch ensures compatibility)
+        try {
+            const origIsEmpty = window.isEditorEmpty;
+            if (typeof origIsEmpty === 'function' && !origIsEmpty._grafiekPatched) {
+                const patched = function () {
+                    const editor = document.getElementById('editor');
+                    if (editor && editor.querySelector('.summie-grafiek-wrapper')) return false;
+                    return origIsEmpty.apply(this, arguments);
+                };
+                patched._grafiekPatched = true;
+                window.isEditorEmpty = patched;
+            }
+        } catch {}
     }
 
     function init() {

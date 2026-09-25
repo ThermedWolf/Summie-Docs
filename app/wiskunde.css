@@ -58,6 +58,26 @@
     overflow: hidden;
     background: var(--bg-white);
     box-shadow: var(--shadow-sm);
+    outline: none;
+    cursor: default;
+    transition: box-shadow 0.15s, border-color 0.15s;
+}
+
+.summie-grafiek-wrapper:hover {
+    border-color: rgba(59, 130, 246, 0.35);
+}
+
+.summie-grafiek-wrapper.selected {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18), var(--shadow-sm);
+}
+
+.summie-grafiek-wrapper:focus {
+    border-color: var(--primary-color);
+}
+
+.summie-grafiek-wrapper:focus-visible {
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.22), var(--shadow-sm);
 }
 
 .summie-grafiek-wrapper canvas {
@@ -86,11 +106,18 @@
     text-overflow: ellipsis;
 }
 
+.summie-grafiek-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
 .summie-grafiek-btn {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    background: none;
+    background: var(--bg-white);
     border: 1px solid var(--border-color);
     border-radius: 5px;
     padding: 3px 8px;
@@ -104,6 +131,18 @@
 .summie-grafiek-btn:hover {
     border-color: var(--primary-color);
     color: var(--primary-color);
+    background: var(--bg-white);
+}
+
+.summie-grafiek-btn--danger:hover {
+    border-color: #ef4444;
+    color: #ef4444;
+    background: #fef2f2;
+}
+
+.summie-grafiek-wrapper.selected .summie-grafiek-toolbar {
+    background: rgba(59, 130, 246, 0.06);
+    border-bottom-color: rgba(59, 130, 246, 0.18);
 }
 
 /* ── Modals ──────────────────────────────────────────────────────────── */
