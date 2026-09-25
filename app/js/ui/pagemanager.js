@@ -368,7 +368,6 @@
         const wrapper = document.getElementById('pageListWrapper');
         if (wrapper) wrapper.style.display = '';
         localStorage.setItem('summie_pagination_mode', '1');
-        updateToggleButton();
         updatePageBreakButton();
         reflowNow(false);
         window.saveToLocalStorage?.();
@@ -387,15 +386,10 @@
         const list = document.getElementById('pageList');
         if (list) list.innerHTML = '';
         rebuildPageIndices();
-        updateToggleButton();
         updatePageBreakButton();
         updateSidebarStatus();
         localStorage.setItem('summie_pagination_mode', '0');
         window.saveToLocalStorage?.();
-    }
-
-    function togglePagination() {
-        if (paginationEnabled) disablePagination(); else enablePagination();
     }
 
     function addPage() {
@@ -426,14 +420,7 @@
         if (window.AppState) window.AppState.editor = document.getElementById('editor');
     }
 
-    function updateToggleButton() {
-        const btn = document.getElementById('togglePaginationBtn');
-        const label = document.getElementById('togglePaginationLabel');
-        if (!btn || !label) return;
-        label.textContent = paginationEnabled ? SummieI18n.t('Paginering uitschakelen') : SummieI18n.t('Paginering inschakelen');
-        btn.classList.toggle('btn-file-active', paginationEnabled);
-        updatePageBreakButton();
-    }
+
 
     function updateSidebarStatus() {
         const statusText = document.getElementById('paginationStatusText');
@@ -536,13 +523,12 @@
             updatePageBreakButton();
         }
         document.getElementById('addPageBtn')?.addEventListener('click', addPage);
-        document.getElementById('togglePaginationBtn')?.addEventListener('click', togglePagination);
         document.getElementById('insertPageBreakBtn')?.addEventListener('click', insertPageBreakFromButton);
         document.addEventListener('selectionchange', () => { if (paginationEnabled) updatePageList(); });
     }
 
     window.PageManager = {
-        init, enablePagination, disablePagination, togglePagination, isPaginationEnabled,
+        init, enablePagination, disablePagination, isPaginationEnabled,
         addPage, removePage, focusPage, getAllPages, getPagesData, loadPagesData,
         updatePageList, rebuildPageIndices, updateSidebarStatus, scheduleReflow, insertPageBreak
     };
