@@ -34,10 +34,10 @@
       }
     ],
     "icon": "app/icon.png",
-    "artifactName": "Summie-${version}-Setup.${ext}"
+    "artifactName": "Summie-windows-x64-${version}-Setup.${ext}"
   },
   "portable": {
-    "artifactName": "Summie-${version}-Setup.${ext}",
+    "artifactName": "Summie-windows-x64-${version}-Setup.${ext}",
     "requestExecutionLevel": "user"
   },
   "publish": null,
