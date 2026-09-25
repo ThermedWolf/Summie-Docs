@@ -1219,7 +1219,13 @@ safeHandle('piper-get-status', async () => {
         available[id] = { ...info, installed: isPiperVoiceInstalled(id) };
         installed[id] = isPiperVoiceInstalled(id);
     }
-    return { installed, available, registry: PIPER_REGISTRY, bundledDir: getPiperBundledDir(), userDir: getPiperVoiceDir() };
+    let piperBinary = null;
+    let piperBinaryExists = false;
+    try {
+        piperBinary = getPiperBinaryPath();
+        piperBinaryExists = piperBinary ? (piperBinary === 'piper' ? true : fs.existsSync(piperBinary)) : false;
+    } catch {}
+    return { installed, available, registry: PIPER_REGISTRY, bundledDir: getPiperBundledDir(), userDir: getPiperVoiceDir(), piperBinary, piperBinaryExists, platform: process.platform, resourcesPath: process.resourcesPath || null };
 });
 safeHandle('piper-get-voice-paths', async (event, voiceId) => {
     const vid = voiceId || readAppSettings().ttsPiperVoice;
@@ -1312,15 +1318,38 @@ safeHandle('piper-delete-voice', async (event, voiceId) => {
     return { success: true };
 });
 function getPiperBinaryPath() {
-    const bundled = path.join(getPiperBundledDir(), '..', 'piper-bin', 'piper');
-    // getPiperBundledDir returns piper-voices dir; piper-bin is sibling in resources
-    const altBundled = path.join(process.resourcesPath || '', 'piper-bin', 'piper');
-    const dev = path.join(__dirname, 'piper-bin', 'piper');
-    for (const p of [dev, altBundled, bundled]) {
-        try { if (fs.existsSync(p)) return p; } catch {}
+    const isWin = process.platform === 'win32';
+    const binName = isWin ? 'piper.exe' : 'piper';
+    const candidates = [];
+    // Dev (npm start): __dirname is app/ folder, piper-bin is sibling
+    candidates.push(path.join(__dirname, 'piper-bin', binName));
+    // Packaged: resources/piper-bin/ (extraResources)
+    if (process.resourcesPath) {
+        candidates.push(path.join(process.resourcesPath, 'piper-bin', binName));
+        // Legacy via bundled dir sibling (kept for backward compat)
+        try { candidates.push(path.join(getPiperBundledDir(), '..', 'piper-bin', binName)); } catch {}
+        // When asarUnpack or extraResources is unpacked alongside app.asar
+        candidates.push(path.join(process.resourcesPath, 'app.asar.unpacked', 'piper-bin', binName));
+        // Windows platform-specific subfolder (if both binaries shipped)
+        candidates.push(path.join(process.resourcesPath, 'piper-bin', isWin ? 'win' : 'linux', binName));
     }
-    // Fallback to system piper
-    return 'piper';
+    // App path fallback (portable installer target)
+    try { candidates.push(path.join(path.dirname(process.execPath), 'resources', 'piper-bin', binName)); } catch {}
+    try { candidates.push(path.join(app.getAppPath(), 'piper-bin', binName)); } catch {}
+
+    for (const p of candidates) {
+        try {
+            if (fs.existsSync(p)) {
+                // Ensure executable bit on Linux/mac (AppImage / copyFileSync can strip it)
+                if (!isWin) {
+                    try { fs.chmodSync(p, 0o755); } catch {}
+                }
+                return p;
+            }
+        } catch {}
+    }
+    // No bundled binary — try system piper on PATH (useful for devs who installed it)
+    return isWin ? null : 'piper';
 }
 safeHandle('piper-synthesize', async (event, payload) => {
     const text = payload && payload.text ? String(payload.text) : '';
@@ -1330,6 +1359,24 @@ safeHandle('piper-synthesize', async (event, payload) => {
     const voicePaths = getPiperVoicePaths(voiceId);
     if (!voicePaths) return { success: false, error: 'Stem niet geïnstalleerd: ' + voiceId };
     const bin = getPiperBinaryPath();
+    if (!bin) return { success: false, error: 'Piper niet gevonden (geen bundled binary en geen systeem piper)' };
+    // Pre-flight: verify bundled binary actually exists (system fallback 'piper' may not exist on user machine)
+    if (bin !== 'piper' && !fs.existsSync(bin)) {
+        return { success: false, error: `Piper binary niet gevonden: ${bin} (spawn ENOENT) — probeer opnieuw te installeren` };
+    }
+    // Ensure bundled libs are executable and have correct perms (fixes AppImage / installer copyFileSync stripping +x)
+    if (bin !== 'piper' && process.platform !== 'win32') {
+        try { fs.chmodSync(bin, 0o755); } catch {}
+        // Also chmod sibling .so files — needed when they were copied without perms
+        try {
+            const dir = path.dirname(bin);
+            for (const f of fs.readdirSync(dir)) {
+                if (f.endsWith('.so') || f.endsWith('.so.1') || f.includes('.so.')) {
+                    try { fs.chmodSync(path.join(dir, f), 0o755); } catch {}
+                }
+            }
+        } catch {}
+    }
     // Piper length_scale: >1 slower, <1 faster. Map rate (0.5-2) to length_scale
     let lengthScale = 1.0;
     if (rate < 1) lengthScale = 1.0 + (1 - rate) * 0.8;
@@ -1337,35 +1384,49 @@ safeHandle('piper-synthesize', async (event, payload) => {
     lengthScale = Math.max(0.5, Math.min(2, lengthScale));
     const piperBinDir = path.dirname(bin);
     const espeakData = path.join(piperBinDir, 'espeak-ng-data');
+    // Also check win/linux subfolder espeak_data
+    let espeakDataResolved = null;
+    if (fs.existsSync(espeakData)) espeakDataResolved = espeakData;
+    else {
+        const alt = path.join(piperBinDir, 'espeak-ng-data');
+        if (fs.existsSync(alt)) espeakDataResolved = alt;
+    }
     const speakerId = (PIPER_REGISTRY[voiceId] && PIPER_REGISTRY[voiceId].speakerId) || 0;
-    // Reduce weird pauses: piper sentence_silence 0.15 instead of default 0.2, and less length noise
+    // Reduce weird pauses: piper sentence_silence 0.12 instead of default 0.2
     const args = ['--model', voicePaths.onnx, '--output_file', '-', '--length_scale', String(lengthScale), '--speaker', String(speakerId), '--sentence_silence', '0.12'];
-    if (fs.existsSync(espeakData)) args.push('--espeak_data', espeakData);
+    if (espeakDataResolved) args.push('--espeak_data', espeakDataResolved);
     const { spawn } = require('child_process');
     return await new Promise((resolve) => {
         let wavBuffer = Buffer.alloc(0);
         let errBuf = '';
-        const env = { ...process.env, LD_LIBRARY_PATH: [piperBinDir, process.env.LD_LIBRARY_PATH || ''].filter(Boolean).join(':') };
+        const env = { ...process.env };
+        if (process.platform !== 'win32') {
+            env.LD_LIBRARY_PATH = [piperBinDir, process.env.LD_LIBRARY_PATH || ''].filter(Boolean).join(':');
+        }
         let proc;
-        try { proc = spawn(bin, args, { env }); } catch (e) { resolve({ success: false, error: String(e.message || e) }); return; }
+        let settled = false;
+        const done = (v) => { if (!settled) { settled = true; resolve(v); } };
+        try { proc = spawn(bin, args, { env }); } catch (e) { done({ success: false, error: String(e.message || e) }); return; }
         proc.stdout.on('data', (c) => { wavBuffer = Buffer.concat([wavBuffer, c]); });
         proc.stderr.on('data', (c) => { errBuf += c.toString(); });
-        proc.on('error', (e) => resolve({ success: false, error: String(e.message || e) }));
+        proc.on('error', (e) => done({ success: false, error: String(e.message || e) + (bin !== 'piper' ? ` (binary: ${bin})` : '') }));
         proc.on('close', (code) => {
             if (code !== 0) {
-                resolve({ success: false, error: errBuf || `piper exit ${code}` });
+                done({ success: false, error: errBuf || `piper exit ${code} (binary: ${bin})` });
                 return;
             }
             if (!wavBuffer.length) {
-                resolve({ success: false, error: 'Geen audio gegenereerd' });
+                done({ success: false, error: 'Geen audio gegenereerd' + (errBuf ? ': ' + errBuf : '') });
                 return;
             }
             // Return as base64 for IPC
-            resolve({ success: true, wavBase64: wavBuffer.toString('base64'), mime: 'audio/wav' });
+            done({ success: true, wavBase64: wavBuffer.toString('base64'), mime: 'audio/wav' });
         });
         // Feed text via stdin
-        try { proc.stdin.write(text); proc.stdin.end(); } catch (e) { resolve({ success: false, error: String(e) }); }
-        setTimeout(() => { try { proc.kill('SIGTERM'); } catch {} resolve({ success: false, error: 'Timeout' }); }, 20000);
+        try { proc.stdin.write(text); proc.stdin.end(); } catch (e) { done({ success: false, error: String(e) }); }
+        const timeout = setTimeout(() => { try { proc.kill('SIGTERM'); } catch {} done({ success: false, error: 'Timeout' }); }, 20000);
+        proc.on('close', () => clearTimeout(timeout));
+        proc.on('error', () => clearTimeout(timeout));
     });
 });
 

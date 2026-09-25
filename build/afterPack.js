@@ -65,9 +65,40 @@ function patchDesktopFiles(rootDir) {
     }
 }
 
+function ensurePiperExecutable(rootDir) {
+    if (!rootDir || !fs.existsSync(rootDir)) return;
+    const candidates = [
+        path.join(rootDir, 'resources', 'piper-bin', 'piper'),
+        path.join(rootDir, 'resources', 'piper-bin', 'piper_phonemize'),
+        path.join(rootDir, 'piper-bin', 'piper'),
+    ];
+    for (const p of candidates) {
+        try {
+            if (fs.existsSync(p)) {
+                fs.chmodSync(p, 0o755);
+                console.log(`[afterPack] chmod +x ${p}`);
+            }
+        } catch (err) {
+            console.warn(`[afterPack] chmod failed for ${p}:`, err.message);
+        }
+    }
+    // Also ensure .so files are readable
+    const resBin = path.join(rootDir, 'resources', 'piper-bin');
+    if (fs.existsSync(resBin)) {
+        try {
+            for (const f of fs.readdirSync(resBin)) {
+                if (f.endsWith('.so') || f.includes('.so.')) {
+                    try { fs.chmodSync(path.join(resBin, f), 0o755); } catch {}
+                }
+            }
+        } catch {}
+    }
+}
+
 exports.default = async function afterPack(context) {
     // context.appOutDir is the unpacked app directory
     patchDesktopFiles(context.appOutDir);
+    ensurePiperExecutable(context.appOutDir);
     // Also walk the build output directory in case a .desktop was already staged
     if (context.outDir) patchDesktopFiles(context.outDir);
 };

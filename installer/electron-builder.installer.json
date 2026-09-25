@@ -19,7 +19,7 @@
     {
       "from": "dist/win-unpacked",
       "to": "payload",
-      "filter": ["**/*", "!**/piper-bin/**", "!**/*.so", "!**/*.so.*"]
+      "filter": ["**/*"]
     },
     {
       "from": "app/icon.png",
