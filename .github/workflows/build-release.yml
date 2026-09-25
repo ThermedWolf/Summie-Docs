@@ -49,6 +49,9 @@ jobs:
         run: |
           rm -rf dist dist-installer
           npm run build:win:full:ci
+          # Verify installer was created
+          ls -la dist-installer/
+          ls -la dist-installer/*.exe 2>/dev/null || true
 
       - name: Build macOS
         if: matrix.os == 'macos-latest'
@@ -62,9 +65,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p ./artifacts
-          # Windows: only the branded Setup.exe (portable) from dist-installer; classic NSIS is deprecated
-          # macOS/Linux: dmg / AppImage / deb from dist
-          # Match both Summie-<version>-Setup.exe and Summie-windows-x64-<version>-Setup.exe
+          echo "=== Searching for artifacts in ${GITHUB_WORKSPACE} ==="
           find "${GITHUB_WORKSPACE}" -maxdepth 5 -type f \( -name "Summie*-Setup.exe" -o -name "*.dmg" -o -name "*.AppImage" -o -name "*.deb" \) \
             \( -path "*/dist/*" -o -path "*/dist-installer/*" -o -path "*/release/*" \) \
             -not -path "*/node_modules/*" \
@@ -72,6 +73,7 @@ jobs:
             -not -path "*/mac-unpacked/*" \
             -not -path "*/linux-unpacked/*" \
             -not -name "elevate.exe" \
+            -exec echo "Found: {}" \; \
             -exec cp {} ./artifacts/ \;
           echo "=== Artifacts folder ==="
           ls -la ./artifacts/
