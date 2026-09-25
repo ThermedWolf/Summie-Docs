@@ -192,11 +192,12 @@ function formatDate(date) {
     if (!date || isNaN(date)) return '';
     const now = new Date(), diff = now - date, day = 86400000;
     if (diff < 60000) return SummieI18n.t('Zojuist');
-    if (diff < 3600000) return `${Math.floor(diff / 60000)} min geleden`;
-    if (diff < day) return `${Math.floor(diff / 3600000)} uur geleden`;
+    if (diff < 3600000) return SummieI18n.t(`${Math.floor(diff / 60000)} min geleden`);
+    if (diff < day) return SummieI18n.t(`${Math.floor(diff / 3600000)} uur geleden`);
     if (diff < 2 * day) return SummieI18n.t('Gisteren');
-    if (diff < 7 * day) return `${Math.floor(diff / day)} dagen geleden`;
-    return date.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' });
+    if (diff < 7 * day) return SummieI18n.t(`${Math.floor(diff / day)} dagen geleden`);
+    const locale = (window.SummieI18n && window.SummieI18n.lang === 'en') ? 'en-GB' : 'nl-NL';
+    return date.toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 function escapeHtml(str) {
@@ -355,9 +356,9 @@ async function loadCurrentDocPreview() {
         const savedContent = localStorage.getItem('summie_saved_content');
         const hasUnsaved = savedContent !== null && content !== savedContent;
         if (hasUnsaved) {
-            currentDocDate.innerHTML = '<span style="color:#f59e0b;font-weight:500;">Niet opgeslagen wijzigingen</span>';
+            currentDocDate.innerHTML = '<span style="color:#f59e0b;font-weight:500;">' + escapeHtml(SummieI18n.t('Niet opgeslagen wijzigingen')) + '</span>';
         } else if (data.timestamp) {
-            currentDocDate.textContent = 'Bewerkt: ' + formatDate(new Date(data.timestamp));
+            currentDocDate.textContent = SummieI18n.t('Bewerkt: ' + formatDate(new Date(data.timestamp)));
         } else {
             currentDocDate.textContent = '';
         }

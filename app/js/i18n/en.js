@@ -320,6 +320,12 @@
         '{n} begrippen': '{n} terms',
 
         // ── Editor: word count / status bar ──────────────────────────────────
+        'woord': 'word',
+        'woorden': 'words',
+        'teken': 'character',
+        'tekens': 'characters',
+        'begrip': 'term',
+        'begrippen': 'terms',
         '{n} woorden': '{n} words',
         '{n} tekens': '{n} characters',
         '{n} begrippen': '{n} terms',

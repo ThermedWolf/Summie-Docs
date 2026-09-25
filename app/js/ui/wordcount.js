@@ -238,8 +238,11 @@ function updateWordCounter() {
 
     // Odometer-animate only the numeric part; label updates in-place separately.
     // This keeps the token structure stable across singular/plural switches.
-    _applyOdometerSplit(wordCountEl, totalWords, totalWords === 1 ? '\u00A0woord' : '\u00A0woorden');
-    if (charCountEl) _applyOdometerSplit(charCountEl, totalChars, totalChars === 1 ? '\u00A0teken' : '\u00A0tekens');
+    // Labels go through i18n so English shows "word/words", "character/characters".
+    const wordLabel = '\u00A0' + SummieI18n.t(totalWords === 1 ? 'woord' : 'woorden');
+    const charLabel = '\u00A0' + SummieI18n.t(totalChars === 1 ? 'teken' : 'tekens');
+    _applyOdometerSplit(wordCountEl, totalWords, wordLabel);
+    if (charCountEl) _applyOdometerSplit(charCountEl, totalChars, charLabel);
 
     // Selection info
     const selectedCounts = window.SummieTextCount
@@ -254,7 +257,7 @@ function updateWordCounter() {
             selectionCountEl.classList.add('animate');
             setTimeout(() => selectionCountEl.classList.remove('animate'), 300);
         }
-        if (selectionCountEl) selectionCountEl.textContent = `${selectedWords} w / ${selectedChars} t geselecteerd`;
+        if (selectionCountEl) selectionCountEl.textContent = SummieI18n.t(`${selectedWords} w / ${selectedChars} t geselecteerd`);
         if (selectionSepEl) selectionSepEl.style.display = '';
     } else {
         if (selectionCountEl) selectionCountEl.textContent = '';

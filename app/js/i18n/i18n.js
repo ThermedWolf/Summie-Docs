@@ -268,10 +268,23 @@
         } catch (e) { }
     }
 
+    function refreshWordCounterLang() {
+        try { if (window.updateWordCounter) window.updateWordCounter(); } catch (e) { }
+        try { if (window.updateBegrippenCounter) window.updateBegrippenCounter(); } catch (e) { }
+        try { if (typeof loadCurrentDocPreview === 'function') loadCurrentDocPreview(); } catch (e) { }
+        try { if (window.loadCurrentDocPreview) window.loadCurrentDocPreview(); } catch (e) { }
+        // Re-render landing/manage lists if helpers exist (formatDate locale + t)
+        try { if (typeof renderRecentDocs === 'function') renderRecentDocs(); } catch (e) { }
+        try { if (typeof renderFavourites === 'function') renderFavourites(); } catch (e) { }
+        try { if (window._summieManageRefresh) window._summieManageRefresh(); } catch (e) { }
+        try { if (window.updateFileSize) window.updateFileSize(); } catch (e) { }
+    }
+
     function setLang(lang) {
         applyLang(lang, true);
         apply();
         refreshBibliographyLang();
+        refreshWordCounterLang();
     }
 
     const api = {
@@ -301,6 +314,7 @@
                 applyLang(lang, false);
                 apply();
                 refreshBibliographyLang();
+                refreshWordCounterLang();
             });
         }
     });

@@ -156,7 +156,7 @@
 
     function updateDocCount(count) {
         const el = document.getElementById('mdDocCount');
-        if (el) el.textContent = `${count} document${count !== 1 ? 'en' : ''}`;
+        if (el) el.textContent = SummieI18n.t(count === 1 ? '{count} document' : '{count} documenten').replace('{count}', String(count));
     }
 
     // ── Search ─────────────────────────────────────────────────────────────
@@ -603,10 +603,17 @@
         if (isNaN(date)) return '';
         const now = new Date(), diff = now - date, day = 86400000;
         if (diff < 60000) return SummieI18n.t('Zojuist');
-        if (diff < 3600000) return `${Math.floor(diff / 60000)} min geleden`;
-        if (diff < day) return `${Math.floor(diff / 3600000)} uur geleden`;
+        if (diff < 3600000) return SummieI18n.t(`${Math.floor(diff / 60000)} min geleden`);
+        if (diff < day) return SummieI18n.t(`${Math.floor(diff / 3600000)} uur geleden`);
         if (diff < 2 * day) return SummieI18n.t('Gisteren');
-        return date.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' });
+        if (diff < 7 * day) return SummieI18n.t(`${Math.floor(diff / day)} dagen geleden`);
+        const locale = (window.SummieI18n && window.SummieI18n.lang === 'en') ? 'en-GB' : 'nl-NL';
+        return date.toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' });
     }
+
+    // Expose refresh hook so i18n language switch can re-render dates/counts
+    window._summieManageRefresh = function () {
+        try { renderList(_allDocs); updateDocCount(_allDocs.length); } catch (e) { }
+    };
 
 })();

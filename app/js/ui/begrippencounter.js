@@ -7,7 +7,7 @@ function updateBegrippenCounter() {
 
     const begrippen = window.AppState.begrippen || [];
     const count = begrippen.length;
-    const label = count === 1 ? '\u00A0begrip' : '\u00A0begrippen';
+    const label = '\u00A0' + SummieI18n.t(count === 1 ? 'begrip' : 'begrippen');
 
     if (window._applyOdometerSplit) {
         window._applyOdometerSplit(el, count, label);
