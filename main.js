@@ -1956,8 +1956,34 @@ safeOn('navigate-to-landing', async (event) => {
     }
 });
 
-safeOn('open-leren', (event) => {
+safeOn('open-leren', async (event) => {
     const parentWin = BrowserWindow.fromWebContents(event.sender);
+    let initialData = { begrippen: [], documentName: null };
+    if (parentWin) {
+        try {
+            const data = await parentWin.webContents.executeJavaScript(`
+                (function(){
+                    try {
+                        const b = (window.AppState && Array.isArray(window.AppState.begrippen)) ? window.AppState.begrippen : [];
+                        let name = null;
+                        try {
+                            if (window.currentFilePath) name = window.currentFilePath.split(/[\\\\/]/).pop().replace(/\\.sumd$/i,'');
+                            if (!name && window.AppState && window.AppState.currentFileName) name = window.AppState.currentFileName;
+                            if (!name) {
+                                const input = document.getElementById('docNameInput');
+                                if (input && input.dataset && input.dataset.cleanName) name = input.dataset.cleanName;
+                                else if (input && input.value) name = input.value.replace(/\\s*\\*$/,'').trim();
+                            }
+                            if (!name) name = (document.title || '').replace(/\\s*-\\s*Summie.*/, '').trim() || null;
+                            if (name === 'Summie' || (window.appInfo && name === 'Summie v' + window.appInfo.version)) name = null;
+                        } catch(e){}
+                        return { begrippen: JSON.parse(JSON.stringify(b)), documentName: name };
+                    } catch(e){ return { begrippen: [], documentName: null }; }
+                })()
+            `);
+            if (data && Array.isArray(data.begrippen)) initialData = { begrippen: data.begrippen, documentName: data.documentName || null };
+        } catch (e) { /* keep empty — leren window will show empty state */ }
+    }
     const bounds = parentWin ? parentWin.getBounds() : { x: undefined, y: undefined, width: 1400, height: 900 };
     const lerenWin = new BrowserWindow({
         width: bounds.width,
@@ -1966,7 +1992,7 @@ safeOn('open-leren', (event) => {
         y: bounds.y,
         minWidth: 800,
         minHeight: 600,
-        title: tMain('Begrippen Leren — Summie'),
+        title: initialData.documentName ? `${initialData.documentName} — ${tMain('Begrippen Leren')}` : tMain('Begrippen Leren — Summie'),
         icon: path.join(__dirname, 'app', 'icon.png'),
         frame: false,
         webPreferences: {
@@ -1977,6 +2003,7 @@ safeOn('open-leren', (event) => {
         backgroundColor: '#f8fafc',
         show: false,
     });
+    lerenWin._initialLerenData = initialData;
     lerenWin.loadFile(path.join(__dirname, 'app', 'leren', 'index.html'));
     lerenWin.once('ready-to-show', () => {
         if (parentWin && parentWin.isMaximized()) lerenWin.maximize();
@@ -1985,6 +2012,12 @@ safeOn('open-leren', (event) => {
     lerenWin.setMenu(null);
     // Close handler — no unsaved changes to worry about
     lerenWin.on('close', (e) => { lerenWin.destroy(); });
+});
+
+safeHandle('leren-get-initial-data', async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (win && win._initialLerenData) return win._initialLerenData;
+    return { begrippen: [], documentName: null };
 });
 
 // Query current maximized state (used on load to sync button)

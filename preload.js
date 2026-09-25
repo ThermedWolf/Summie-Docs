@@ -68,6 +68,7 @@ contextBridge.exposeInMainWorld(
         navigateToManage: () => ipcRenderer.send('navigate-to-manage'),
         windowNew: () => ipcRenderer.send('window-new'),
         openLeren: () => ipcRenderer.send('open-leren'),
+        lerenGetInitialData: () => ipcRenderer.invoke('leren-get-initial-data'),
         windowIsMaximized: () => ipcRenderer.invoke('window-is-maximized'),
         setMaximizeBtnRect: (rect) => ipcRenderer.send('set-maximize-btn-rect', rect),
         onWindowStateChanged: (callback) => ipcRenderer.on('window-state-changed', (_, state) => callback(state)),

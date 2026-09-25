@@ -34,6 +34,7 @@ const resultsScreen = document.getElementById('resultsScreen');
 document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
     initWindowControls();
+    loadFromCurrentDocument();
 });
 
 function initWindowControls() {
@@ -58,6 +59,67 @@ function setMaximizeIcon(isMaximized) {
     btn.title = isMaximized ? SummieI18n.t('Terugzetten') : SummieI18n.t('Maximaliseren');
 }
 
+// Load begrippen directly from the current open document (via main process)
+async function loadFromCurrentDocument() {
+    try {
+        let data = null;
+        if (window.electron && window.electron.lerenGetInitialData) {
+            data = await window.electron.lerenGetInitialData();
+        }
+        const begrippen = data && Array.isArray(data.begrippen) ? data.begrippen : [];
+        const docName = data && data.documentName ? data.documentName : null;
+
+        // Show document name in subtitle / titlebar
+        const docLabel = document.getElementById('docLabel');
+        if (docLabel) {
+            if (docName) {
+                docLabel.textContent = docName;
+                docLabel.style.display = 'block';
+            } else {
+                docLabel.style.display = 'none';
+            }
+        }
+        const titleEl = document.querySelector('.leren-title-text');
+        if (titleEl && docName) {
+            titleEl.textContent = docName + ' — ' + SummieI18n.t('Begrippen Leren');
+        }
+
+        if (!begrippen || begrippen.length === 0) {
+            allBegrippen = [];
+            showEmptyState();
+            return;
+        }
+        allBegrippen = begrippen;
+        hideEmptyState();
+        showBegrippenSelection();
+    } catch (e) {
+        console.error('loadFromCurrentDocument failed', e);
+        allBegrippen = [];
+        showEmptyState();
+    }
+}
+
+function showEmptyState() {
+    const empty = document.getElementById('emptyState');
+    const content = document.getElementById('selectionContent');
+    const subtitle = document.getElementById('selectionSubtitle');
+    if (empty) empty.style.display = 'block';
+    if (content) content.style.display = 'none';
+    if (subtitle) subtitle.textContent = SummieI18n.t('Dit document bevat geen begrippen.');
+    // Ensure the container is visible
+    const sel = document.getElementById('begrippenSelection');
+    if (sel) sel.style.display = 'block';
+}
+
+function hideEmptyState() {
+    const empty = document.getElementById('emptyState');
+    const content = document.getElementById('selectionContent');
+    const subtitle = document.getElementById('selectionSubtitle');
+    if (empty) empty.style.display = 'none';
+    if (content) content.style.display = 'block';
+    if (subtitle) subtitle.textContent = SummieI18n.t('Kies welke begrippen je wilt oefenen');
+}
+
 // Event Listeners
 function setupEventListeners() {
     // Navigation
@@ -66,34 +128,6 @@ function setupEventListeners() {
             window.electron.windowClose();
         } else {
             window.close();
-        }
-    });
-
-    // File upload
-    const uploadArea = document.getElementById('uploadArea');
-    const fileInput = document.getElementById('fileInput');
-
-    uploadArea.addEventListener('click', () => fileInput.click());
-    fileInput.addEventListener('change', handleFileUpload);
-
-    // Drag and drop
-    uploadArea.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        uploadArea.classList.add('drag-over');
-    });
-
-    uploadArea.addEventListener('dragleave', () => {
-        uploadArea.classList.remove('drag-over');
-    });
-
-    uploadArea.addEventListener('drop', (e) => {
-        e.preventDefault();
-        uploadArea.classList.remove('drag-over');
-        const file = e.dataTransfer.files[0];
-        if (file && isSupportedFile(file)) {
-            loadFile(file);
-        } else if (file) {
-            showNotification(SummieI18n.t('Fout'), SummieI18n.t('Gebruik een .sumd of .json bestand.'), 'error');
         }
     });
 
@@ -159,46 +193,8 @@ function setupEventListeners() {
     document.getElementById('newSessionBtn').addEventListener('click', newSession);
 }
 
-// File handling
-function handleFileUpload(e) {
-    const file = e.target.files[0];
-    if (file && isSupportedFile(file)) {
-        loadFile(file);
-    } else if (file) {
-        showNotification(SummieI18n.t('Fout'), SummieI18n.t('Gebruik een .sumd of .json bestand.'), 'error');
-    }
-}
-
-function isSupportedFile(file) {
-    const name = (file.name || '').toLowerCase();
-    return name.endsWith('.sumd') || name.endsWith('.json');
-}
-
-function loadFile(file) {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        try {
-            const data = JSON.parse(e.target.result);
-            const begrippen = Array.isArray(data.begrippen) ? data.begrippen
-                : (data.content && Array.isArray(data.content.begrippen)) ? data.content.begrippen
-                    : null;
-            if (!begrippen || begrippen.length === 0) {
-                showNotification(SummieI18n.t('Fout'), SummieI18n.t('Dit bestand bevat geen begrippen.'), 'error');
-                return;
-            }
-            allBegrippen = begrippen;
-            showBegrippenSelection();
-            showNotification(SummieI18n.t('Bestand geladen'), `${allBegrippen.length} begrippen gevonden.`, 'success');
-        } catch (error) {
-            showNotification(SummieI18n.t('Fout'), SummieI18n.t('Kon bestand niet laden. Zorg dat het een geldig .sumd of .json bestand is.'), 'error');
-        }
-    };
-    reader.readAsText(file);
-}
-
 // Begrippen selection
 function showBegrippenSelection() {
-    document.getElementById('begrippenSelection').style.display = 'block';
     const list = document.getElementById('begrippenCheckList');
     list.innerHTML = '';
 
@@ -554,18 +550,18 @@ function restartSession() {
     }
 }
 
-function newSession() {
-    // Reset everything
+async function newSession() {
+    // Return to setup — keep current document's begrippen, re-fetch to pick up any edits made in the editor
     resultsScreen.style.display = 'none';
+    flashcardsScreen.style.display = 'none';
+    practiceScreen.style.display = 'none';
+    drillScreen.style.display = 'none';
     setupScreen.style.display = 'block';
     currentMode = null;
-    allBegrippen = [];
     selectedBegrippen = [];
-
-    // Reset selection UI
-    document.getElementById('begrippenSelection').style.display = 'none';
     document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('selected'));
-    document.getElementById('fileInput').value = '';
+    // Refresh from the parent document so newly added/removed begrippen are reflected
+    await loadFromCurrentDocument();
 }
 
 // Utility functions

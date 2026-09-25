@@ -236,51 +236,50 @@ body {
     margin: 0 auto;
 }
 
-.upload-section {
-    text-align: center;
-    margin-bottom: 40px;
-}
-
-.upload-section h2 {
-    font-size: 24px;
-    font-weight: 700;
-    margin-bottom: 8px;
-}
-
 .subtitle {
     color: var(--text-secondary);
-    margin-bottom: 24px;
+    margin-bottom: 12px;
 }
 
-.upload-area {
-    border: 2px dashed var(--border-color);
-    border-radius: 12px;
-    padding: 60px 40px;
-    text-align: center;
-    cursor: pointer;
-    transition: var(--transition);
-    background: var(--bg-light);
-}
-
-.upload-area:hover {
-    border-color: var(--primary-color);
-    background: rgba(59, 130, 246, 0.05);
-}
-
-.upload-area.drag-over {
-    border-color: var(--primary-color);
-    background: rgba(59, 130, 246, 0.1);
-    transform: scale(1.02);
-}
-
-.upload-area svg {
+.doc-label {
+    display: inline-block;
+    font-size: 13px;
+    font-weight: 600;
     color: var(--primary-color);
+    background: rgba(59, 130, 246, 0.08);
+    border: 1px solid rgba(59, 130, 246, 0.18);
+    padding: 4px 10px;
+    border-radius: 20px;
+    margin-bottom: 20px;
+}
+
+#emptyState {
+    text-align: center;
+    padding: 36px 20px 12px;
+}
+
+.empty-state-icon {
+    color: var(--primary-color);
+    opacity: 0.7;
     margin-bottom: 16px;
 }
 
-.upload-area p {
-    color: var(--text-secondary);
+.empty-state-icon svg {
+    margin: 0 auto;
+    display: block;
+}
+
+.empty-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+}
+
+.empty-text {
     font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.5;
 }
 
 /* Begrippen Selection */
