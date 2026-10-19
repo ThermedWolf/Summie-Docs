@@ -204,10 +204,24 @@ async function updateFileSize() {
 
 window.updateFileSize = updateFileSize;
 
+// Count root: in paginated mode #editor is only the FIRST page, so counting
+// from it would silently ignore every later page. Root at #pagesContainer
+// instead so all pages count. Single-page mode keeps counting #editor exactly
+// as before. Non-countable chrome inside the container (badges, header/footer
+// zones, the placeholder overlay) is excluded in text-count.js.
+function getCountRoot(editor) {
+    if (window.PageManager && window.PageManager.isPaginationEnabled()) {
+        const container = document.getElementById('pagesContainer');
+        if (container) return container;
+    }
+    return editor;
+}
+
 function updateWordCounter() {
     const state = window.AppState;
     const { editor } = state;
     const selection = window.getSelection();
+    const countRoot = getCountRoot(editor);
 
     const wordCountEl = document.getElementById('wordCount');
     const charCountEl = document.getElementById('charCount');
@@ -217,7 +231,7 @@ function updateWordCounter() {
     if (!wordCountEl) return;
 
     const totalCounts = window.SummieTextCount
-        ? window.SummieTextCount.countNode(editor)
+        ? window.SummieTextCount.countNode(countRoot)
         : { words: 0, chars: 0 };
     const totalWords = totalCounts.words;
     const totalChars = totalCounts.chars;
@@ -244,9 +258,10 @@ function updateWordCounter() {
     _applyOdometerSplit(wordCountEl, totalWords, wordLabel);
     if (charCountEl) _applyOdometerSplit(charCountEl, totalChars, charLabel);
 
-    // Selection info
+    // Selection info — rooted at the same root as the total, so a selection
+    // that spans multiple paginated pages is counted in full.
     const selectedCounts = window.SummieTextCount
-        ? window.SummieTextCount.countSelection(selection, editor)
+        ? window.SummieTextCount.countSelection(selection, countRoot)
         : { words: 0, chars: 0 };
 
     if (selectedCounts.words > 0 || selectedCounts.chars > 0) {

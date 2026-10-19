@@ -171,6 +171,17 @@ function handleEditorKeydown(e) {
             const listItem = element.closest('li');
             if (listItem) {
                 document.execCommand(e.shiftKey ? 'outdent' : 'indent', false, null);
+                // Indent/outdent can replace the li element entirely, so the
+                // pre-command reference may be detached — re-derive the list
+                // from the live selection to fix up fresh nested lists.
+                if (window.ListManager) {
+                    let anchor = window.getSelection().rangeCount > 0
+                        ? window.getSelection().getRangeAt(0).startContainer : null;
+                    if (anchor && anchor.nodeType === 3) anchor = anchor.parentElement;
+                    window.ListManager.inheritBulletStyles(
+                        anchor ? anchor.closest('ul, ol') : null
+                    );
+                }
             } else if (window.TabRuler && window.TabRuler.handleTabKey(e)) {
                 // TabRuler handled it — jumped to next tabstop
             } else {
@@ -338,6 +349,21 @@ function setupEventListeners() {
     });
     editor.addEventListener('mouseup', () => window.updateWordCounter && window.updateWordCounter());
     editor.addEventListener('keyup', () => window.updateWordCounter && window.updateWordCounter());
+
+    // Word counter for the extra pages PageManager creates in paginated mode —
+    // those pages have no counter wiring of their own. Delegated on the
+    // container; events from page 1 are skipped because its own handlers above
+    // already update the counter, keeping the per-keystroke count cost unchanged.
+    const pagesContainer = document.getElementById('pagesContainer');
+    if (pagesContainer) {
+        const updateCounterForOtherPages = (e) => {
+            const page = e.target instanceof Element ? e.target.closest('.a4-page') : null;
+            if (page && page !== state.editor) window.updateWordCounter && window.updateWordCounter();
+        };
+        pagesContainer.addEventListener('input', updateCounterForOtherPages);
+        pagesContainer.addEventListener('keyup', updateCounterForOtherPages);
+        pagesContainer.addEventListener('mouseup', updateCounterForOtherPages);
+    }
 
     // Checklist toggle — only when clicking the box (left ~32px), not the text
     editor.addEventListener('click', (e) => {

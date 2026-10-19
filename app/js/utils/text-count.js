@@ -20,6 +20,23 @@
         return !!(el && /^(address|article|aside|blockquote|div|figure|footer|form|h[1-6]|header|hr|li|main|nav|ol|p|pre|section|table|tr|ul)$/i.test(el.tagName || ''));
     }
 
+    // Document chrome that must never inflate the counts: page furniture added
+    // by the pagination/header-footer features, plus the placeholder overlay
+    // that lives inside #pagesContainer but outside the pages themselves.
+    // Deliberately NOT a blanket contenteditable="false" exclusion — inline
+    // citations are non-editable but are real document content.
+    const NON_COUNTABLE_SELECTOR = [
+        '.page-number-badge',
+        '.page-header-zone',
+        '.page-footer-zone',
+        '.page-break-edit-control',
+        '.editor-placeholder-overlay',
+    ].join(', ');
+
+    function isNonCountableChrome(el) {
+        return el.matches(NON_COUNTABLE_SELECTOR);
+    }
+
     function textFromNode(node) {
         if (!node) return '';
 
@@ -33,6 +50,7 @@
 
         if (node.nodeType === Node.ELEMENT_NODE) {
             const el = node;
+            if (isNonCountableChrome(el)) return '';
             if (
                 el.classList.contains('placeholder-text') ||
                 el.classList.contains('begrip-tooltip') ||

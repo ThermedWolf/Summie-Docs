@@ -370,6 +370,9 @@
         localStorage.setItem('summie_pagination_mode', '1');
         updatePageBreakButton();
         reflowNow(false);
+        // The count root switches from #editor to #pagesContainer when
+        // pagination turns on — refresh the counter so it reflects all pages.
+        window.updateWordCounter?.();
         window.saveToLocalStorage?.();
     }
 
@@ -389,6 +392,8 @@
         updatePageBreakButton();
         updateSidebarStatus();
         localStorage.setItem('summie_pagination_mode', '0');
+        // Count root switches back to #editor — refresh the counter.
+        window.updateWordCounter?.();
         window.saveToLocalStorage?.();
     }
 
