@@ -584,6 +584,108 @@
         return 'line';
     }
 
+    // ── Grafiek size (breedte/hoogte) ─────────────────────────────────────
+    // Custom size lives in grafiekData.width/height (px). A null pair keeps the
+    // default look: full-width wrapper + Chart.js type default aspect ratio.
+
+    const GRAFIEK_MIN_WIDTH = 120;
+    const GRAFIEK_MAX_WIDTH = 900;
+    const GRAFIEK_MIN_HEIGHT = 160;
+    const GRAFIEK_MAX_HEIGHT = 700;
+
+    // Default Chart.js aspect ratio (width/height) per chart type
+    function defaultGrafiekAspect(grafiekType) {
+        return grafiekType === 'taart' ? 1 : 2;
+    }
+
+    function parseGrafiekData(wrapper) {
+        if (!wrapper || !wrapper.dataset.grafiekData) return null;
+        try { return JSON.parse(wrapper.dataset.grafiekData); } catch { return null; }
+    }
+
+    function clampGrafiekSize(width, height) {
+        // Non-numeric or non-positive values mean "no custom size"
+        const clampDim = (v, min, max) => {
+            const n = Number(v);
+            if (!Number.isFinite(n) || n <= 0) return null;
+            return Math.min(max, Math.max(min, Math.round(n)));
+        };
+        return {
+            width: clampDim(width, GRAFIEK_MIN_WIDTH, GRAFIEK_MAX_WIDTH),
+            height: clampDim(height, GRAFIEK_MIN_HEIGHT, GRAFIEK_MAX_HEIGHT),
+        };
+    }
+
+    // Only a full pair counts as a custom size — a lone dimension is ignored
+    function hasCustomGrafiekSize(size) {
+        return !!(size && size.width && size.height);
+    }
+
+    function applyGrafiekWrapperSize(wrapper) {
+        const data = parseGrafiekData(wrapper);
+        const size = data ? clampGrafiekSize(data.width, data.height) : {};
+        wrapper.style.width = hasCustomGrafiekSize(size) ? size.width + 'px' : '';
+    }
+
+    // Chart.js computes canvas height = containerWidth / aspectRatio, and the
+    // wrapper width equals the stored width — so this renders exactly height px
+    function grafiekAspectOptions(wrapper) {
+        const data = parseGrafiekData(wrapper);
+        if (!data) return null;
+        const size = clampGrafiekSize(data.width, data.height);
+        if (!hasCustomGrafiekSize(size)) return null;
+        return { aspectRatio: size.width / size.height };
+    }
+
+    function notifyGrafiekChange() {
+        const editor = document.getElementById('editor');
+        if (editor) editor.dispatchEvent(new Event('input', { bubbles: true }));
+        window.saveToLocalStorage?.();
+        window.updateUnsavedIndicator?.();
+    }
+
+    // Store a new size on the wrapper and re-render through the existing
+    // Chart.js lifecycle (never a second chart instance)
+    function resizeGrafiek(wrapper, width, height) {
+        if (!wrapper) return;
+        const data = parseGrafiekData(wrapper) || {};
+        const size = clampGrafiekSize(width, height);
+        data.width = size.width;
+        data.height = size.height;
+        wrapper.dataset.grafiekData = JSON.stringify(data);
+
+        const config = buildConfigFromStoredWrapperData(data);
+        if (config) renderChart(wrapper, config);
+        else applyGrafiekWrapperSize(wrapper); // corrupt data — still honour the size
+        notifyGrafiekChange();
+    }
+
+    function resetGrafiekSize(wrapper) {
+        resizeGrafiek(wrapper, null, null);
+    }
+
+    // Read the breedte/hoogte modal fields; when only one is filled, resolve the
+    // other from the current rendered size (edit) or the type's default shape
+    function resolveGrafiekSizeFromModal(overlay, existingWrapper, grafiekType) {
+        const wRaw = parseInt(overlay.querySelector('#wmGrafiekWidth')?.value, 10);
+        const hRaw = parseInt(overlay.querySelector('#wmGrafiekHeight')?.value, 10);
+        const hasW = Number.isFinite(wRaw);
+        const hasH = Number.isFinite(hRaw);
+        if (!hasW && !hasH) return { width: null, height: null };
+
+        let width = hasW ? wRaw : null;
+        let height = hasH ? hRaw : null;
+        if (!hasW || !hasH) {
+            const canvas = existingWrapper ? existingWrapper.querySelector('canvas') : null;
+            const fallbackRatio = (canvas && canvas.offsetWidth && canvas.offsetHeight)
+                ? canvas.offsetWidth / canvas.offsetHeight
+                : defaultGrafiekAspect(grafiekType);
+            if (!hasW) width = height * fallbackRatio;
+            if (!hasH) height = width / fallbackRatio;
+        }
+        return clampGrafiekSize(width, height);
+    }
+
     // Render or update a Chart.js instance inside a wrapper
     function renderChart(wrapper, config) {
         const canvas = wrapper.querySelector('canvas');
@@ -593,15 +695,23 @@
         if (!Chart) { console.warn('Chart.js not loaded'); return; }
         ensurePiePluginRegistered();
 
+        // Apply the stored custom width before Chart.js measures its container
+        applyGrafiekWrapperSize(wrapper);
+
         if (wrapper._chartInstance) {
             wrapper._chartInstance.destroy();
         }
 
+        const sizeOptions = grafiekAspectOptions(wrapper);
+        const mergedConfig = sizeOptions
+            ? { ...config, options: { ...config.options, ...sizeOptions } }
+            : config;
+
         const ctx = canvas.getContext('2d');
-        wrapper._chartInstance = new Chart(ctx, config);
+        wrapper._chartInstance = new Chart(ctx, mergedConfig);
 
         // Store config for later editing
-        wrapper.dataset.chartConfig = JSON.stringify(config);
+        wrapper.dataset.chartConfig = JSON.stringify(mergedConfig);
     }
 
     function deleteGrafiekWrapper(wrapper) {
@@ -620,10 +730,8 @@
             }
         }
         wrapper.remove();
-        const editor = document.getElementById('editor');
-        if (editor) editor.dispatchEvent(new Event('input', { bubbles: true }));
-        window.saveToLocalStorage?.();
-        window.updateUnsavedIndicator?.();
+        notifyGrafiekChange();
+        window.GrafiekControls?.hide();
         _savedRange = null;
         if (window.topbarManager) window.topbarManager.savedRange = null;
     }
@@ -634,6 +742,12 @@
         });
         wrapper.classList.add('selected');
         try { wrapper.focus({ preventScroll: true }); } catch { try { wrapper.focus(); } catch {} }
+        window.GrafiekControls?.show(wrapper);
+    }
+
+    function deselectAllGrafieken() {
+        document.querySelectorAll('.summie-grafiek-wrapper.selected').forEach(el => el.classList.remove('selected'));
+        window.GrafiekControls?.hide();
     }
 
     function buildGrafiekWrapper(config, title, grafiekData) {
@@ -659,6 +773,9 @@
             </div>
             <canvas height="280"></canvas>
         `;
+
+        // Apply any custom size before the async chart render (avoids a flash)
+        applyGrafiekWrapperSize(wrapper);
 
         // Click on wrapper selects it (so Backspace/Delete work and the user sees which chart is active)
         wrapper.addEventListener('mousedown', e => {
@@ -763,6 +880,18 @@
                                 <span>${escHtml(SummieI18n.t('Toon percentages in elk stuk'))}</span>
                             </label>
                             <p class="wm-hint">${escHtml(SummieI18n.t('Toont het percentage van elk stuk direct in de taart, naast de legenda en tooltip.'))}</p>
+                        </div>
+                    </div>
+
+                    <!-- Size (breedte/hoogte) -->
+                    <div class="wm-row">
+                        <div class="wm-field">
+                            <label>${escHtml(SummieI18n.t('Breedte'))}</label>
+                            <input id="wmGrafiekWidth" type="number" min="120" max="900" step="1" placeholder="auto" title="${escHtml(SummieI18n.t('Breedte in px'))}" value="${initData.width ?? ''}">
+                        </div>
+                        <div class="wm-field">
+                            <label>${escHtml(SummieI18n.t('Hoogte'))}</label>
+                            <input id="wmGrafiekHeight" type="number" min="160" max="700" step="1" placeholder="auto" title="${escHtml(SummieI18n.t('Hoogte in px'))}" value="${initData.height ?? ''}">
                         </div>
                     </div>
 
@@ -1042,6 +1171,7 @@
             if (!config) { await window.SummieDialogs.alert(SummieI18n.t('Ongeldige invoer — controleer de formule of gegevens.'), { title: SummieI18n.t('Ongeldige invoer') }); return; }
 
             const title = overlay.querySelector('#wmGrafiekTitle').value.trim() || SummieI18n.t('Grafiek');
+            const size = resolveGrafiekSizeFromModal(overlay, existingWrapper, currentType);
             const grafiekData = {
                 type: currentType,
                 title,
@@ -1050,6 +1180,8 @@
                 xMax: parseFloat(overlay.querySelector('#wmXMax')?.value) || 10,
                 dataRows: JSON.parse(JSON.stringify(dataRows)),
                 showPercentages: currentType === 'taart' ? showPercentages : false,
+                width: size.width,
+                height: size.height,
             };
 
             if (isEdit && existingWrapper) {
@@ -1327,7 +1459,7 @@
         if (editorEl) {
             editorEl.addEventListener('mousedown', e => {
                 if (!e.target.closest('.summie-grafiek-wrapper')) {
-                    document.querySelectorAll('.summie-grafiek-wrapper.selected').forEach(el => el.classList.remove('selected'));
+                    deselectAllGrafieken();
                 }
             });
             // Also deselect when focus moves to somewhere else in the editor
@@ -1335,7 +1467,7 @@
                 if (!e.target.closest('.summie-grafiek-wrapper')) {
                     // Don't clear if the click was on the toolbar that triggered the grafiek
                     if (e.target.closest('.section-toolbar')) return;
-                    document.querySelectorAll('.summie-grafiek-wrapper.selected').forEach(el => el.classList.remove('selected'));
+                    deselectAllGrafieken();
                 }
             });
         }
@@ -1346,7 +1478,7 @@
             if (wrapper) return;
             if (e.target.closest && (e.target.closest('.section-toolbar') || e.target.closest('.topbar') || e.target.closest('.wiskunde-modal-overlay'))) return;
             if (editorNode && editorNode.contains(e.target)) return;
-            document.querySelectorAll('.summie-grafiek-wrapper.selected').forEach(el => el.classList.remove('selected'));
+            deselectAllGrafieken();
         });
 
         // Keep isEditorEmpty aware of grafieken — they are content, not empty
@@ -1376,7 +1508,16 @@
 
     // ── Public API ────────────────────────────────────────────────────────
 
-    window.WiskundeModule = { init, openGrafiekModal, openBreukModal, restoreCharts, CHART_COLORS };
+    window.WiskundeModule = {
+        init,
+        openGrafiekModal,
+        openBreukModal,
+        restoreCharts,
+        CHART_COLORS,
+        resizeGrafiek,
+        resetGrafiekSize,
+        deleteGrafiek: deleteGrafiekWrapper,
+    };
 
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);

@@ -145,6 +145,7 @@ window.ElementProtection = (function () {
         textbox: ['textbox-opmaak'],
         image: ['afbeelding-opmaak'],
         shape: ['vorm-opmaak'],
+        grafiek: ['grafiek-opmaak'],
     };
 
     // ── Build Context Tab Container ───────────────────────────────────────

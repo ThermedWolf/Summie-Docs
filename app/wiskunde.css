@@ -53,6 +53,7 @@
 .summie-grafiek-wrapper {
     position: relative;
     margin: 16px 0;
+    max-width: 100%;
     border: 1px solid var(--border-color);
     border-radius: 10px;
     overflow: hidden;

@@ -654,8 +654,9 @@ th[data-formula]::after {
     }
 }
 
-/* ── Image context tab ───────────────────────────────────────── */
-.img-dim-input {
+/* ── Image / chart context tabs ──────────────────────────────── */
+.img-dim-input,
+.grafiek-dim-input {
     width: 58px;
     text-align: right;
     padding-right: 4px;
@@ -663,12 +664,15 @@ th[data-formula]::after {
 
 /* Hide number input spinners */
 .img-dim-input::-webkit-outer-spin-button,
-.img-dim-input::-webkit-inner-spin-button {
+.img-dim-input::-webkit-inner-spin-button,
+.grafiek-dim-input::-webkit-outer-spin-button,
+.grafiek-dim-input::-webkit-inner-spin-button {
     -webkit-appearance: none;
     margin: 0;
 }
 
-.img-dim-input[type=number] {
+.img-dim-input[type=number],
+.grafiek-dim-input[type=number] {
     -moz-appearance: textfield;
 }
 

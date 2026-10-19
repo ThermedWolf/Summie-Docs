@@ -228,6 +228,10 @@
                 blocks.push({ type: 'code', el: node });
                 return;
             }
+            if (node.classList.contains('summie-grafiek-wrapper')) {
+                blocks.push({ type: 'grafiek', el: node });
+                return;
+            }
 
             if (tag === 'table') { blocks.push({ type: 'table', el: node }); return; }
 
@@ -246,7 +250,8 @@
                 // Skip our caret-reachable spacer paragraphs — they are editor-only helpers, not content
                 const isImageSpacer = node.getAttribute && node.getAttribute('data-image-spacer') === '1';
                 const isTextboxSpacer = node.getAttribute && node.getAttribute('data-textbox-spacer') === '1';
-                if ((isImageSpacer || isTextboxSpacer)) {
+                const isGrafiekSpacer = node.getAttribute && node.getAttribute('data-grafiek-spacer') === '1';
+                if ((isImageSpacer || isTextboxSpacer || isGrafiekSpacer)) {
                     const inlineNodes = Array.from(node.childNodes);
                     const allEmpty = inlineNodes.every(n =>
                         (n.nodeType === Node.TEXT_NODE && n.textContent.replace(/\u00a0/g, ' ').trim() === '') ||
@@ -894,6 +899,44 @@
         return new ImageRun(options);
     }
 
+    // A4 content width (210mm minus 2×25mm margins) at 96dpi — Word does not
+    // auto-shrink oversized inline images, so cap the exported chart width
+    const MAX_GRAFIEK_EXPORT_WIDTH_PX = 604;
+
+    function getGrafiekExportSize(grafiekEl, canvas) {
+        let data = {};
+        try { data = JSON.parse(grafiekEl.dataset.grafiekData || '{}') || {}; } catch { data = {}; }
+        let width = Number(data.width) || canvas.offsetWidth || 560;
+        let height = Number(data.height) || canvas.offsetHeight || 280;
+        if (width > MAX_GRAFIEK_EXPORT_WIDTH_PX) {
+            height = Math.round(height * (MAX_GRAFIEK_EXPORT_WIDTH_PX / width));
+            width = MAX_GRAFIEK_EXPORT_WIDTH_PX;
+        }
+        return { width: Math.max(1, Math.round(width)), height: Math.max(1, Math.round(height)) };
+    }
+
+    function grafiekToRun(grafiekEl, docxLib) {
+        const { ImageRun } = docxLib;
+        if (!ImageRun) return null;
+        const canvas = grafiekEl.querySelector('canvas');
+        if (!canvas) return null;
+
+        let dataUri;
+        try { dataUri = canvas.toDataURL('image/png'); } catch { return null; }
+        if (!dataUri || !dataUri.startsWith('data:image/')) return null;
+
+        const { width, height } = getGrafiekExportSize(grafiekEl, canvas);
+        const title = grafiekEl.querySelector('.summie-grafiek-title')?.textContent || '';
+        return new ImageRun({
+            data: dataUri,
+            transformation: { width, height },
+            altText: {
+                title: SummieI18n.t('Grafiek'),
+                description: title || SummieI18n.t('Grafiek')
+            }
+        });
+    }
+
     async function blocksToDocx(blocks, docxLib) {
         const { Paragraph, TextRun, HeadingLevel } = docxLib;
         const paras = [];
@@ -935,6 +978,11 @@
                 if (run) paras.push(new Paragraph({ children: [run], spacing: { before: 0, after: 80 } }));
                 continue;
             }
+            if (block.type === 'grafiek') {
+                const run = grafiekToRun(block.el, docxLib);
+                if (run) paras.push(new Paragraph({ children: [run], spacing: { before: 0, after: 120 } }));
+                continue;
+            }
             if (block.type === 'para') {
                 const hl = getHeadingLevel(block.el, HeadingLevel);
                 const runs = [];
@@ -942,7 +990,7 @@
 
                 if (runs.length === 0) {
                     paras.push(new Paragraph({ children: [new TextRun('')], spacing: { before: 0, after: 80 } }));
-                    return;
+                    continue;
                 }
 
                 const opts = {
