@@ -257,6 +257,10 @@ const PIPER_GENDER_MAP = {
     en: { female: 'en_US-libritts-high', male: 'en_US-ryan-high', system: 'en_US-libritts-high' },
 };
 
+// Valid document font ids — mirrors DOCUMENT_FONTS in app/js/ui/document-font.js
+// (the renderer module can't be required here; main only validates the id).
+const DOCUMENT_FONT_IDS = ['default', 'arial', 'calibri', 'georgia', 'times', 'verdana', 'trebuchet', 'comicsans'];
+
 const DEFAULT_APP_SETTINGS = {
     language: detectDefaultLanguage(),  // 'nl' | 'en'
     autoSaveNewFiles: false,            // automatically save new documents
@@ -264,6 +268,7 @@ const DEFAULT_APP_SETTINGS = {
     closeToHome: true,                  // close button → landing page instead of quitting
     numberLocale: 'eu',                 // 'eu' = komma decimaal | 'us' = punt decimaal
     theme: 'system',                    // 'system' = volg OS | 'dark' | 'light'
+    documentFont: 'default',            // document lettertype — ids mirror js/ui/document-font.js DOCUMENT_FONTS
     dismissedUpdateVersion: null,       // update version whose reminder the user dismissed
     citationAuthorDelimiter: 'semicolon', // 'semicolon' (;) | 'newline' (\n) — scheidingsteken tussen auteurs in invoerveld
     ttsRate: 1.0,                       // voorlees-snelheid 0.5–2.0
@@ -285,6 +290,7 @@ function readAppSettings() {
     if (merged.citationAuthorDelimiter !== 'semicolon' && merged.citationAuthorDelimiter !== 'newline') {
         merged.citationAuthorDelimiter = 'semicolon';
     }
+    if (!DOCUMENT_FONT_IDS.includes(merged.documentFont)) merged.documentFont = DEFAULT_APP_SETTINGS.documentFont;
     // TTS settings — validate and clamp
     if (typeof merged.ttsRate !== 'number' || merged.ttsRate < 0.5 || merged.ttsRate > 2) merged.ttsRate = DEFAULT_APP_SETTINGS.ttsRate;
     if (!['female', 'male', 'system'].includes(merged.ttsGender)) merged.ttsGender = DEFAULT_APP_SETTINGS.ttsGender;
@@ -896,6 +902,9 @@ safeHandle('favourites-save', (event, favs) => {
 safeOnLax('get-theme-sync', (event) => {
     event.returnValue = readAppSettings().theme || 'system';
 });
+safeOnLax('get-font-sync', (event) => {
+    event.returnValue = readAppSettings().documentFont || 'default';
+});
 safeHandle('settings-get', () => readAppSettings());
 function refreshUserTasks() {
     if (process.platform === 'win32') {
@@ -936,6 +945,12 @@ safeHandle('settings-set', (event, patch) => {
     if (patch && patch.theme) {
         BrowserWindow.getAllWindows().forEach(win => {
             win.webContents.send('theme-changed', updated.theme || 'system');
+        });
+    }
+    // Keep every open window in sync when the document font changes via settings
+    if (patch && patch.documentFont && patch.documentFont !== current.documentFont) {
+        BrowserWindow.getAllWindows().forEach(win => {
+            win.webContents.send('font-changed', updated.documentFont || 'default');
         });
     }
     // Keep every open window in sync when the language changes via settings

@@ -25,6 +25,7 @@ class DocumentPreview {
         this._themeObserver = null;
         this._ready = false;
         this._pendingData = null;
+        this._lastData = null;
         this._renderToken = 0;
         this._loadingActive = false;
         this._loaderDelayTimer = null;
@@ -182,6 +183,7 @@ ${cssLinks}
         this._iframe.addEventListener('load', () => {
             this._ready = true;
             this._syncIframeTheme();
+            this._applyIframeFont(this._lastData);
             if (this._pendingData) {
                 this._render(this._pendingData);
                 this._pendingData = null;
@@ -192,6 +194,11 @@ ${cssLinks}
             setTimeout(() => this._applyScale(), 50);
             setTimeout(() => this._applyScale(), 200);
         });
+
+        // Follow app-wide font changes while this preview stays visible.
+        if (window.electron && window.electron.onFontChanged) {
+            window.electron.onFontChanged(() => this._applyIframeFont(this._lastData));
+        }
 
         this._container.appendChild(this._iframe);
         this._container.appendChild(this._loader);
@@ -240,6 +247,17 @@ ${cssLinks}
         });
     }
 
+    // ── Document font sync ────────────────────────────────────────────────
+    // The preview iframe is a separate document: its styles.css only carries
+    // the default --font-document, so the active font (the document's own
+    // choice, or the app default) is mirrored onto the iframe root.
+    _applyIframeFont(data) {
+        if (!this._iframe || !this._iframe.contentDocument) return;
+        if (!window.DocumentFont) return;
+        const stack = window.DocumentFont.stackForFontId(data ? data.fontFamily : null);
+        this._iframe.contentDocument.documentElement.style.setProperty('--font-document', stack);
+    }
+
     // ── Resize scaling ────────────────────────────────────────────────────
     _setupResizeObserver() {
         if (this._resizeObserver) this._resizeObserver.disconnect();
@@ -279,6 +297,9 @@ ${cssLinks}
         const iframeDoc = this._iframe.contentDocument;
         const page = iframeDoc.getElementById('previewPage');
         if (!page) return;
+
+        this._lastData = data;
+        this._applyIframeFont(data);
 
         const content = data.content || data.editor || '';
 

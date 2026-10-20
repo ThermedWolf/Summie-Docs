@@ -1431,6 +1431,54 @@ body {
     border-color: var(--primary);
 }
 
+/* Document font (Lettertype) — curated list with a live preview per font,
+   nested inside a .settings-item-dir row so it shares that item's surface */
+.font-choice-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 8px;
+    width: 100%;
+}
+
+.font-choice {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    align-items: flex-start;
+    text-align: left;
+    padding: 9px 11px;
+    background: var(--surface-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--text);
+    transition: border-color 0.15s, background 0.15s;
+}
+
+.font-choice:hover {
+    border-color: var(--primary);
+}
+
+.font-choice.active {
+    border-color: var(--primary);
+    background: var(--primary-light);
+}
+
+.font-choice-name {
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.font-choice-preview {
+    font-size: 11px;
+    color: var(--text-secondary);
+    line-height: 1.35;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+}
+
 .settings-dir-picker {
     display: flex;
     align-items: center;

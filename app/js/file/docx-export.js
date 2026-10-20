@@ -7,6 +7,14 @@
 
     // ── Utilities ─────────────────────────────────────────────────────────
 
+    // Word font name for body text, from the active document font (per-document
+    // choice or the app-wide default). Systeemstandaard maps to undefined so
+    // runs omit the font and Word keeps its own document default. The docx
+    // lib's `font` option maps to RunFonts (ascii/hAnsi/cs/eastAsia).
+    function documentFont() {
+        return (window.DocumentFont && window.DocumentFont.getExportFont()) || undefined;
+    }
+
     function rgbToHex(rgb) {
         const m = rgb.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
         if (!m) return null;
@@ -115,7 +123,7 @@
                 highlight: inheritedProps.highlight ? 'yellow' : undefined,
                 superScript: inheritedProps.superScript || undefined,
                 subScript: inheritedProps.subScript || undefined,
-                font: 'Arial',
+                font: documentFont(),
             }));
             return runs;
         }
@@ -162,7 +170,7 @@
                 underline: props.underline ? {} : undefined,
                 color: '6366F1',
                 size: props.size || undefined,
-                font: 'Arial',
+                font: documentFont(),
             }));
             return runs;
         }
@@ -176,7 +184,7 @@
                 underline: { color: '7C3AED' },
                 color: '7C3AED',
                 size: props.size || undefined,
-                font: 'Arial',
+                font: documentFont(),
             }));
             return runs;
         }
@@ -379,7 +387,7 @@
 
             const runs = [];
             inlineNodes.forEach(n => runs.push(...nodeToRuns(n, docxLib, {})));
-            if (runs.length === 0) runs.push(new TextRun({ text: '', font: 'Arial' }));
+            if (runs.length === 0) runs.push(new TextRun({ text: '', font: documentFont() }));
 
             paras.push(new Paragraph({
                 children: runs,
@@ -418,7 +426,7 @@
                         size: props.size || undefined,
                         superScript: props.superScript || undefined,
                         subScript: props.subScript || undefined,
-                        font: 'Arial',
+                        font: documentFont(),
                     }));
                 }
                 return;
@@ -470,7 +478,7 @@
 
         // A cell must have at least one paragraph
         if (paras.length === 0) {
-            paras.push(new Paragraph({ children: [new TextRun({ text: '', font: 'Arial' })] }));
+            paras.push(new Paragraph({ children: [new TextRun({ text: '', font: documentFont() })] }));
         }
 
         return paras;
@@ -553,7 +561,7 @@
                     width: { size: w, type: WidthType.DXA },
                     shading: { fill: 'FFFFFF', type: ShadingType.CLEAR },
                     margins: { top: 100, bottom: 100, left: 150, right: 150 },
-                    children: [new Paragraph({ children: [new TextRun({ text: '', font: 'Arial' })] })],
+                    children: [new Paragraph({ children: [new TextRun({ text: '', font: documentFont() })] })],
                 }));
             }
             if (cells.length > 0) {
@@ -1014,12 +1022,12 @@
         out.push(new Paragraph({ children: [new TextRun('')], pageBreakBefore: true }));
         out.push(new Paragraph({
             heading: HeadingLevel.HEADING_1,
-            children: [new TextRun({ text: SummieI18n.t('Begrippen'), font: 'Arial' })],
+            children: [new TextRun({ text: SummieI18n.t('Begrippen'), font: documentFont() })],
             spacing: { before: 0, after: 240 },
         }));
 
         if (begrippen.length === 0) {
-            out.push(new Paragraph({ children: [new TextRun({ text: SummieI18n.t('Geen begrippen gedefinieerd.'), italics: true, font: 'Arial', size: 24 })] }));
+            out.push(new Paragraph({ children: [new TextRun({ text: SummieI18n.t('Geen begrippen gedefinieerd.'), italics: true, font: documentFont(), size: 24 })] }));
             return out;
         }
 
@@ -1036,20 +1044,20 @@
 
         const headerRow = new TableRow({
             tableHeader: true, children: [
-                mkCell([new Paragraph({ children: [new TextRun({ text: SummieI18n.t('Begrip'), bold: true, font: 'Arial', size: 22, color: '1E293B' })] })], 'EFF6FF', 2800),
-                mkCell([new Paragraph({ children: [new TextRun({ text: SummieI18n.t('Omschrijving'), bold: true, font: 'Arial', size: 22, color: '1E293B' })] })], 'EFF6FF', 6226),
+                mkCell([new Paragraph({ children: [new TextRun({ text: SummieI18n.t('Begrip'), bold: true, font: documentFont(), size: 22, color: '1E293B' })] })], 'EFF6FF', 2800),
+                mkCell([new Paragraph({ children: [new TextRun({ text: SummieI18n.t('Omschrijving'), bold: true, font: documentFont(), size: 22, color: '1E293B' })] })], 'EFF6FF', 6226),
             ]
         });
 
         const dataRows = begrippen.map((bg, i) => {
             const fill = i % 2 === 0 ? 'FFFFFF' : 'F8FAFC';
-            const descRuns = [new TextRun({ text: bg.description, font: 'Arial', size: 22 })];
+            const descRuns = [new TextRun({ text: bg.description, font: documentFont(), size: 22 })];
             if (bg.aliases && bg.aliases.length > 0) {
-                descRuns.push(new TextRun({ text: `  (ook: ${bg.aliases.join(', ')})`, font: 'Arial', size: 20, italics: true, color: '64748B' }));
+                descRuns.push(new TextRun({ text: `  (ook: ${bg.aliases.join(', ')})`, font: documentFont(), size: 20, italics: true, color: '64748B' }));
             }
             return new TableRow({
                 children: [
-                    mkCell([new Paragraph({ children: [new TextRun({ text: bg.keyword, bold: true, font: 'Arial', size: 22 })] })], fill, 2800),
+                    mkCell([new Paragraph({ children: [new TextRun({ text: bg.keyword, bold: true, font: documentFont(), size: 22 })] })], fill, 2800),
                     mkCell([new Paragraph({ children: descRuns })], fill, 6226),
                 ]
             });
@@ -1110,21 +1118,21 @@
 
             const doc = new Document({
                 styles: {
-                    default: { document: { run: { font: 'Arial', size: 24, color: '1E293B' } } },
+                    default: { document: { run: { font: documentFont(), size: 24, color: '1E293B' } } },
                     paragraphStyles: [
                         {
                             id: 'Heading1', name: 'Heading 1', basedOn: 'Normal', next: 'Normal', quickFormat: true,
-                            run: { size: h1def.size, bold: h1def.bold, italics: h1def.italic, font: 'Arial', color: h1def.color },
+                            run: { size: h1def.size, bold: h1def.bold, italics: h1def.italic, font: documentFont(), color: h1def.color },
                             paragraph: { spacing: { before: h1def.spacingBefore ?? 240, after: h1def.spacingAfter ?? 120 }, outlineLevel: 0 }
                         },
                         {
                             id: 'Heading2', name: 'Heading 2', basedOn: 'Normal', next: 'Normal', quickFormat: true,
-                            run: { size: h2def.size, bold: h2def.bold, italics: h2def.italic, font: 'Arial', color: h2def.color },
+                            run: { size: h2def.size, bold: h2def.bold, italics: h2def.italic, font: documentFont(), color: h2def.color },
                             paragraph: { spacing: { before: h2def.spacingBefore ?? 200, after: h2def.spacingAfter ?? 100 }, outlineLevel: 1 }
                         },
                         {
                             id: 'Heading3', name: 'Heading 3', basedOn: 'Normal', next: 'Normal', quickFormat: true,
-                            run: { size: h3def.size, bold: h3def.bold, italics: h3def.italic, font: 'Arial', color: h3def.color },
+                            run: { size: h3def.size, bold: h3def.bold, italics: h3def.italic, font: documentFont(), color: h3def.color },
                             paragraph: { spacing: { before: h3def.spacingBefore ?? 160, after: h3def.spacingAfter ?? 80 }, outlineLevel: 2 }
                         },
                     ],
@@ -1133,9 +1141,9 @@
                     config: [
                         {
                             reference: 'bullets', levels: [
-                                { level: 0, format: LevelFormat.BULLET, text: '\u2022', alignment: AlignmentType.LEFT, style: { paragraph: { indent: { left: 720, hanging: 360 } }, run: { font: 'Arial' } } },
-                                { level: 1, format: LevelFormat.BULLET, text: '\u25E6', alignment: AlignmentType.LEFT, style: { paragraph: { indent: { left: 1080, hanging: 360 } }, run: { font: 'Arial' } } },
-                                { level: 2, format: LevelFormat.BULLET, text: '\u25AA', alignment: AlignmentType.LEFT, style: { paragraph: { indent: { left: 1440, hanging: 360 } }, run: { font: 'Arial' } } },
+                                { level: 0, format: LevelFormat.BULLET, text: '\u2022', alignment: AlignmentType.LEFT, style: { paragraph: { indent: { left: 720, hanging: 360 } }, run: { font: documentFont() } } },
+                                { level: 1, format: LevelFormat.BULLET, text: '\u25E6', alignment: AlignmentType.LEFT, style: { paragraph: { indent: { left: 1080, hanging: 360 } }, run: { font: documentFont() } } },
+                                { level: 2, format: LevelFormat.BULLET, text: '\u25AA', alignment: AlignmentType.LEFT, style: { paragraph: { indent: { left: 1440, hanging: 360 } }, run: { font: documentFont() } } },
                             ]
                         },
                         {

@@ -27,6 +27,7 @@ async function saveToLocalStorage() {
         tabRuler: tabRulerData,
         tabRulerIndents: tabRulerIndents,
         headerFooter: headerFooterData,
+        fontFamily: window.DocumentFont ? window.DocumentFont.getActiveFontId() : null,
         timestamp: new Date().toISOString()
     };
 

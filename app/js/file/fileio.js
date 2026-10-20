@@ -67,7 +67,8 @@ function computeDocFingerprint() {
             customStyles: window.StyleManager ? window.StyleManager.getCustomStyles() : {},
             headerFooter: window.HeaderFooter ? window.HeaderFooter.getData() : null,
             tabRulerIndents: window.TabRuler && typeof window.TabRuler.getIndentsData === 'function'
-                ? window.TabRuler.getIndentsData() : null
+                ? window.TabRuler.getIndentsData() : null,
+            fontFamily: window.DocumentFont ? window.DocumentFont.getActiveFontId() : null
         });
     } catch (e) {
         // A transient fingerprinting failure must not flip the doc to "dirty"
@@ -269,6 +270,7 @@ async function buildPayload() {
         headerFooter: window.HeaderFooter ? window.HeaderFooter.getData() : null,
         tabRulerIndents: window.TabRuler && typeof window.TabRuler.getIndentsData === 'function'
             ? window.TabRuler.getIndentsData() : null,
+        fontFamily: window.DocumentFont ? window.DocumentFont.getActiveFontId() : null,
         timestamp: new Date().toISOString()
     };
 
@@ -463,6 +465,9 @@ function newSummary() {
         state.begrippen = [];
         window.currentFilePath = null;
         window.DocumentProtection?.reset();
+        // A new document starts with the app-wide font, not the previous
+        // document's per-document choice.
+        window.DocumentFont && window.DocumentFont.resetDocumentFont();
         localStorage.removeItem('summie_current_file_path');
         updateWindowTitle(null);
         window.AutoSave && window.AutoSave.onFileChanged();

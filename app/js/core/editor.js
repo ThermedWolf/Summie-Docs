@@ -220,6 +220,9 @@ function applyLoadedData(data) {
     }
     setPendingEmptyEditorStyle('normal');
     state.editor.querySelectorAll('.placeholder-text').forEach(el => el.remove());
+    // Per-document font — optional payload field; missing/invalid falls back to
+    // the app-wide default, so older .sumd files load unchanged.
+    window.DocumentFont && window.DocumentFont.applyDocumentFont(data.fontFamily);
     if (!isPaginatedFile && (!loadedHtml.trim() || loadedHtml === '<p>Begin hier met typen...</p>')) {
         setEditorPlaceholder();
     } else {

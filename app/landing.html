@@ -9,6 +9,8 @@
     <title>Summie</title>
     <!-- Apply saved theme before first paint to avoid a light-mode flash -->
     <script src="js/ui/theme.js"></script>
+    <!-- Apply the saved document font before first paint (no font flash) -->
+    <script src="js/ui/document-font.js"></script>
     <!-- Untrusted-content sanitisation (DOMPurify + Summie wrapper) -->
     <script src="js/lib/purify.min.js"></script>
     <script src="js/security/sanitize.js"></script>
@@ -516,6 +518,17 @@
                             <option value="dark">Donker</option>
                             <option value="light">Licht</option>
                         </select>
+                    </div>
+                </div>
+                <div class="settings-group">
+                    <h3 class="settings-group-title">Lettertype</h3>
+                    <div class="settings-item settings-item-dir">
+                        <div class="settings-item-info">
+                            <span class="settings-item-label">Standaard lettertype</span>
+                            <span class="settings-item-desc">Kies het lettertype voor documenten. Een document kan
+                                hiervan afwijken — dat wordt met het document opgeslagen.</span>
+                        </div>
+                        <div class="font-choice-list" id="fontChoiceList"><!-- rendered by landing.js --></div>
                     </div>
                 </div>
                 <div class="settings-group">

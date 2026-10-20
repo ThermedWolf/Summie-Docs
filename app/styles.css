@@ -22,6 +22,9 @@
     --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
     --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    /* Document typeface — overridden inline (per font choice) by
+       js/ui/document-font.js before first paint; consumed by .a4-page. */
+    --font-document: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
 }
 
 /* ==================== DONKERE MODUS ====================
@@ -414,6 +417,7 @@ body {
     box-shadow: var(--shadow-lg);
     outline: none;
     font-size: 12pt;
+    font-family: var(--font-document);
     line-height: 1.4;
     animation: fadeIn 0.5s ease;
     --spellcheck: false;
@@ -475,6 +479,7 @@ body {
     pointer-events: none;
     cursor: text;
     font-size: 12pt;
+    font-family: var(--font-document);
     line-height: 1.4;
     opacity: 0;
     transition: opacity 0.22s ease;
