@@ -103,7 +103,7 @@
 }
 
 .win-btn:hover {
-    background: rgba(59, 130, 246, 0.12);
+    background: color-mix(in srgb, var(--primary-color, #3b82f6) 12%, transparent);
     color: var(--primary-color);
 }
 
@@ -508,7 +508,7 @@
 
 .font-size-input:focus {
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color, #3b82f6) 10%, transparent);
 }
 
 .font-size-dropdown {
@@ -716,7 +716,7 @@
 
 .color-swatch.selected {
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary-color, #3b82f6) 20%, transparent);
 }
 
 .color-none-btn {
@@ -738,7 +738,7 @@
 
 .color-none-btn:hover {
     transform: none;
-    background: rgba(59, 130, 246, 0.08);
+    background: color-mix(in srgb, var(--primary-color, #3b82f6) 8%, transparent);
     border-color: var(--primary-color);
     color: var(--text-primary);
 }
@@ -950,7 +950,7 @@
 }
 
 [data-theme='dark'] .sdm-item.active {
-    background: rgba(37, 99, 235, 0.18);
+    background: color-mix(in srgb, var(--primary-color, #2563eb) 18%, transparent);
 }
 
 .sdm-preview {
@@ -1034,7 +1034,7 @@
 }
 
 [data-theme='dark'] .sdm-add-btn:hover {
-    background: rgba(37, 99, 235, 0.18);
+    background: color-mix(in srgb, var(--primary-color, #2563eb) 18%, transparent);
 }
 
 /* ==================== STYLE EDITOR MODAL ==================== */
@@ -1292,17 +1292,17 @@
 
 .btn-file-primary {
     background: var(--primary-color);
-    color: white;
+    color: var(--primary-contrast, #fff);
     border-color: var(--primary-color);
 }
 
 .btn-file-primary:hover {
-    background: #2563eb;
-    border-color: #2563eb;
+    background: var(--primary-hover, #2563eb);
+    border-color: var(--primary-hover, #2563eb);
 }
 
 .btn-file-primary svg {
-    stroke: white;
+    stroke: var(--primary-contrast, #fff);
 }
 
 .btn-file-home {

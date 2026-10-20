@@ -137,7 +137,7 @@ window.TocManager = (function () {
                 #tocPickerDialog { animation: tocSlideUp 0.18s ease; }
                 .toc-picker-card { transition: border-color 0.12s, box-shadow 0.12s, transform 0.1s; cursor: pointer; }
                 .toc-picker-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.10) !important; }
-                .toc-picker-card.selected { border-color: var(--primary-color, #3b82f6) !important; box-shadow: 0 0 0 3px rgba(59,130,246,0.15) !important; }
+                .toc-picker-card.selected { border-color: var(--primary-color, #3b82f6) !important; box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color, #3b82f6) 15%, transparent) !important; }
             `;
             document.head.appendChild(s);
         }

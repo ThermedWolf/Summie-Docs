@@ -75,7 +75,7 @@ class DocumentPreview {
             width: 22px;
             height: 22px;
             border: 2px solid rgba(100, 116, 139, 0.22);
-            border-top-color: #3b82f6;
+            border-top-color: var(--primary-color, #3b82f6);
             border-radius: 999px;
             animation: docPreviewSpin 0.75s linear infinite;
         `;
@@ -214,14 +214,14 @@ ${cssLinks}
             this._loader.style.color = '#8a83ab';
             if (spinner) {
                 spinner.style.borderColor = 'rgba(138, 131, 171, 0.22)';
-                spinner.style.borderTopColor = '#3b82f6';
+                spinner.style.borderTopColor = 'var(--primary-color, #3b82f6)';
             }
         } else {
             this._loader.style.background = 'linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%)';
             this._loader.style.color = '#64748b';
             if (spinner) {
                 spinner.style.borderColor = 'rgba(100, 116, 139, 0.22)';
-                spinner.style.borderTopColor = '#3b82f6';
+                spinner.style.borderTopColor = 'var(--primary-color, #3b82f6)';
             }
         }
     }

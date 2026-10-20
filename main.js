@@ -261,6 +261,15 @@ const PIPER_GENDER_MAP = {
 // (the renderer module can't be required here; main only validates the id).
 const DOCUMENT_FONT_IDS = ['default', 'arial', 'calibri', 'georgia', 'times', 'verdana', 'trebuchet', 'comicsans'];
 
+// Custom accent colours — '#rrggbb' or null (= factory palette). Validated on
+// read so only well-formed lowercase hex ever reaches the renderer.
+const HEX_COLOR_RE = /^#[0-9a-f]{6}$/;
+function normalizeHexColor(value) {
+    if (typeof value !== 'string') return null;
+    const lowered = value.toLowerCase();
+    return HEX_COLOR_RE.test(lowered) ? lowered : null;
+}
+
 const DEFAULT_APP_SETTINGS = {
     language: detectDefaultLanguage(),  // 'nl' | 'en'
     autoSaveNewFiles: false,            // automatically save new documents
@@ -268,6 +277,8 @@ const DEFAULT_APP_SETTINGS = {
     closeToHome: true,                  // close button → landing page instead of quitting
     numberLocale: 'eu',                 // 'eu' = komma decimaal | 'us' = punt decimaal
     theme: 'system',                    // 'system' = volg OS | 'dark' | 'light'
+    accentLight: null,                  // accentkleur lichte modus '#rrggbb' | null = fabriekspalet
+    accentDark: null,                   // accentkleur donkere modus '#rrggbb' | null = fabriekspalet
     documentFont: 'default',            // document lettertype — ids mirror js/ui/document-font.js DOCUMENT_FONTS
     dismissedUpdateVersion: null,       // update version whose reminder the user dismissed
     citationAuthorDelimiter: 'semicolon', // 'semicolon' (;) | 'newline' (\n) — scheidingsteken tussen auteurs in invoerveld
@@ -291,6 +302,8 @@ function readAppSettings() {
         merged.citationAuthorDelimiter = 'semicolon';
     }
     if (!DOCUMENT_FONT_IDS.includes(merged.documentFont)) merged.documentFont = DEFAULT_APP_SETTINGS.documentFont;
+    merged.accentLight = normalizeHexColor(merged.accentLight);
+    merged.accentDark = normalizeHexColor(merged.accentDark);
     // TTS settings — validate and clamp
     if (typeof merged.ttsRate !== 'number' || merged.ttsRate < 0.5 || merged.ttsRate > 2) merged.ttsRate = DEFAULT_APP_SETTINGS.ttsRate;
     if (!['female', 'male', 'system'].includes(merged.ttsGender)) merged.ttsGender = DEFAULT_APP_SETTINGS.ttsGender;
@@ -902,6 +915,10 @@ safeHandle('favourites-save', (event, favs) => {
 safeOnLax('get-theme-sync', (event) => {
     event.returnValue = readAppSettings().theme || 'system';
 });
+safeOnLax('get-accent-sync', (event) => {
+    const settings = readAppSettings();
+    event.returnValue = { accentLight: settings.accentLight, accentDark: settings.accentDark };
+});
 safeOnLax('get-font-sync', (event) => {
     event.returnValue = readAppSettings().documentFont || 'default';
 });
@@ -951,6 +968,13 @@ safeHandle('settings-set', (event, patch) => {
     if (patch && patch.documentFont && patch.documentFont !== current.documentFont) {
         BrowserWindow.getAllWindows().forEach(win => {
             win.webContents.send('font-changed', updated.documentFont || 'default');
+        });
+    }
+    // Keep every open window in sync when an accent colour changes via settings
+    if (patch && (patch.accentLight !== undefined || patch.accentDark !== undefined)) {
+        const accents = { accentLight: updated.accentLight, accentDark: updated.accentDark };
+        BrowserWindow.getAllWindows().forEach(win => {
+            win.webContents.send('accent-changed', accents);
         });
     }
     // Keep every open window in sync when the language changes via settings

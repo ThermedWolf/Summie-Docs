@@ -23,6 +23,9 @@
     function apply(pref) {
         var theme = resolveTheme(pref);
         document.documentElement.setAttribute('data-theme', theme);
+        // Light and dark accents are independent overrides, so a mode switch
+        // (explicit or via the OS when following 'system') may switch the accent.
+        if (window.SummieAccent) window.SummieAccent.apply(theme);
     }
 
     function setPreference(pref) {

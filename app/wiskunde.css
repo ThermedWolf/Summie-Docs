@@ -43,7 +43,7 @@
 
 /* Click to edit breuk */
 .summie-breuk:hover {
-    outline: 2px solid rgba(59, 130, 246, 0.35);
+    outline: 2px solid color-mix(in srgb, var(--primary-color, #3b82f6) 35%, transparent);
     outline-offset: 2px;
     border-radius: 3px;
 }
@@ -65,12 +65,12 @@
 }
 
 .summie-grafiek-wrapper:hover {
-    border-color: rgba(59, 130, 246, 0.35);
+    border-color: color-mix(in srgb, var(--primary-color, #3b82f6) 35%, transparent);
 }
 
 .summie-grafiek-wrapper.selected {
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18), var(--shadow-sm);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color, #3b82f6) 18%, transparent), var(--shadow-sm);
 }
 
 .summie-grafiek-wrapper:focus {
@@ -78,7 +78,7 @@
 }
 
 .summie-grafiek-wrapper:focus-visible {
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.22), var(--shadow-sm);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color, #3b82f6) 22%, transparent), var(--shadow-sm);
 }
 
 .summie-grafiek-wrapper canvas {
@@ -142,8 +142,8 @@
 }
 
 .summie-grafiek-wrapper.selected .summie-grafiek-toolbar {
-    background: rgba(59, 130, 246, 0.06);
-    border-bottom-color: rgba(59, 130, 246, 0.18);
+    background: color-mix(in srgb, var(--primary-color, #3b82f6) 6%, transparent);
+    border-bottom-color: color-mix(in srgb, var(--primary-color, #3b82f6) 18%, transparent);
 }
 
 /* ── Modals ──────────────────────────────────────────────────────────── */

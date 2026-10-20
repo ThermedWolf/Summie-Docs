@@ -12,6 +12,10 @@ const APP_VERSION = ipcRenderer.sendSync('get-app-version-sync');
 // between pages within the same window.
 const initialTheme = ipcRenderer.sendSync('get-theme-sync');
 
+// Custom accent colours fetched synchronously for the same reason — applied
+// pre-paint by js/ui/accent.js so the page never flashes the factory palette.
+const initialAccent = ipcRenderer.sendSync('get-accent-sync');
+
 // Language setting fetched synchronously so translations can be applied before
 // first paint. Falls back to the device default (handled in main.js).
 const initialLanguage = ipcRenderer.sendSync('get-language-sync');
@@ -95,6 +99,7 @@ contextBridge.exposeInMainWorld(
         settingsSet: (patch) => ipcRenderer.invoke('settings-set', patch),
         settingsPickDirectory: () => ipcRenderer.invoke('settings-pick-directory'),
         onThemeChanged: (callback) => ipcRenderer.on('theme-changed', (_, theme) => callback(theme)),
+        onAccentChanged: (callback) => ipcRenderer.on('accent-changed', (_, accents) => callback(accents)),
         onLanguageChanged: (callback) => ipcRenderer.on('language-changed', (_, lang) => callback(lang)),
         onSettingsChanged: (callback) => ipcRenderer.on('settings-changed', (_, patch) => callback(patch)),
 
@@ -138,6 +143,7 @@ contextBridge.exposeInMainWorld(
         name: 'Summie',
         isElectron: true,
         theme: initialTheme,
+        accent: initialAccent,
         language: initialLanguage
     }
 );

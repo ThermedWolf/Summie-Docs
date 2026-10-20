@@ -10,6 +10,7 @@
 :root {
     --primary: #3b82f6;
     --primary-hover: #2563eb;
+    --primary-contrast: #ffffff;
     --primary-light: #eff6ff;
     --bg: #f8fafc;
     --surface: #ffffff;
@@ -39,6 +40,7 @@
     color-scheme: dark;
     --primary: #2563eb;
     --primary-hover: #3b82f6;
+    --primary-contrast: #ffffff;
     --primary-light: rgba(37, 99, 235, 0.18);
     --bg: #08081a;
     --surface: #12122a;
@@ -305,7 +307,7 @@ body {
 
 .sidebar-btn-primary {
     background: var(--primary);
-    color: white;
+    color: var(--primary-contrast, #fff);
     border-color: var(--primary);
 }
 
@@ -363,7 +365,7 @@ body {
 
 .current-doc-card:hover {
     border-color: var(--primary);
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.12);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 12%, transparent);
 }
 
 .doc-preview-container {
@@ -565,7 +567,7 @@ body {
 
 .fav-doc-card:hover {
     border-color: var(--primary);
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.08), 0 8px 20px rgba(15, 23, 42, 0.08);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 8%, transparent), 0 8px 20px rgba(15, 23, 42, 0.08);
     transform: translateY(-1px);
 }
 
@@ -687,7 +689,7 @@ body {
 .fav-scroll-next:hover {
     transform: translateY(-38%) translateX(2px);
     border-color: var(--primary);
-    box-shadow: 0 10px 28px rgba(59, 130, 246, 0.22);
+    box-shadow: 0 10px 28px color-mix(in srgb, var(--primary) 22%, transparent);
 }
 
 /* ═══════════════════════════ RECENT DOCS ═════════════════════════════ */
@@ -717,7 +719,7 @@ body {
 
 .recent-doc-item:hover {
     border-color: var(--primary);
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.07), 0 2px 8px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 7%, transparent), 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .recent-doc-item.dragging {
@@ -827,7 +829,7 @@ body {
     font-weight: 500;
     background: var(--primary-light);
     color: var(--primary);
-    border: 1px solid rgba(59, 130, 246, 0.25);
+    border: 1px solid color-mix(in srgb, var(--primary) 25%, transparent);
     border-radius: 8px;
     padding: 1px 6px;
 }
@@ -1044,7 +1046,7 @@ body {
 
 .btn-confirm {
     background: var(--primary);
-    color: white;
+    color: var(--primary-contrast, #fff);
     border: none;
 }
 
@@ -1114,14 +1116,14 @@ body {
 
 .new-doc-option:hover {
     border-color: var(--primary);
-    box-shadow: 0 4px 20px rgba(59, 130, 246, 0.12), 0 0 0 2px rgba(59, 130, 246, 0.08);
+    box-shadow: 0 4px 20px color-mix(in srgb, var(--primary) 12%, transparent), 0 0 0 2px color-mix(in srgb, var(--primary) 8%, transparent);
     transform: translateY(-1px);
 }
 
 .new-doc-option:focus-visible {
     outline: none;
     border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.22);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 22%, transparent);
 }
 
 .new-doc-option:active {
@@ -1219,7 +1221,7 @@ body {
     justify-content: center;
     font-size: 9px;
     font-weight: 700;
-    color: white;
+    color: var(--primary-contrast, #fff);
     background: var(--primary);
     border-radius: 999px;
     line-height: 1;
@@ -1479,6 +1481,112 @@ body {
     max-width: 100%;
 }
 
+/* Accent colour (Accentkleur) — per-mode row of preset swatches, a free
+   colour picker and a reset, nested in a .settings-item-dir row so it
+   shares that item's surface */
+.accent-choice-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+}
+
+.accent-choice-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.accent-choice-mode {
+    min-width: 52px;
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.accent-swatch-list {
+    display: flex;
+    gap: 6px;
+}
+
+.accent-swatch {
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+    transition: transform 0.12s, box-shadow 0.12s;
+}
+
+.accent-swatch:hover {
+    transform: scale(1.12);
+}
+
+.accent-swatch.active {
+    box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--primary);
+}
+
+.accent-swatch:focus-visible,
+.accent-reset-btn:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+/* Free picker — the native colour input styled as a swatch with a rainbow
+   base so it reads as "custom colour" next to the fixed presets */
+.accent-swatch-custom {
+    display: inline-flex;
+    border-radius: 50%;
+    overflow: hidden;
+}
+
+.accent-swatch-custom input[type='color'] {
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: none;
+    cursor: pointer;
+    background: conic-gradient(red, yellow, lime, cyan, blue, magenta, red);
+}
+
+.accent-swatch-custom input[type='color']::-webkit-color-swatch-wrapper {
+    padding: 0;
+}
+
+.accent-swatch-custom input[type='color']::-webkit-color-swatch {
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 50%;
+}
+
+.accent-custom-active .accent-swatch-custom {
+    box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--primary);
+}
+
+.accent-reset-btn {
+    margin-left: auto;
+    padding: 4px 8px;
+    font-size: 11px;
+    font-family: inherit;
+    color: var(--text-secondary);
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: color 0.15s, background 0.15s;
+}
+
+.accent-reset-btn:hover:not(:disabled) {
+    color: var(--primary);
+    background: var(--primary-light);
+}
+
+.accent-reset-btn:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
 .settings-dir-picker {
     display: flex;
     align-items: center;
@@ -1625,7 +1733,7 @@ body {
 .landing-search-input:focus {
     outline: none;
     border-color: var(--primary);
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 10%, transparent);
 }
 
 .landing-search-input::placeholder {
@@ -1686,7 +1794,7 @@ body {
 .filter-chip.active {
     background: var(--primary);
     border-color: var(--primary);
-    color: white;
+    color: var(--primary-contrast, #fff);
 }
 
 .filter-sep {
@@ -1819,10 +1927,10 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #fff;
+    color: var(--primary-contrast, #fff);
     background: linear-gradient(135deg, var(--primary), var(--primary-hover));
     border-radius: 10px;
-    box-shadow: 0 4px 10px rgba(59, 130, 246, 0.35);
+    box-shadow: 0 4px 10px color-mix(in srgb, var(--primary) 35%, transparent);
 }
 
 .update-modal-content {
@@ -2070,7 +2178,7 @@ body {
 
 .update-btn-primary {
     background: var(--primary);
-    color: #fff;
+    color: var(--primary-contrast, #fff);
     border-color: var(--primary);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
@@ -2137,5 +2245,5 @@ body {
 .landing-filter-toggle-btn.active {
     background: var(--primary);
     border-color: var(--primary);
-    color: white;
+    color: var(--primary-contrast, #fff);
 }

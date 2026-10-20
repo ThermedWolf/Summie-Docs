@@ -335,5 +335,5 @@
 [data-theme='dark'] .tbx-border-style-btn.active,
 [data-theme='dark'] .tbx-border-width-btn.active,
 [data-theme='dark'] .tbx-shadow-btn.active {
-    background: rgba(37, 99, 235, 0.18) !important;
+    background: color-mix(in srgb, var(--primary-color, #2563eb) 18%, transparent) !important;
 }

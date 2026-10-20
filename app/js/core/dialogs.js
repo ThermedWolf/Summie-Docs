@@ -77,13 +77,13 @@
                 background: #f1f5f9;
             }
             .summie-dlg-btn-primary {
-                background: #3b82f6;
-                border-color: #3b82f6;
-                color: #ffffff;
+                background: var(--primary-color, #3b82f6);
+                border-color: var(--primary-color, #3b82f6);
+                color: var(--primary-contrast, #ffffff);
             }
             .summie-dlg-btn-primary:hover {
-                background: #2563eb;
-                border-color: #2563eb;
+                background: var(--primary-hover, #2563eb);
+                border-color: var(--primary-hover, #2563eb);
             }
             .summie-dlg-btn-danger {
                 background: #ef4444;
@@ -108,8 +108,8 @@
                 outline: none;
             }
             .summie-dlg-input:focus {
-                border-color: #3b82f6;
-                box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.16);
+                border-color: var(--primary-color, #3b82f6);
+                box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color, #3b82f6) 16%, transparent);
             }
             .summie-dlg-input-error {
                 border-color: #ef4444;
@@ -129,13 +129,16 @@
                 cursor: not-allowed;
             }
             .summie-dlg-btn:disabled:hover {
-                background: #3b82f6;
-                border-color: #3b82f6;
+                background: var(--primary-color, #3b82f6);
+                border-color: var(--primary-color, #3b82f6);
             }
             /* ==================== DONKERE MODUS ====================
-               Explicit palette (not CSS vars) because this dialog is injected
-               into pages with different variable names (editor vs landing).
-               Matches [data-theme='dark'] in styles.css / landing.css. */
+               Body colours are explicit (not CSS vars) because this dialog is
+               injected into pages with different variable names (editor vs
+               landing). Only the accent follows the app-wide custom accent:
+               --primary-color/--primary-hover/--primary-contrast are set on
+               <html> by js/ui/accent.js on every page, with the factory blue
+               as fallback. */
             [data-theme='dark'] .summie-dlg-box {
                 background: #12122a;
                 box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);

@@ -157,7 +157,7 @@ inhoudList.innerHTML = '<p class="empty-state">' + SummieI18n.t('Geen koppen gev
 
         item.addEventListener('click', () => {
             heading.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            heading.style.backgroundColor = 'rgba(59, 130, 246, 0.1)';
+            heading.style.backgroundColor = 'color-mix(in srgb, var(--primary-color, #3b82f6) 10%, transparent)';
             setTimeout(() => { heading.style.backgroundColor = ''; }, 1000);
         });
 

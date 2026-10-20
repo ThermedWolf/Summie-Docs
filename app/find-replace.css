@@ -143,7 +143,7 @@
 
 .fr-input:focus {
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary-color, #3b82f6) 15%, transparent);
 }
 
 .fr-input.fr-input--error {
@@ -188,9 +188,9 @@
 }
 
 .fr-opt-btn.active {
-    background: rgba(59, 130, 246, 0.1);
+    background: color-mix(in srgb, var(--primary-color, #3b82f6) 10%, transparent);
     color: var(--primary-color);
-    border-color: rgba(59, 130, 246, 0.3);
+    border-color: color-mix(in srgb, var(--primary-color, #3b82f6) 30%, transparent);
 }
 
 /* ── Navigation buttons (prev / next) ── */

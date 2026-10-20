@@ -225,7 +225,7 @@
 .bron-btn:hover {
     border-color: var(--primary-color);
     color: var(--primary-color);
-    background: rgba(59, 130, 246, 0.08);
+    background: color-mix(in srgb, var(--primary-color, #3b82f6) 8%, transparent);
 }
 
 .bron-btn-danger:hover {
@@ -334,7 +334,7 @@
 
 .citation-result-row:hover {
     border-color: var(--primary-color);
-    background: rgba(59, 130, 246, 0.04);
+    background: color-mix(in srgb, var(--primary-color, #3b82f6) 4%, transparent);
 }
 
 .citation-result-title {
@@ -356,9 +356,9 @@
 }
 
 .citation-preview-card {
-    border: 1px solid rgba(59, 130, 246, 0.35);
+    border: 1px solid color-mix(in srgb, var(--primary-color, #3b82f6) 35%, transparent);
     border-radius: 8px;
-    background: rgba(59, 130, 246, 0.04);
+    background: color-mix(in srgb, var(--primary-color, #3b82f6) 4%, transparent);
     padding: 12px 14px;
 }
 

@@ -39,7 +39,7 @@ function _showMissingDocDialog(doc) {
             '.md-btn{transition:background 0.12s,box-shadow 0.12s,transform 0.08s}',
             '.md-btn:hover{transform:translateY(-1px)}',
             '.md-btn:active{transform:translateY(0)}',
-            '.md-btn-primary:hover{background:var(--primary-hover)!important;box-shadow:0 4px 12px rgba(59,130,246,0.35)!important}',
+            '.md-btn-primary:hover{background:var(--primary-hover)!important;box-shadow:0 4px 12px color-mix(in srgb, var(--primary, #3b82f6) 35%, transparent)!important}',
             '.md-btn-ghost:hover{background:var(--border-light)!important}',
             '.md-btn-danger:hover{background:var(--danger-light)!important;color:var(--danger)!important}',
             '.md-btn-danger:hover svg{stroke:var(--danger)!important}'
@@ -1755,6 +1755,98 @@ async function initSettings() {
             if (window.SummieTheme) window.SummieTheme.setPreference(theme);
             await window.electron.settingsSet({ theme });
         });
+    }
+
+    // Accent colour (Accentkleur) — per-mode presets + free picker + reset,
+    // rendered like the font picker. null = factory palette (reset).
+    const FACTORY_ACCENTS = { light: '#3b82f6', dark: '#2563eb' };
+    const ACCENT_PRESETS = [
+        { name: 'Blauw', hex: '#3b82f6' },
+        { name: 'Groen', hex: '#10b981' },
+        { name: 'Turquoise', hex: '#14b8a6' },
+        { name: 'Paars', hex: '#8b5cf6' },
+        { name: 'Roze', hex: '#ec4899' },
+        { name: 'Oranje', hex: '#f59e0b' },
+    ];
+    // Authoritative values — updated from every 'accent-changed' broadcast so
+    // the picker also follows changes made in another window.
+    const savedAccents = {
+        accentLight: settings.accentLight || null,
+        accentDark: settings.accentDark || null,
+    };
+
+    const accentKeyOf = (mode) => (mode === 'dark' ? 'accentDark' : 'accentLight');
+    const isPresetAccent = (hex) => ACCENT_PRESETS.some(preset => preset.hex === hex);
+
+    // Local, un-persisted application (live preview while dragging the picker).
+    function previewAccent(mode, hex) {
+        if (!window.SummieAccent) return;
+        const next = { ...window.SummieAccent.getAccents(), [accentKeyOf(mode)]: hex };
+        window.SummieAccent.setAccents(next);
+    }
+
+    async function saveAccent(mode, hex) {
+        previewAccent(mode, hex);
+        savedAccents[accentKeyOf(mode)] = hex;
+        await window.electron.settingsSet({ [accentKeyOf(mode)]: hex });
+    }
+
+    function renderAccentRow(row) {
+        const mode = row.dataset.mode;
+        const current = savedAccents[accentKeyOf(mode)];
+        const list = row.querySelector('.accent-swatch-list');
+        list.textContent = '';
+
+        ACCENT_PRESETS.forEach((preset) => {
+            const swatch = document.createElement('button');
+            swatch.type = 'button';
+            swatch.className = 'accent-swatch' + (current === preset.hex ? ' active' : '');
+            swatch.style.background = preset.hex;
+            swatch.title = SummieI18n.t(preset.name);
+            swatch.setAttribute('aria-label', SummieI18n.t(preset.name));
+            swatch.addEventListener('click', () => saveAccent(mode, preset.hex));
+            list.appendChild(swatch);
+        });
+
+        const custom = row.querySelector('.accent-custom-input');
+        custom.value = current || FACTORY_ACCENTS[mode];
+        row.classList.toggle('accent-custom-active', !!current && !isPresetAccent(current));
+
+        row.querySelector('.accent-reset-btn').disabled = !current;
+    }
+
+    // Listeners are bound once per row — renderAccentRow only refreshes state.
+    function bindAccentRow(row) {
+        const mode = row.dataset.mode;
+        const custom = row.querySelector('.accent-custom-input');
+        custom.addEventListener('input', () => previewAccent(mode, custom.value));
+        custom.addEventListener('change', () => {
+            if (custom.value) saveAccent(mode, custom.value);
+        });
+        // Cancelled picker (Esc closes without a 'change' event): snap the live
+        // preview back to the saved value.
+        custom.addEventListener('blur', () => {
+            if (custom.value !== (savedAccents[accentKeyOf(mode)] || FACTORY_ACCENTS[mode])) {
+                renderAccentRow(row);
+                previewAccent(mode, savedAccents[accentKeyOf(mode)]);
+            }
+        });
+        row.querySelector('.accent-reset-btn').addEventListener('click', () => saveAccent(mode, null));
+    }
+
+    const accentRows = document.querySelectorAll('.accent-choice-row');
+    if (accentRows.length) {
+        accentRows.forEach((row) => {
+            bindAccentRow(row);
+            renderAccentRow(row);
+        });
+        if (window.electron && window.electron.onAccentChanged) {
+            window.electron.onAccentChanged((accents) => {
+                savedAccents.accentLight = accents.accentLight || null;
+                savedAccents.accentDark = accents.accentDark || null;
+                accentRows.forEach(renderAccentRow);
+            });
+        }
     }
 
     // Document font (Lettertype) — curated picker, each entry previews its own

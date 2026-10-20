@@ -7,6 +7,7 @@
 :root {
     --primary-color: #3b82f6;
     --primary-hover: #2563eb;
+    --primary-contrast: #ffffff;
     --secondary-color: #64748b;
     --danger-color: #ef4444;
     --success-color: #10b981;
@@ -35,6 +36,7 @@
     color-scheme: dark;
     --primary-color: #2563eb;
     --primary-hover: #3b82f6;
+    --primary-contrast: #ffffff;
     --secondary-color: #8a83ab;
     --danger-color: #ef4444;
     --success-color: #22c55e;
@@ -118,7 +120,7 @@ body {
 
 .btn-primary {
     background: var(--primary-color);
-    color: white;
+    color: var(--primary-contrast, #fff);
     border-color: var(--primary-color);
 }
 
@@ -165,7 +167,7 @@ body {
 .btn-icon.active {
     background: var(--primary-color);
     border-color: var(--primary-color);
-    color: white;
+    color: var(--primary-contrast, #fff);
 }
 
 .btn-icon.active svg {
@@ -193,7 +195,7 @@ body {
 .style-select:focus {
     outline: none;
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color, #3b82f6) 10%, transparent);
 }
 
 /* Main Content */
@@ -852,7 +854,7 @@ body {
 .search-box input:focus {
     outline: none;
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color, #3b82f6) 10%, transparent);
 }
 
 .search-results {
@@ -964,7 +966,7 @@ body {
 
 .begrip-item.highlight-item {
     border-color: var(--primary-color);
-    background: rgba(59, 130, 246, 0.05);
+    background: color-mix(in srgb, var(--primary-color, #3b82f6) 5%, transparent);
 }
 
 .begrip-item.collapsed .begrip-description {
@@ -1289,7 +1291,7 @@ body {
 }
 
 .close-btn:hover {
-    background: rgba(59, 130, 246, 0.1);
+    background: color-mix(in srgb, var(--primary-color, #3b82f6) 10%, transparent);
     color: var(--primary-color);
 }
 
@@ -1326,7 +1328,7 @@ body {
 .form-group textarea:focus {
     outline: none;
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color, #3b82f6) 10%, transparent);
 }
 
 .form-group textarea {
@@ -1370,10 +1372,10 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #fff;
+    color: var(--primary-contrast, #fff);
     background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
     border-radius: 10px;
-    box-shadow: 0 4px 10px rgba(59, 130, 246, 0.35);
+    box-shadow: 0 4px 10px color-mix(in srgb, var(--primary-color, #3b82f6) 35%, transparent);
 }
 
 .update-modal-content {
@@ -1423,7 +1425,7 @@ body {
 .update-version-latest .update-version-value {
     display: inline-block;
     color: var(--primary-color);
-    background: rgba(59, 130, 246, 0.1);
+    background: color-mix(in srgb, var(--primary-color, #3b82f6) 10%, transparent);
     padding: 2px 10px;
     border-radius: 999px;
 }
@@ -1621,7 +1623,7 @@ body {
 
 .update-btn-primary {
     background: var(--primary-color);
-    color: #fff;
+    color: var(--primary-contrast, #fff);
     border-color: var(--primary-color);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
@@ -1977,19 +1979,19 @@ ul.list-style-arrow li::marker {
     border-color: var(--primary-color);
     outline: none;
     animation: input-glow 2s ease-in-out;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color, #3b82f6) 10%, transparent);
 }
 
 @keyframes input-glow {
 
     0%,
     100% {
-        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color, #3b82f6) 10%, transparent);
     }
 
     50% {
-        box-shadow: 0 0 0 5px rgba(59, 130, 246, 0.2),
-            0 0 20px rgba(59, 130, 246, 0.3);
+        box-shadow: 0 0 0 5px color-mix(in srgb, var(--primary-color, #3b82f6) 20%, transparent),
+            0 0 20px color-mix(in srgb, var(--primary-color, #3b82f6) 30%, transparent);
     }
 }
 
@@ -2014,7 +2016,7 @@ ul.list-style-arrow li::marker {
 .style-select:hover {
     border-color: var(--primary-color);
     background: var(--bg-white);
-    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--primary-color, #3b82f6) 15%, transparent);
     transform: translateY(-1px);
 }
 
@@ -2023,7 +2025,7 @@ ul.list-style-arrow li::marker {
     outline: none;
     border-color: var(--primary-color);
     background: var(--bg-white);
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15), 0 2px 8px rgba(59, 130, 246, 0.2);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color, #3b82f6) 15%, transparent), 0 2px 8px color-mix(in srgb, var(--primary-color, #3b82f6) 20%, transparent);
 }
 
 .color-select:active,
@@ -2044,7 +2046,7 @@ ul.list-style-arrow li::marker {
 /* Selected/checked option - shown with checkmark */
 .color-select option:checked,
 .style-select option:checked {
-    background: linear-gradient(to right, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.05));
+    background: linear-gradient(to right, color-mix(in srgb, var(--primary-color, #3b82f6) 10%, transparent), color-mix(in srgb, var(--primary-color, #3b82f6) 5%, transparent));
     color: var(--primary-color);
     font-weight: 600;
 }
@@ -2222,7 +2224,7 @@ ul.list-style-arrow li::marker {
 .style-select:focus {
     outline: none;
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color, #3b82f6) 15%, transparent);
     background-color: var(--bg-white);
 }
 
@@ -2558,11 +2560,11 @@ p[data-image-spacer] {
 
 .crop-buttons .btn-confirm {
     background: var(--primary-color);
-    color: white;
+    color: var(--primary-contrast, #fff);
 }
 
 .crop-buttons .btn-confirm:hover {
-    background: #2563eb;
+    background: var(--primary-hover, #2563eb);
 }
 
 .crop-buttons .btn-cancel {
@@ -2997,7 +2999,7 @@ p[data-image-spacer] {
     align-items: center;
     gap: 4px;
     background: var(--primary-color);
-    color: #fff;
+    color: var(--primary-contrast, #fff);
     border: none;
     border-radius: 5px;
     padding: 3px 8px;

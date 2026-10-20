@@ -12,7 +12,7 @@
 }
 
 .summie-toc--active .summie-toc-header {
-    background: rgba(59, 130, 246, 0.04);
+    background: color-mix(in srgb, var(--primary-color, #3b82f6) 4%, transparent);
 }
 
 /* ── Header ── */
@@ -279,7 +279,7 @@
 
 [data-theme='dark'] .toc-style-btn.active,
 [data-theme='dark'] .toc-mode-btn.active {
-    background: rgba(37, 99, 235, 0.18) !important;
+    background: color-mix(in srgb, var(--primary-color, #2563eb) 18%, transparent) !important;
 }
 
 /* ==================== HOVER ACTIONS ==================== */
@@ -347,5 +347,5 @@
 }
 
 .toc-item:hover {
-    background: rgba(59, 130, 246, 0.05);
+    background: color-mix(in srgb, var(--primary-color, #3b82f6) 5%, transparent);
 }

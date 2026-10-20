@@ -149,6 +149,13 @@
         // ── Landing: settings ────────────────────────────────────────────────
         'Weergave': 'Display',
         'Thema': 'Theme',
+        'Accentkleur': 'Accent colour',
+        'Kleur van knoppen, markeringen en accenten — per modus apart in te stellen.': 'Colour of buttons, highlights and accents — set separately per mode.',
+        'Terug naar standaard': 'Back to default',
+        'Eigen kleur kiezen': 'Choose a custom colour',
+        'Eigen accentkleur': 'Custom accent colour',
+        'Turquoise': 'Turquoise',
+        'Roze': 'Pink',
         'Systeemstandaard': 'System default',
         'Donker': 'Dark',
         'Licht': 'Light',

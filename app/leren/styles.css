@@ -7,6 +7,7 @@
 :root {
     --primary-color: #3b82f6;
     --primary-hover: #2563eb;
+    --primary-contrast: #ffffff;
     --secondary-color: #64748b;
     --danger-color: #ef4444;
     --success-color: #10b981;
@@ -159,7 +160,7 @@ body {
 
 .btn-primary {
     background: var(--primary-color);
-    color: white;
+    color: var(--primary-contrast, #fff);
     border-color: var(--primary-color);
 }
 
@@ -246,8 +247,8 @@ body {
     font-size: 13px;
     font-weight: 600;
     color: var(--primary-color);
-    background: rgba(59, 130, 246, 0.08);
-    border: 1px solid rgba(59, 130, 246, 0.18);
+    background: color-mix(in srgb, var(--primary-color, #3b82f6) 8%, transparent);
+    border: 1px solid color-mix(in srgb, var(--primary-color, #3b82f6) 18%, transparent);
     padding: 4px 10px;
     border-radius: 20px;
     margin-bottom: 20px;
@@ -403,7 +404,7 @@ body {
 
 .mode-card.selected {
     border-color: var(--primary-color);
-    background: rgba(59, 130, 246, 0.05);
+    background: color-mix(in srgb, var(--primary-color, #3b82f6) 5%, transparent);
 }
 
 .mode-icon {
@@ -535,7 +536,7 @@ body {
     display: inline-block;
     padding: 6px 16px;
     background: var(--primary-color);
-    color: white;
+    color: var(--primary-contrast, #fff);
     border-radius: 20px;
     font-size: 13px;
     font-weight: 500;
@@ -579,7 +580,7 @@ body {
 .answer-section textarea:focus {
     outline: none;
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color, #3b82f6) 10%, transparent);
 }
 
 .correct-answer,

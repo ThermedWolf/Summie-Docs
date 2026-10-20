@@ -65,7 +65,7 @@
 
 .zoom-level-display:focus {
     outline: none;
-    box-shadow: 0 0 0 2px rgba(59,130,246,0.2);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary-color, #3b82f6) 20%, transparent);
 }
 
 /* Dropdown for zoom presets — bottom bar style */
@@ -151,7 +151,7 @@
 }
 
 .zoom-toolbar-select:focus {
-    box-shadow: 0 0 0 2px rgba(59,130,246,0.2);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary-color, #3b82f6) 20%, transparent);
 }
 
 /* Keep horizontal scrolling available when zoom >100% */

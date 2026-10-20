@@ -9,6 +9,9 @@
     <title>Summie</title>
     <!-- Apply saved theme before first paint to avoid a light-mode flash -->
     <script src="js/ui/theme.js"></script>
+    <!-- Pure colour math + saved accent colour override, also pre-paint -->
+    <script src="js/utils/color.js"></script>
+    <script src="js/ui/accent.js"></script>
     <!-- Apply the saved document font before first paint (no font flash) -->
     <script src="js/ui/document-font.js"></script>
     <!-- Untrusted-content sanitisation (DOMPurify + Summie wrapper) -->
@@ -518,6 +521,33 @@
                             <option value="dark">Donker</option>
                             <option value="light">Licht</option>
                         </select>
+                    </div>
+                    <div class="settings-item settings-item-dir">
+                        <div class="settings-item-info">
+                            <span class="settings-item-label">Accentkleur</span>
+                            <span class="settings-item-desc">Kleur van knoppen, markeringen en accenten — per
+                                modus apart in te stellen.</span>
+                        </div>
+                        <div class="accent-choice-list">
+                            <div class="accent-choice-row" data-mode="light">
+                                <span class="accent-choice-mode">Licht</span>
+                                <div class="accent-swatch-list"><!-- rendered by landing.js --></div>
+                                <label class="accent-swatch accent-swatch-custom" title="Eigen kleur kiezen">
+                                    <input type="color" class="accent-custom-input" value="#3b82f6"
+                                        aria-label="Eigen accentkleur">
+                                </label>
+                                <button type="button" class="accent-reset-btn">Terug naar standaard</button>
+                            </div>
+                            <div class="accent-choice-row" data-mode="dark">
+                                <span class="accent-choice-mode">Donker</span>
+                                <div class="accent-swatch-list"><!-- rendered by landing.js --></div>
+                                <label class="accent-swatch accent-swatch-custom" title="Eigen kleur kiezen">
+                                    <input type="color" class="accent-custom-input" value="#2563eb"
+                                        aria-label="Eigen accentkleur">
+                                </label>
+                                <button type="button" class="accent-reset-btn">Terug naar standaard</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="settings-group">

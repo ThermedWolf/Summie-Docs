@@ -61,7 +61,7 @@
 }
 
 .table-dim-cell.active {
-    background: rgba(59, 130, 246, 0.2);
+    background: color-mix(in srgb, var(--primary-color, #3b82f6) 20%, transparent);
     border-color: var(--primary-color);
 }
 
@@ -105,8 +105,8 @@
 
 .summie-table td.cell-focused,
 .summie-table th.cell-focused {
-    background: rgba(59, 130, 246, 0.05);
-    box-shadow: inset 0 0 0 2px rgba(59, 130, 246, 0.3);
+    background: color-mix(in srgb, var(--primary-color, #3b82f6) 5%, transparent);
+    box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--primary-color, #3b82f6) 30%, transparent);
 }
 
 .summie-table tr:hover td {
@@ -173,7 +173,7 @@
     font-size: 9px;
     font-weight: 600;
     line-height: 1;
-    color: rgba(59, 130, 246, 0.55);
+    color: color-mix(in srgb, var(--primary-color, #3b82f6) 55%, transparent);
     pointer-events: none;
     user-select: none;
     font-family: 'Consolas', 'Monaco', monospace;
@@ -185,7 +185,7 @@
 .fml-panel-active .summie-table th.cell-focused[data-cell-ref]::after,
 .fml-panel-active .summie-table td.fml-output-cell[data-cell-ref]::after,
 .fml-panel-active .summie-table th.fml-output-cell[data-cell-ref]::after {
-    color: rgba(59, 130, 246, 0.85);
+    color: color-mix(in srgb, var(--primary-color, #3b82f6) 85%, transparent);
 }
 
 /* ── Verhoudingstabel ─────────────────────────────────────────────────── */
