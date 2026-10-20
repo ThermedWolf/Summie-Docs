@@ -1387,6 +1387,82 @@
 
 /* ==================== TOOLBAR DROPDOWN ==================== */
 
+.bullet-style-wrapper {
+    position: relative;
+    display: flex;
+}
+
+/* Split-button look: the style toggle shares its edge with the bullet button */
+.bullet-style-wrapper .btn-icon:first-child {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.bullet-style-toggle {
+    width: 20px;
+    padding: 2px;
+    border-left: none;
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
+.bullet-style-toggle svg {
+    transition: transform 0.2s ease;
+}
+
+.bullet-style-toggle.active svg {
+    transform: rotate(180deg);
+}
+
+.bullet-style-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    min-width: 150px;
+    background: var(--bg-white);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: var(--shadow-lg);
+    display: none;
+    overflow: hidden;
+    padding: 4px;
+    z-index: 1000;
+    animation: slideDown 0.2s ease;
+}
+
+.bullet-style-menu.active {
+    display: block;
+}
+
+.bullet-style-item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border: none;
+    border-radius: 5px;
+    background: transparent;
+    color: var(--text-primary);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    font-family: inherit;
+    text-align: left;
+    transition: var(--transition);
+}
+
+.bullet-style-item:hover {
+    background: var(--bg-light);
+}
+
+.bullet-style-glyph {
+    width: 20px;
+    text-align: center;
+    font-size: 15px;
+    line-height: 1;
+}
+
 .toolbar-dropdown-wrapper {
     position: relative;
 }

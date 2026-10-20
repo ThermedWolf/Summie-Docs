@@ -1834,6 +1834,27 @@ ol li {
     margin-bottom: 6px;
 }
 
+/* Custom bullet styles — class set per <ul> by ListManager (feature 3).
+   The default disc list has no class, so unstyled documents are untouched.
+   The trailing space inside the ::marker content keeps the text gap. */
+ul.list-style-circle {
+    list-style-type: circle;
+}
+
+ul.list-style-square {
+    list-style-type: square;
+}
+
+/* Dash/arrow have no list-style-type glyph: ::marker renders the character.
+   An explicit content also overrides the marker if list-style-type differs. */
+ul.list-style-dash li::marker {
+    content: "\2013  ";
+}
+
+ul.list-style-arrow li::marker {
+    content: "\2192  ";
+}
+
 .checklist {
     list-style: none;
     margin-left: 0;

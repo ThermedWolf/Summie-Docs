@@ -372,13 +372,31 @@
 
     // ── List conversion ───────────────────────────────────────────────────
 
-    function listToDocx(listEl, docxLib, depth) {
+    // Word numbering reference for a list: ordered lists share 'numbering';
+    // unordered lists resolve their bullet style class (feature 3) to a
+    // per-style reference, inheriting the parent list's style when unclassed.
+    function bulletsReferenceFor(listEl, inheritedRef) {
+        const lm = window.ListManager;
+        const styleId = lm && lm.getBulletStyleId ? lm.getBulletStyleId(listEl) : 'disc';
+        return styleId !== 'disc' ? 'bullets-' + styleId : (inheritedRef || 'bullets');
+    }
+
+    function listToDocx(listEl, docxLib, depth, inheritedRef) {
         const { Paragraph, TextRun } = docxLib;
         const paras = [];
-        const ref = listEl.tagName === 'OL' ? 'numbering' : 'bullets';
+        const ref = listEl.tagName === 'OL' ? 'numbering' : bulletsReferenceFor(listEl, inheritedRef);
 
         listEl.childNodes.forEach(child => {
-            if (!child.tagName || child.tagName !== 'LI') return;
+            if (!child.tagName) return;
+
+            if (child.tagName !== 'LI') {
+                // Chromium's Tab indent can nest a list directly inside its
+                // parent (<ul><ul>…): recurse so indented items aren't dropped.
+                if (child.tagName === 'UL' || child.tagName === 'OL') {
+                    paras.push(...listToDocx(child, docxLib, depth + 1, ref));
+                }
+                return;
+            }
 
             const inlineNodes = Array.from(child.childNodes).filter(n => {
                 const t = n.tagName ? n.tagName.toUpperCase() : '';
@@ -1116,6 +1134,23 @@
             const h2def = _styleDef('subtitle', 32, false, '64748B');
             const h3def = _styleDef('kop1', 28, true, '1E293B');
 
+            // One Word numbering definition per custom bullet style (feature 3):
+            // every level shows the chosen marker, matching the editor where
+            // the style class also applies to indented sub-lists.
+            const bulletStyleNumbering = (window.ListManager && window.ListManager.BULLET_STYLES
+                ? window.ListManager.BULLET_STYLES : [])
+                .filter(style => style.id !== 'disc')
+                .map(style => ({
+                    reference: 'bullets-' + style.id,
+                    levels: [0, 1, 2].map(level => ({
+                        level,
+                        format: LevelFormat.BULLET,
+                        text: style.char,
+                        alignment: AlignmentType.LEFT,
+                        style: { paragraph: { indent: { left: 720 + 360 * level, hanging: 360 } }, run: { font: documentFont() } },
+                    })),
+                }));
+
             const doc = new Document({
                 styles: {
                     default: { document: { run: { font: documentFont(), size: 24, color: '1E293B' } } },
@@ -1153,6 +1188,7 @@
                                 { level: 2, format: LevelFormat.LOWER_ROMAN, text: '%3.', alignment: AlignmentType.LEFT, style: { paragraph: { indent: { left: 1440, hanging: 360 } } } },
                             ]
                         },
+                        ...bulletStyleNumbering,
                     ],
                 },
                 sections: [{

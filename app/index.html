@@ -767,17 +767,29 @@
                 <div class="toolbar-group animate-item" style="animation-delay: 0.25s">
                     <label class="toolbar-label">Lijsten</label>
                     <div class="toolbar-buttons">
-                        <button class="btn-icon" id="bulletListBtn" title="Bullet lijst">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <circle cx="4" cy="6" r="1.6" fill="currentColor" stroke="none" />
-                                <circle cx="4" cy="12" r="1.6" fill="currentColor" stroke="none" />
-                                <circle cx="4" cy="18" r="1.6" fill="currentColor" stroke="none" />
-                                <line x1="10" y1="6" x2="21" y2="6" />
-                                <line x1="10" y1="12" x2="21" y2="12" />
-                                <line x1="10" y1="18" x2="21" y2="18" />
-                            </svg>
-                        </button>
+                        <div class="bullet-style-wrapper">
+                            <button class="btn-icon" id="bulletListBtn" title="Bullet lijst">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="4" cy="6" r="1.6" fill="currentColor" stroke="none" />
+                                    <circle cx="4" cy="12" r="1.6" fill="currentColor" stroke="none" />
+                                    <circle cx="4" cy="18" r="1.6" fill="currentColor" stroke="none" />
+                                    <line x1="10" y1="6" x2="21" y2="6" />
+                                    <line x1="10" y1="12" x2="21" y2="12" />
+                                    <line x1="10" y1="18" x2="21" y2="18" />
+                                </svg>
+                            </button>
+                            <button class="btn-icon bullet-style-toggle" id="bulletStyleBtn" title="Bulletstijl"
+                                aria-label="Bulletstijl" aria-haspopup="menu">
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="6 9 12 15 18 9" />
+                                </svg>
+                            </button>
+                            <div class="bullet-style-menu" id="bulletStyleMenu" role="menu">
+                                <!-- Populated by ListManager.renderBulletStyleMenu() -->
+                            </div>
+                        </div>
                         <button class="btn-icon" id="numericListBtn" title="Genummerde lijst">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

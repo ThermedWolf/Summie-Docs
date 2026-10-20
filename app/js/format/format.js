@@ -104,7 +104,10 @@ function createChecklist() {
             window.updateInhoudList && window.updateInhoudList();
             return;
         } else if (parentList) {
-            // Plain bullet/numbered list -> convert the whole list to checklist
+            // Plain bullet/numbered list -> convert the whole list to checklist.
+            // The same ul element is kept, so any custom bullet style class must
+            // go: checklist items show their own box, never a bullet marker.
+            if (window.ListManager) window.ListManager.clearBulletStyles(parentList);
             parentList.classList.add('checklist');
             if (parentList.tagName === 'OL') {
                 const ul = document.createElement('ul');
