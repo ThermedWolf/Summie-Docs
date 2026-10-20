@@ -1837,25 +1837,44 @@ ol li {
 }
 
 /* Custom bullet styles — class set per <ul> by ListManager (feature 3).
-   The default disc list has no class, so unstyled documents are untouched.
-   The trailing space inside the ::marker content keeps the text gap. */
-ul.list-style-circle {
-    list-style-type: circle;
+   A list with no class at all uses the browser's native depth cycle
+   (disc → circle → square), which matches the docx export's classic bullets.
+   Every custom style cycles too: level 1 is the chosen marker, deeper levels
+   continue with the classic markers — see BULLET_STYLES.cycle in
+   js/features/lists.js (keep the two in sync). Rules are ul-level only, so a
+   nested .checklist always keeps its own list-style: none. */
+@counter-style summie-dash {
+    system: cyclic;
+    symbols: "\2013";
+    suffix: " ";
 }
 
-ul.list-style-square {
-    list-style-type: square;
+@counter-style summie-arrow {
+    system: cyclic;
+    symbols: "\2192";
+    suffix: " ";
 }
 
-/* Dash/arrow have no list-style-type glyph: ::marker renders the character.
-   An explicit content also overrides the marker if list-style-type differs. */
-ul.list-style-dash li::marker {
-    content: "\2013  ";
-}
+ul.list-style-disc { list-style-type: disc; }
+ul.list-style-circle { list-style-type: circle; }
+ul.list-style-square { list-style-type: square; }
+ul.list-style-dash { list-style-type: summie-dash; }
+ul.list-style-arrow { list-style-type: summie-arrow; }
 
-ul.list-style-arrow li::marker {
-    content: "\2192  ";
-}
+/* Deeper nesting: each rule requires the style class on every list level
+   (ListManager re-classes nested lists on Tab indent), so a sublist carrying
+   its own explicit style always wins over the parent's cycle. */
+ul.list-style-disc ul.list-style-disc { list-style-type: circle; }
+ul.list-style-circle ul.list-style-circle { list-style-type: square; }
+ul.list-style-square ul.list-style-square { list-style-type: disc; }
+ul.list-style-dash ul.list-style-dash { list-style-type: circle; }
+ul.list-style-arrow ul.list-style-arrow { list-style-type: circle; }
+
+ul.list-style-disc ul.list-style-disc ul.list-style-disc { list-style-type: square; }
+ul.list-style-circle ul.list-style-circle ul.list-style-circle { list-style-type: disc; }
+ul.list-style-square ul.list-style-square ul.list-style-square { list-style-type: circle; }
+ul.list-style-dash ul.list-style-dash ul.list-style-dash { list-style-type: square; }
+ul.list-style-arrow ul.list-style-arrow ul.list-style-arrow { list-style-type: square; }
 
 .checklist {
     list-style: none;

@@ -415,7 +415,7 @@
 
             child.childNodes.forEach(n => {
                 if (n.tagName === 'UL' || n.tagName === 'OL') {
-                    paras.push(...listToDocx(n, docxLib, depth + 1));
+                    paras.push(...listToDocx(n, docxLib, depth + 1, ref));
                 }
             });
         });
@@ -1135,8 +1135,9 @@
             const h3def = _styleDef('kop1', 28, true, '1E293B');
 
             // One Word numbering definition per custom bullet style (feature 3):
-            // every level shows the chosen marker, matching the editor where
-            // the style class also applies to indented sub-lists.
+            // level 1 shows the chosen marker, deeper levels continue the
+            // classic bullet cycle — mirroring BULLET_STYLES.cycle, which
+            // styles.css applies in the editor as well.
             const bulletStyleNumbering = (window.ListManager && window.ListManager.BULLET_STYLES
                 ? window.ListManager.BULLET_STYLES : [])
                 .filter(style => style.id !== 'disc')
@@ -1145,7 +1146,7 @@
                     levels: [0, 1, 2].map(level => ({
                         level,
                         format: LevelFormat.BULLET,
-                        text: style.char,
+                        text: style.cycle[level],
                         alignment: AlignmentType.LEFT,
                         style: { paragraph: { indent: { left: 720 + 360 * level, hanging: 360 } }, run: { font: documentFont() } },
                     })),

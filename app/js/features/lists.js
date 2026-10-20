@@ -194,16 +194,18 @@ window.ListManager = (function () {
 
     // ==================== BULLET STYLES ====================
     // Selectable marker styles for unordered lists (feature 3). The style rides
-    // as a class on the <ul> ("list-style-<id>"); the default disc list gets no
-    // class so existing documents keep rendering exactly as before.
-    // char doubles as the marker shown in the menu and the glyph used by the
-    // docx export numbering definition.
+    // as a class on the <ul> ("list-style-<id>"); a list with no class at all
+    // renders with the browser's default disc/circle/square depth cycle.
+    // cycle = marker per nesting depth (levels 1-3): level 1 is the marker the
+    // user picks in the menu, deeper levels continue the classic bullet cycle.
+    // styles.css (@counter-style + list-style-type rules) and the docx export
+    // numbering mirror this table — keep the three in sync.
     const BULLET_STYLES = [
-        { id: 'disc', char: '\u2022', label: 'Rond' },      // default — never gets a class
-        { id: 'circle', char: '\u25E6', label: 'Cirkel' },
-        { id: 'square', char: '\u25AA', label: 'Vierkant' },
-        { id: 'dash', char: '\u2013', label: 'Streep' },
-        { id: 'arrow', char: '\u2192', label: 'Pijl' },
+        { id: 'disc', cycle: ['\u2022', '\u25E6', '\u25AA'], label: 'Rond' },
+        { id: 'circle', cycle: ['\u25E6', '\u25AA', '\u2022'], label: 'Cirkel' },
+        { id: 'square', cycle: ['\u25AA', '\u2022', '\u25E6'], label: 'Vierkant' },
+        { id: 'dash', cycle: ['\u2013', '\u25E6', '\u25AA'], label: 'Streep' },
+        { id: 'arrow', cycle: ['\u2192', '\u25E6', '\u25AA'], label: 'Pijl' },
     ];
     const BULLET_STYLE_CLASS_PREFIX = 'list-style-';
 
@@ -225,15 +227,13 @@ window.ListManager = (function () {
         return !!listEl && listEl.tagName === 'UL' && !listEl.classList.contains('checklist');
     }
 
-    // Write the style class onto a list. Strip any previous style first, and
-    // only add a class for non-default styles (no class == disc).
+    // Write the style class onto a list. Strip any previous style first; every
+    // style — including an explicitly chosen disc — gets its class, so a
+    // sublist keeps its own marker even nested inside differently styled lists.
     function setBulletStyleOnList(listEl, styleId) {
         if (!listEl) return;
         clearBulletStyles(listEl);
-        const style = getBulletStyleById(styleId);
-        if (style.id !== 'disc') {
-            listEl.classList.add(BULLET_STYLE_CLASS_PREFIX + style.id);
-        }
+        listEl.classList.add(BULLET_STYLE_CLASS_PREFIX + getBulletStyleById(styleId).id);
     }
 
     // Remove every bullet-style class from an element. Used when converting
@@ -349,7 +349,7 @@ window.ListManager = (function () {
             // but text nodes need no escaping regardless.
             const glyph = document.createElement('span');
             glyph.className = 'bullet-style-glyph';
-            glyph.textContent = style.char;
+            glyph.textContent = style.cycle[0];
             // Raw Dutch label: the i18n walk/observer translates inserted
             // nodes (same pattern as StyleManager's dropdown items).
             const label = document.createElement('span');
