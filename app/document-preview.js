@@ -227,6 +227,10 @@ ${cssLinks}
         const idoc = this._iframe.contentDocument;
         if (idoc.documentElement) {
             idoc.documentElement.setAttribute('data-theme', theme);
+            // Inherit this window's accent/tint overrides — the inline custom
+            // properties set on our <html> by js/ui/accent.js are not part of
+            // the stylesheet the iframe loads, so copy them across.
+            idoc.documentElement.style.cssText = document.documentElement.style.cssText;
         }
     }
 
@@ -236,9 +240,11 @@ ${cssLinks}
             this._updateLoaderTheme();
             this._syncIframeTheme();
         });
+        // 'style' covers accent/tint overrides (inline custom properties set
+        // by js/ui/accent.js on <html>).
         this._themeObserver.observe(document.documentElement, {
             attributes: true,
-            attributeFilter: ['data-theme']
+            attributeFilter: ['data-theme', 'style']
         });
     }
 

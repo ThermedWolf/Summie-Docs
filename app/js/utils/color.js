@@ -54,26 +54,26 @@
         return white >= 3 ? '#ffffff' : '#000000';
     }
 
+    // Mix `hexA` toward `hexB`; ratio = amount of B (0 = A unchanged, 1 = B).
+    function mix(hexA, hexB, ratio) {
+        var a = hexToRgb(hexA);
+        var b = hexToRgb(hexB);
+        if (!a || !b) return null;
+        return rgbToHex({
+            r: a.r + (b.r - a.r) * ratio,
+            g: a.g + (b.g - a.g) * ratio,
+            b: a.b + (b.b - a.b) * ratio,
+        });
+    }
+
     // Mix `hex` with white; ratio = amount of white (0 = unchanged, 1 = white).
     function mixWithWhite(hex, ratio) {
-        var rgb = hexToRgb(hex);
-        if (!rgb) return null;
-        return rgbToHex({
-            r: rgb.r + (255 - rgb.r) * ratio,
-            g: rgb.g + (255 - rgb.g) * ratio,
-            b: rgb.b + (255 - rgb.b) * ratio,
-        });
+        return mix(hex, '#ffffff', ratio);
     }
 
     // Mix `hex` with black; ratio = amount of black (0 = unchanged, 1 = black).
     function mixWithBlack(hex, ratio) {
-        var rgb = hexToRgb(hex);
-        if (!rgb) return null;
-        return rgbToHex({
-            r: rgb.r * (1 - ratio),
-            g: rgb.g * (1 - ratio),
-            b: rgb.b * (1 - ratio),
-        });
+        return mix(hex, '#000000', ratio);
     }
 
     function lighten(hex, ratio) {
@@ -111,17 +111,36 @@
         };
     }
 
+    // CSS custom properties driven by the tint colour: the start colour of the
+    // active-tab underline gradient and the paper-like backgrounds it tints
+    // (document page, sidebar). Light mode mixes toward white; dark mode mixes
+    // toward each surface's factory dark base so the tint stays subtle.
+    // Returns null on invalid input.
+    function deriveTintVars(hex, mode) {
+        var base = hexToRgb(hex);
+        if (!base) return null;
+        var tint = rgbToHex(base);
+        var dark = mode === 'dark';
+        return {
+            '--cyan-gradient-start': tint,
+            '--document-tint': dark ? mix(tint, '#16163a', 0.85) : mixWithWhite(tint, 0.9),
+            '--panel-tint': dark ? mix(tint, '#12122a', 0.85) : mixWithWhite(tint, 0.94),
+        };
+    }
+
     root.SummieColor = {
         hexToRgb: hexToRgb,
         rgbToHex: rgbToHex,
         relativeLuminance: relativeLuminance,
         contrastRatio: contrastRatio,
         bestContrast: bestContrast,
+        mix: mix,
         mixWithWhite: mixWithWhite,
         mixWithBlack: mixWithBlack,
         lighten: lighten,
         darken: darken,
         rgbaString: rgbaString,
         deriveAccentVars: deriveAccentVars,
+        deriveTintVars: deriveTintVars,
     };
 })(typeof window !== 'undefined' ? window : globalThis);

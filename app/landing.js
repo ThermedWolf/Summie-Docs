@@ -1757,9 +1757,12 @@ async function initSettings() {
         });
     }
 
-    // Accent colour (Accentkleur) — per-mode presets + free picker + reset,
-    // rendered like the font picker. null = factory palette (reset).
-    const FACTORY_ACCENTS = { light: '#3b82f6', dark: '#2563eb' };
+    // Accent colours — two independent colour pickers rendered like the font
+    // picker. null = factory palette (reset). Both colours apply to light and
+    // dark mode alike.
+    //   tint   (accentTint)    — document page + sidebar tint, underline start
+    //   accent (accentPrimary) — buttons, highlights and accents
+    const FACTORY_VALUES = { tint: '#06b6d4', accent: '#3b82f6' };
     const ACCENT_PRESETS = [
         { name: 'Blauw', hex: '#3b82f6' },
         { name: 'Groen', hex: '#10b981' },
@@ -1771,29 +1774,29 @@ async function initSettings() {
     // Authoritative values — updated from every 'accent-changed' broadcast so
     // the picker also follows changes made in another window.
     const savedAccents = {
-        accentLight: settings.accentLight || null,
-        accentDark: settings.accentDark || null,
+        accentTint: settings.accentTint || null,
+        accentPrimary: settings.accentPrimary || null,
     };
 
-    const accentKeyOf = (mode) => (mode === 'dark' ? 'accentDark' : 'accentLight');
+    const settingsKeyOf = (role) => (role === 'tint' ? 'accentTint' : 'accentPrimary');
     const isPresetAccent = (hex) => ACCENT_PRESETS.some(preset => preset.hex === hex);
 
     // Local, un-persisted application (live preview while dragging the picker).
-    function previewAccent(mode, hex) {
+    function previewAccent(role, hex) {
         if (!window.SummieAccent) return;
-        const next = { ...window.SummieAccent.getAccents(), [accentKeyOf(mode)]: hex };
+        const next = { ...window.SummieAccent.getAccents(), [settingsKeyOf(role)]: hex };
         window.SummieAccent.setAccents(next);
     }
 
-    async function saveAccent(mode, hex) {
-        previewAccent(mode, hex);
-        savedAccents[accentKeyOf(mode)] = hex;
-        await window.electron.settingsSet({ [accentKeyOf(mode)]: hex });
+    async function saveAccent(role, hex) {
+        previewAccent(role, hex);
+        savedAccents[settingsKeyOf(role)] = hex;
+        await window.electron.settingsSet({ [settingsKeyOf(role)]: hex });
     }
 
     function renderAccentRow(row) {
-        const mode = row.dataset.mode;
-        const current = savedAccents[accentKeyOf(mode)];
+        const role = row.dataset.role;
+        const current = savedAccents[settingsKeyOf(role)];
         const list = row.querySelector('.accent-swatch-list');
         list.textContent = '';
 
@@ -1804,12 +1807,12 @@ async function initSettings() {
             swatch.style.background = preset.hex;
             swatch.title = SummieI18n.t(preset.name);
             swatch.setAttribute('aria-label', SummieI18n.t(preset.name));
-            swatch.addEventListener('click', () => saveAccent(mode, preset.hex));
+            swatch.addEventListener('click', () => saveAccent(role, preset.hex));
             list.appendChild(swatch);
         });
 
         const custom = row.querySelector('.accent-custom-input');
-        custom.value = current || FACTORY_ACCENTS[mode];
+        custom.value = current || FACTORY_VALUES[role];
         row.classList.toggle('accent-custom-active', !!current && !isPresetAccent(current));
 
         row.querySelector('.accent-reset-btn').disabled = !current;
@@ -1817,21 +1820,21 @@ async function initSettings() {
 
     // Listeners are bound once per row — renderAccentRow only refreshes state.
     function bindAccentRow(row) {
-        const mode = row.dataset.mode;
+        const role = row.dataset.role;
         const custom = row.querySelector('.accent-custom-input');
-        custom.addEventListener('input', () => previewAccent(mode, custom.value));
+        custom.addEventListener('input', () => previewAccent(role, custom.value));
         custom.addEventListener('change', () => {
-            if (custom.value) saveAccent(mode, custom.value);
+            if (custom.value) saveAccent(role, custom.value);
         });
         // Cancelled picker (Esc closes without a 'change' event): snap the live
         // preview back to the saved value.
         custom.addEventListener('blur', () => {
-            if (custom.value !== (savedAccents[accentKeyOf(mode)] || FACTORY_ACCENTS[mode])) {
+            if (custom.value !== (savedAccents[settingsKeyOf(role)] || FACTORY_VALUES[role])) {
                 renderAccentRow(row);
-                previewAccent(mode, savedAccents[accentKeyOf(mode)]);
+                previewAccent(role, savedAccents[settingsKeyOf(role)]);
             }
         });
-        row.querySelector('.accent-reset-btn').addEventListener('click', () => saveAccent(mode, null));
+        row.querySelector('.accent-reset-btn').addEventListener('click', () => saveAccent(role, null));
     }
 
     const accentRows = document.querySelectorAll('.accent-choice-row');
@@ -1842,8 +1845,8 @@ async function initSettings() {
         });
         if (window.electron && window.electron.onAccentChanged) {
             window.electron.onAccentChanged((accents) => {
-                savedAccents.accentLight = accents.accentLight || null;
-                savedAccents.accentDark = accents.accentDark || null;
+                savedAccents.accentTint = accents.accentTint || null;
+                savedAccents.accentPrimary = accents.accentPrimary || null;
                 accentRows.forEach(renderAccentRow);
             });
         }

@@ -273,8 +273,8 @@ const DEFAULT_APP_SETTINGS = {
     closeToHome: true,                  // close button → landing page instead of quitting
     numberLocale: 'eu',                 // 'eu' = komma decimaal | 'us' = punt decimaal
     theme: 'system',                    // 'system' = volg OS | 'dark' | 'light'
-    accentLight: null,                  // accentkleur lichte modus '#rrggbb' | null = fabriekspalet
-    accentDark: null,                   // accentkleur donkere modus '#rrggbb' | null = fabriekspalet
+    accentTint: null,                   // accentkleur 1 — tint van documentpagina/zijbalk + tabonderstreping; null = fabriekspalet
+    accentPrimary: null,                // accentkleur 2 — knoppen, markeringen en accenten; null = fabriekspalet
     dismissedUpdateVersion: null,       // update version whose reminder the user dismissed
     citationAuthorDelimiter: 'semicolon', // 'semicolon' (;) | 'newline' (\n) — scheidingsteken tussen auteurs in invoerveld
     ttsRate: 1.0,                       // voorlees-snelheid 0.5–2.0
@@ -296,8 +296,8 @@ function readAppSettings() {
     if (merged.citationAuthorDelimiter !== 'semicolon' && merged.citationAuthorDelimiter !== 'newline') {
         merged.citationAuthorDelimiter = 'semicolon';
     }
-    merged.accentLight = normalizeHexColor(merged.accentLight);
-    merged.accentDark = normalizeHexColor(merged.accentDark);
+    merged.accentTint = normalizeHexColor(merged.accentTint);
+    merged.accentPrimary = normalizeHexColor(merged.accentPrimary);
     // TTS settings — validate and clamp
     if (typeof merged.ttsRate !== 'number' || merged.ttsRate < 0.5 || merged.ttsRate > 2) merged.ttsRate = DEFAULT_APP_SETTINGS.ttsRate;
     if (!['female', 'male', 'system'].includes(merged.ttsGender)) merged.ttsGender = DEFAULT_APP_SETTINGS.ttsGender;
@@ -911,7 +911,7 @@ safeOnLax('get-theme-sync', (event) => {
 });
 safeOnLax('get-accent-sync', (event) => {
     const settings = readAppSettings();
-    event.returnValue = { accentLight: settings.accentLight, accentDark: settings.accentDark };
+    event.returnValue = { accentTint: settings.accentTint, accentPrimary: settings.accentPrimary };
 });
 safeHandle('settings-get', () => readAppSettings());
 function refreshUserTasks() {
@@ -956,8 +956,8 @@ safeHandle('settings-set', (event, patch) => {
         });
     }
     // Keep every open window in sync when an accent colour changes via settings
-    if (patch && (patch.accentLight !== undefined || patch.accentDark !== undefined)) {
-        const accents = { accentLight: updated.accentLight, accentDark: updated.accentDark };
+    if (patch && (patch.accentTint !== undefined || patch.accentPrimary !== undefined)) {
+        const accents = { accentTint: updated.accentTint, accentPrimary: updated.accentPrimary };
         BrowserWindow.getAllWindows().forEach(win => {
             win.webContents.send('accent-changed', accents);
         });

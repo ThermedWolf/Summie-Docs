@@ -1,8 +1,10 @@
 // ==================== ACCENT COLOUR OVERRIDE ====================
-// Applies the user's per-mode accent colour (app-wide settings accentLight /
-// accentDark, null = factory palette) as inline CSS variables on <html>.
-// Inline variables beat the [data-theme] stylesheet blocks, so the resolved
-// mode's accent always wins while the factory palette stays untouched below.
+// Applies the user's two accent colours (app-wide settings accentTint /
+// accentPrimary, null = factory palette) as inline CSS variables on <html>.
+// Inline variables beat the [data-theme] stylesheet blocks, so the override
+// always wins while the factory palette stays untouched below. Both colours
+// apply to light and dark mode alike; only the derived companion values
+// (hover shades, tints, contrast text) adapt to the resolved mode.
 // Depends on js/utils/color.js (window.SummieColor) for the derivations and
 // follows the theme.js pattern: applied before first paint, re-synced after
 // DOMContentLoaded, and propagated across windows via the 'accent-changed'
@@ -11,9 +13,12 @@
 (function () {
     'use strict';
 
-    // Every variable the factory themes define from the accent, in both the
-    // editor palette (--primary-color/…) and the landing palette (--primary/…).
-    var VAR_NAMES = [
+    var HEX_RE = /^#[0-9a-fA-F]{6}$/;
+
+    // Variables derived from each colour, grouped so one can be customised
+    // without touching the other's overrides.
+    var TINT_VARS = ['--cyan-gradient-start', '--document-tint', '--panel-tint'];
+    var PRIMARY_VARS = [
         '--primary-color',
         '--primary-hover',
         '--primary',
@@ -22,9 +27,8 @@
         '--accent-light',
         '--primary-contrast',
     ];
-    var HEX_RE = /^#[0-9a-fA-F]{6}$/;
 
-    var accents = { accentLight: null, accentDark: null };
+    var accents = { accentTint: null, accentPrimary: null };
 
     function sanitize(hex) {
         return (typeof hex === 'string' && HEX_RE.test(hex)) ? hex.toLowerCase() : null;
@@ -34,27 +38,31 @@
         return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
     }
 
-    function clearOverrides() {
+    // Apply one group: set its variables from the derivation, or remove them
+    // all when that colour is not customised (factory palette shows through).
+    function applyGroup(varNames, derived) {
         var style = document.documentElement.style;
-        VAR_NAMES.forEach(function (name) { style.removeProperty(name); });
-    }
-
-    // Apply the override for one resolved mode ('light' | 'dark').
-    function apply(theme) {
-        var hex = theme === 'dark' ? accents.accentDark : accents.accentLight;
-        var vars = window.SummieColor ? window.SummieColor.deriveAccentVars(hex, theme) : null;
-        if (!vars) {
-            clearOverrides();
+        if (!derived) {
+            varNames.forEach(function (name) { style.removeProperty(name); });
             return;
         }
-        var style = document.documentElement.style;
-        for (var name in vars) style.setProperty(name, vars[name]);
+        varNames.forEach(function (name) {
+            if (derived[name]) style.setProperty(name, derived[name]);
+        });
+    }
+
+    // Apply the overrides for one resolved mode ('light' | 'dark').
+    function apply(theme) {
+        var math = window.SummieColor;
+        if (!math) return;
+        applyGroup(TINT_VARS, accents.accentTint && math.deriveTintVars(accents.accentTint, theme));
+        applyGroup(PRIMARY_VARS, accents.accentPrimary && math.deriveAccentVars(accents.accentPrimary, theme));
     }
 
     function setAccents(next) {
         accents = {
-            accentLight: sanitize(next && next.accentLight),
-            accentDark: sanitize(next && next.accentDark),
+            accentTint: sanitize(next && next.accentTint),
+            accentPrimary: sanitize(next && next.accentPrimary),
         };
         apply(currentTheme());
     }
@@ -63,7 +71,7 @@
         apply: apply,
         setAccents: setAccents,
         getAccents: function () {
-            return { accentLight: accents.accentLight, accentDark: accents.accentDark };
+            return { accentTint: accents.accentTint, accentPrimary: accents.accentPrimary };
         },
     };
 
