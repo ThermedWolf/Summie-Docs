@@ -8,9 +8,19 @@
 //   - De ruler toont actieve stops (blauw, versleepbaar) en stops van andere paragrafen (grijs)
 
 (function () {
-    const PAGE_WIDTH_MM = 210;
     const MARGIN_MM = 25;
-    const CONTENT_MM = PAGE_WIDTH_MM - 2 * MARGIN_MM; // 160mm
+    // Page width follows the document orientation (feature 5): portrait A4 is
+    // 210mm wide, landscape is 297mm. Read live from the PageManager so every
+    // mm↔px conversion tracks the current page box.
+    const PORTRAIT_WIDTH_MM = 210;
+    const LANDSCAPE_WIDTH_MM = 297;
+
+    function pageWidthMm() {
+        return window.PageManager && window.PageManager.getOrientation() === 'landscape'
+            ? LANDSCAPE_WIDTH_MM
+            : PORTRAIT_WIDTH_MM;
+    }
+    function contentWidthMm() { return pageWidthMm() - 2 * MARGIN_MM; }
     const DEFAULT_TAB_MM = 12.5;
 
     // ── State ──────────────────────────────────────────────────────────────
@@ -18,8 +28,8 @@
     const lastActivePara = new Map(); // pageIdx → Element
 
     // ── Coordinate helpers ─────────────────────────────────────────────────
-    function mmToPx(mm, rw) { return (mm / PAGE_WIDTH_MM) * rw; }
-    function pxToMm(px, rw) { return (px / rw) * PAGE_WIDTH_MM; }
+    function mmToPx(mm, rw) { return (mm / pageWidthMm()) * rw; }
+    function pxToMm(px, rw) { return (px / rw) * pageWidthMm(); }
     function getRulerWidth(ruler) { return ruler.getBoundingClientRect().width; }
 
     // ── Per-paragraph tabstop storage (via data attribute) ─────────────────
@@ -48,7 +58,7 @@
         if (custom.length > 0) return custom;
         // Default: every DEFAULT_TAB_MM from left margin to right margin
         const stops = [];
-        for (let mm = MARGIN_MM + DEFAULT_TAB_MM; mm < PAGE_WIDTH_MM - MARGIN_MM; mm += DEFAULT_TAB_MM) {
+        for (let mm = MARGIN_MM + DEFAULT_TAB_MM; mm < pageWidthMm() - MARGIN_MM; mm += DEFAULT_TAB_MM) {
             stops.push(Math.round(mm * 10) / 10);
         }
         return stops;
@@ -234,8 +244,9 @@
         scale.innerHTML = '';
         const rw = getRulerWidth(ruler);
         if (rw < 10) { requestAnimationFrame(() => buildScale(ruler, scale)); return; }
-        for (let mm = 0; mm <= PAGE_WIDTH_MM; mm++) {
-            const x = (mm / PAGE_WIDTH_MM) * rw;
+        const widthMm = pageWidthMm();
+        for (let mm = 0; mm <= widthMm; mm++) {
+            const x = (mm / widthMm) * rw;
             if (mm % 10 === 0) {
                 const tick = document.createElement('div');
                 tick.className = 'tab-ruler-tick major';
@@ -266,7 +277,7 @@
     function addTabStop(idx, mm) {
         const target = getStopTarget(idx);
         const mmR = Math.round(mm * 2) / 2;
-        if (mmR < MARGIN_MM || mmR > PAGE_WIDTH_MM - MARGIN_MM) return;
+        if (mmR < MARGIN_MM || mmR > pageWidthMm() - MARGIN_MM) return;
         const stops = getParaStops(target);
 
         if (stops.length > 0) {
@@ -292,7 +303,7 @@
     function moveTabStop(idx, oldMm, newMm) {
         const target = getStopTarget(idx);
         const stops = getParaStops(target);
-        const clamped = Math.max(MARGIN_MM, Math.min(PAGE_WIDTH_MM - MARGIN_MM, Math.round(newMm * 2) / 2));
+        const clamped = Math.max(MARGIN_MM, Math.min(pageWidthMm() - MARGIN_MM, Math.round(newMm * 2) / 2));
         // Only one stop allowed — always replace index 0
         stops[0] = clamped;
         setParaStops(target, stops);
@@ -357,7 +368,7 @@
                     if (!moved && Math.abs(dx) < 3) return;
                     moved = true;
                     const rw2 = getRulerWidth(ruler);
-                    const newMm = Math.max(MARGIN_MM, Math.min(PAGE_WIDTH_MM - MARGIN_MM, startMm + pxToMm(dx, rw2)));
+                    const newMm = Math.max(MARGIN_MM, Math.min(pageWidthMm() - MARGIN_MM, startMm + pxToMm(dx, rw2)));
                     m.style.left = mmToPx(newMm, rw2) + 'px';
 
                     // Update live every 2px of movement
@@ -395,10 +406,10 @@
 
         const leftX = mmToPx(MARGIN_MM + ind.left, rw);
         const firstLineX = mmToPx(MARGIN_MM + ind.left + ind.firstLine, rw);
-        const rightX = mmToPx(PAGE_WIDTH_MM - MARGIN_MM - ind.right, rw);
+        const rightX = mmToPx(pageWidthMm() - MARGIN_MM - ind.right, rw);
 
         const defaultLeftX = mmToPx(MARGIN_MM, rw);
-        const defaultRightX = mmToPx(PAGE_WIDTH_MM - MARGIN_MM, rw);
+        const defaultRightX = mmToPx(pageWidthMm() - MARGIN_MM, rw);
         if (ind.left === 0) addSnapLine(layer, defaultLeftX);
         if (ind.left + ind.firstLine === 0) addSnapLine(layer, defaultLeftX);
         if (ind.right === 0) addSnapLine(layer, defaultRightX);
@@ -446,7 +457,7 @@
             const ind0 = { ...getIndent(idx) };
             const SNAP = 1.5;
             const MIN = -MARGIN_MM + 0.5;
-            const MAX = CONTENT_MM + MARGIN_MM - 0.5;
+            const MAX = contentWidthMm() + MARGIN_MM - 0.5;
 
             // Grab sibling handles so we can move them live without re-rendering
             const layer = ruler.querySelector('.tab-ruler-indents');
@@ -473,11 +484,11 @@
                     nR = ind0.right;
                 } else if (type === 'firstLine') {
                     const fa0 = ind0.left + ind0.firstLine;
-                    const maxA = CONTENT_MM - ind0.right;
+                    const maxA = contentWidthMm() - ind0.right;
                     const nA = Math.max(MIN, Math.min(maxA, fa0 + dMm));
                     nL = ind.left; nF = nA - ind.left; nR = ind.right;
                 } else {
-                    const maxR = CONTENT_MM - (ind0.left + ind0.firstLine);
+                    const maxR = contentWidthMm() - (ind0.left + ind0.firstLine);
                     nL = ind.left; nF = ind.firstLine;
                     nR = Math.max(MIN, Math.min(maxR, ind0.right - dMm));
                 }
@@ -489,7 +500,7 @@
                 // Move handles directly — never destroy them mid-drag
                 const leftX = mmToPx(MARGIN_MM + ind.left, rw);
                 const firstLineX = mmToPx(MARGIN_MM + ind.left + ind.firstLine, rw);
-                const rightX = mmToPx(PAGE_WIDTH_MM - MARGIN_MM - ind.right, rw);
+                const rightX = mmToPx(pageWidthMm() - MARGIN_MM - ind.right, rw);
                 if (blockEl) blockEl.style.left = (leftX - HANDLE_HALF) + 'px';
                 if (hangEl) hangEl.style.left = (leftX - HANDLE_HALF) + 'px';
                 if (firstLineEl) firstLineEl.style.left = (firstLineX - HANDLE_HALF) + 'px';
@@ -635,7 +646,7 @@
         fixedRuler.style.left = Math.round(pageRect.left) + 'px';
         fixedRuler.style.width = Math.round(pageRect.width) + 'px';
 
-        const marginPct = (MARGIN_MM / PAGE_WIDTH_MM * 100).toFixed(4) + '%';
+        const marginPct = (MARGIN_MM / pageWidthMm() * 100).toFixed(4) + '%';
         fixedRuler.style.setProperty('--ruler-margin', marginPct);
 
         buildScale(fixedRuler, fixedRuler.querySelector('.tab-ruler-scale'));
@@ -741,12 +752,24 @@
         }
     }
 
+    // Full ruler rebuild for the current page box — called after the document
+    // orientation changes, since scale ticks, stops and indents are all
+    // positioned in pixels derived from the page width in mm.
+    function refresh() {
+        if (!fixedRuler) return;
+        positionFixedRuler();
+        renderStops(fixedRuler, activePageIdx);
+        renderIndents(fixedRuler, activePageIdx);
+        renderTabsOnPage(activePageIdx);
+    }
+
     window.TabRuler = {
         init,
         handleTabKey,
         getTabStopsData, loadTabStopsData,
         getIndentsData, loadIndentsData,
         attachRulersToAllPages,
-        reposition: positionFixedRuler
+        reposition: positionFixedRuler,
+        refresh
     };
 })();

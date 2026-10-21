@@ -2882,6 +2882,21 @@ p[data-image-spacer] {
     animation: none;
 }
 
+/* Landscape (liggend) — A4 swapped: 297mm wide × 210mm tall */
+.pages-container.pages-landscape .a4-page {
+    width: 297mm;
+    min-height: 210mm;
+}
+
+.pages-container.pages-landscape.pages-multi .a4-page {
+    height: 210mm;
+    min-height: 210mm;
+}
+
+.pages-container.pages-landscape .editor-placeholder-overlay {
+    width: calc(297mm - 50mm);
+}
+
 .pages-container.pages-multi .summie-page-break {
     display: none !important;
 }
@@ -2968,6 +2983,48 @@ p[data-image-spacer] {
     background: var(--accent-light, #dbeafe);
     color: var(--accent, #3b82f6);
     border-color: var(--accent, #3b82f6);
+}
+
+/* Orientation toggle (Staand / Liggend) — lives inside #pageListWrapper,
+   so it is only visible while the document is paginated */
+.orientation-control {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 8px;
+    padding: 3px;
+    background: var(--bg-secondary, #f1f5f9);
+    border: 1px solid var(--border-color, #e2e8f0);
+    border-radius: 8px;
+}
+
+.orientation-btn {
+    flex: 1;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary, #64748b);
+    font-size: 12.5px;
+    font-family: inherit;
+    line-height: 1.4;
+    padding: 5px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+
+.orientation-btn:hover {
+    color: var(--text-primary, #0f172a);
+}
+
+.orientation-btn.active {
+    background: var(--bg-white, #ffffff);
+    color: var(--accent, #3b82f6);
+    font-weight: 500;
+    box-shadow: var(--shadow-sm, 0 1px 2px 0 rgba(0, 0, 0, 0.05));
+}
+
+.orientation-btn:focus-visible {
+    outline: 2px solid var(--accent, #3b82f6);
+    outline-offset: 1px;
 }
 
 .pagination-status {

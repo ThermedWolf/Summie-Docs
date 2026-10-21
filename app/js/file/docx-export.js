@@ -15,6 +15,24 @@
         return (window.DocumentFont && window.DocumentFont.getExportFont()) || undefined;
     }
 
+    // ── Page geometry ─────────────────────────────────────────────────────
+    // A4 in twips (1mm ≈ 56.7 twip) with 1" (1440 twip) margins, matching the
+    // editor's 25mm page padding. Landscape documents export with the same A4
+    // sheet rotated: the docx lib swaps the given width/height itself when
+    // PageOrientation.LANDSCAPE is set, so pass portrait dimensions + the flag.
+    const PAGE_SIZE = { width: 11906, height: 16838 };
+    const PAGE_MARGIN = 1440;
+
+    function isLandscapeDocument() {
+        return !!(window.PageManager && window.PageManager.getOrientation() === 'landscape');
+    }
+
+    // Usable content width in DXA — drives table widths so they fill the page.
+    function contentWidthTwips() {
+        const pageWidth = isLandscapeDocument() ? PAGE_SIZE.height : PAGE_SIZE.width;
+        return pageWidth - 2 * PAGE_MARGIN;
+    }
+
     function rgbToHex(rgb) {
         const m = rgb.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
         if (!m) return null;
@@ -507,7 +525,7 @@
         const b = { style: BorderStyle.SINGLE, size: 4, color: 'CBD5E1' };
         const borders = { top: b, bottom: b, left: b, right: b };
 
-        const TABLE_WIDTH = 9026; // DXA (A4 with 1" margins)
+        const TABLE_WIDTH = contentWidthTwips(); // DXA (A4 content width with 1" margins)
 
         const rows = [];
         // Only direct child rows (thead/tbody/tr), not nested table rows
@@ -1060,10 +1078,16 @@
             children,
         });
 
+        // Column widths keep the portrait ratio (term ≈ 31%) and scale with the
+        // wider content area in landscape documents.
+        const begrippenTableWidth = contentWidthTwips();
+        const termColWidth = Math.floor(begrippenTableWidth * (2800 / 9026));
+        const descColWidth = begrippenTableWidth - termColWidth;
+
         const headerRow = new TableRow({
             tableHeader: true, children: [
-                mkCell([new Paragraph({ children: [new TextRun({ text: SummieI18n.t('Begrip'), bold: true, font: documentFont(), size: 22, color: '1E293B' })] })], 'EFF6FF', 2800),
-                mkCell([new Paragraph({ children: [new TextRun({ text: SummieI18n.t('Omschrijving'), bold: true, font: documentFont(), size: 22, color: '1E293B' })] })], 'EFF6FF', 6226),
+                mkCell([new Paragraph({ children: [new TextRun({ text: SummieI18n.t('Begrip'), bold: true, font: documentFont(), size: 22, color: '1E293B' })] })], 'EFF6FF', termColWidth),
+                mkCell([new Paragraph({ children: [new TextRun({ text: SummieI18n.t('Omschrijving'), bold: true, font: documentFont(), size: 22, color: '1E293B' })] })], 'EFF6FF', descColWidth),
             ]
         });
 
@@ -1075,13 +1099,13 @@
             }
             return new TableRow({
                 children: [
-                    mkCell([new Paragraph({ children: [new TextRun({ text: bg.keyword, bold: true, font: documentFont(), size: 22 })] })], fill, 2800),
-                    mkCell([new Paragraph({ children: descRuns })], fill, 6226),
+                    mkCell([new Paragraph({ children: [new TextRun({ text: bg.keyword, bold: true, font: documentFont(), size: 22 })] })], fill, termColWidth),
+                    mkCell([new Paragraph({ children: descRuns })], fill, descColWidth),
                 ]
             });
         });
 
-        out.push(new Table({ width: { size: 9026, type: WidthType.DXA }, columnWidths: [2800, 6226], rows: [headerRow, ...dataRows] }));
+        out.push(new Table({ width: { size: begrippenTableWidth, type: WidthType.DXA }, columnWidths: [termColWidth, descColWidth], rows: [headerRow, ...dataRows] }));
         return out;
     }
 
@@ -1193,7 +1217,16 @@
                     ],
                 },
                 sections: [{
-                    properties: { page: { size: { width: 11906, height: 16838 }, margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 } } },
+                    properties: {
+                        page: {
+                            // Portrait dimensions + LANDSCAPE flag: the docx lib
+                            // swaps width/height itself for landscape sections.
+                            size: isLandscapeDocument()
+                                ? { width: PAGE_SIZE.width, height: PAGE_SIZE.height, orientation: docxLib.PageOrientation.LANDSCAPE }
+                                : { width: PAGE_SIZE.width, height: PAGE_SIZE.height },
+                            margin: { top: PAGE_MARGIN, right: PAGE_MARGIN, bottom: PAGE_MARGIN, left: PAGE_MARGIN }
+                        }
+                    },
                     children: [...contentParas, ...begrippenParas],
                 }],
             });

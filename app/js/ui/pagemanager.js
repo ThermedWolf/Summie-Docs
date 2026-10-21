@@ -1,5 +1,14 @@
 // ==================== PAGE MANAGER ====================
 // Word-style pagination, first pass: fixed A4 pages with block-based overflow.
+//
+// Orientation (feature 5): documents are portrait A4 by default and can be
+// switched to landscape (liggend). The state lives here, the class
+// `pages-landscape` on #pagesContainer drives the CSS page dimensions, and
+// reflow measures the DOM — so the CSS swap alone steers redistribution.
+// Known limitation (pre-existing): header/footer zones travel with content
+// during reflow, so after big re-layouts (incl. orientation toggles) a zone
+// can sit mid-page. Per-page zone maps are keyed by page index and are not
+// remapped by reflow.
 
 (function () {
     'use strict';
@@ -7,12 +16,15 @@
     let paginationEnabled = false;
     let reflowTimer = null;
     let isReflowing = false;
+    let orientation = 'portrait'; // per-document page format: 'portrait' | 'landscape'
     const CURSOR_MARKER_ID = 'summie-pagination-cursor';
     const PAGE_BREAK_CLASS = 'summie-page-break';
+    const ORIENTATION_CLASS = 'pages-landscape';
 
     function getContainer() { return document.getElementById('pagesContainer'); }
     function getAllPages() { return Array.from(getContainer()?.querySelectorAll('.a4-page') || []); }
     function isPaginationEnabled() { return paginationEnabled; }
+    function getOrientation() { return orientation; }
 
     function contentNodes(page) {
         return Array.from(page.childNodes).filter(node => {
@@ -359,10 +371,56 @@
         updatePageList();
     }
 
+    // ==================== ORIENTATION (STAAND / LIGGEND) ====================
+    function applyOrientationClass() {
+        const container = getContainer();
+        if (!container) return;
+        // Page dimensions are page chrome: the class only applies while the
+        // document is paginated (single-page mode shows one continuous page).
+        container.classList.toggle(ORIENTATION_CLASS, paginationEnabled && orientation === 'landscape');
+    }
+
+    function updateOrientationControl() {
+        document.querySelectorAll('#orientationControl .orientation-btn').forEach(btn => {
+            const active = btn.dataset.orientation === orientation;
+            btn.classList.toggle('active', active);
+            btn.setAttribute('aria-pressed', String(active));
+        });
+    }
+
+    function setOrientation(value, options = {}) {
+        const next = value === 'landscape' ? 'landscape' : 'portrait';
+        if (next === orientation) {
+            // Already in this mode — just make sure class and control are in
+            // sync (cheap) and skip the full reflow cycle.
+            applyOrientationClass();
+            updateOrientationControl();
+            return;
+        }
+        orientation = next;
+        applyOrientationClass();
+        updateOrientationControl();
+        if (options.deferReflow) return;
+        // Drop any pending debounced reflow — the explicit reflow below runs on
+        // the freshly sized pages, and a second pass right after is a no-op.
+        clearTimeout(reflowTimer);
+        reflowNow(false);
+        // The ruler maps mm against the page box; let the resize settle, then
+        // rebuild scale, stops and indents for the new width.
+        requestAnimationFrame(() => window.TabRuler?.refresh?.());
+        window.saveToLocalStorage?.();
+        // One undo step for the whole toggle — the reflow mutations coalesce
+        // into the same debounced snapshot capture.
+        window.UndoManager?.notifyExternalChange?.();
+        window.updateUnsavedIndicator?.();
+    }
+
     function enablePagination() {
         paginationEnabled = true;
         const container = getContainer();
         container.classList.add('pages-multi');
+        applyOrientationClass();
+        updateOrientationControl();
         getAllPages().forEach((page, i) => { setupPageEvents(page); addBadge(page, i); });
         getAllPages().forEach(appendEmptyParagraph);
         const wrapper = document.getElementById('pageListWrapper');
@@ -388,6 +446,12 @@
         document.getElementById('pageListWrapper')?.style && (document.getElementById('pageListWrapper').style.display = 'none');
         const list = document.getElementById('pageList');
         if (list) list.innerHTML = '';
+        // Orientation is meaningless without pages — a single continuous page
+        // has no page format. Reset so the next paginated document starts
+        // portrait instead of inheriting the previous document's choice.
+        orientation = 'portrait';
+        applyOrientationClass();
+        updateOrientationControl();
         rebuildPageIndices();
         updatePageBreakButton();
         updateSidebarStatus();
@@ -493,9 +557,14 @@
         });
     }
 
-    function loadPagesData(pagesArray) {
+    function loadPagesData(pagesArray, orientationValue) {
         if (!pagesArray || !Array.isArray(pagesArray) || pagesArray.length === 0) return;
         paginationEnabled = true;
+        // Always normalise — old .sumd files carry no orientation field and
+        // must open portrait even when a previous document was landscape.
+        orientation = orientationValue === 'landscape' ? 'landscape' : 'portrait';
+        applyOrientationClass();
+        updateOrientationControl();
         getContainer().classList.add('pages-multi');
         // Pages come verbatim from the .sumd file — untrusted input. Every page
         // must pass through the same DOMPurify pipeline as single-page content,
@@ -529,12 +598,16 @@
         }
         document.getElementById('addPageBtn')?.addEventListener('click', addPage);
         document.getElementById('insertPageBreakBtn')?.addEventListener('click', insertPageBreakFromButton);
+        document.querySelectorAll('#orientationControl .orientation-btn').forEach(btn => {
+            btn.addEventListener('click', () => setOrientation(btn.dataset.orientation));
+        });
         document.addEventListener('selectionchange', () => { if (paginationEnabled) updatePageList(); });
     }
 
     window.PageManager = {
         init, enablePagination, disablePagination, isPaginationEnabled,
         addPage, removePage, focusPage, getAllPages, getPagesData, loadPagesData,
-        updatePageList, rebuildPageIndices, updateSidebarStatus, scheduleReflow, insertPageBreak
+        updatePageList, rebuildPageIndices, updateSidebarStatus, scheduleReflow, insertPageBreak,
+        getOrientation, setOrientation
     };
 })();

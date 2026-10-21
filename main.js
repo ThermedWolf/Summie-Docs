@@ -764,14 +764,27 @@ safeHandle('rename-file', async (event, oldPath, newPath) => {
     }
 });
 
+// A landscape document (pages-landscape class on #pagesContainer) must print
+// to rotated paper; query the renderer since main has no DOM access.
+async function isDocumentLandscape(win) {
+    try {
+        return await win.webContents.executeJavaScript(
+            "!!document.getElementById('pagesContainer')?.classList.contains('pages-landscape')"
+        ) === true;
+    } catch (e) {
+        return false;
+    }
+}
+
 safeHandle('print-document', async (event) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     // Hide UI, print, then restore
     await win.webContents.executeJavaScript(`
         document.documentElement.classList.add('printing-mode');
     `);
+    const landscape = await isDocumentLandscape(win);
     return new Promise((resolve) => {
-        win.webContents.print({ silent: false, printBackground: true }, async (success, errorType) => {
+        win.webContents.print({ silent: false, printBackground: true, landscape }, async (success, errorType) => {
             await win.webContents.executeJavaScript(`
                 document.documentElement.classList.remove('printing-mode');
             `);
@@ -793,9 +806,11 @@ safeHandle('save-as-pdf', async (event) => {
         await win.webContents.executeJavaScript(`
             document.documentElement.classList.add('printing-mode');
         `);
+        const landscape = await isDocumentLandscape(win);
         const pdfData = await win.webContents.printToPDF({
             printBackground: true,
             pageSize: 'A4',
+            landscape,
             margins: { marginType: 'none' }
         });
         // Restore UI

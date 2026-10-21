@@ -15,6 +15,7 @@ async function saveToLocalStorage() {
     const data = {
         content: editor.innerHTML,
         pages: pagesData,
+        orientation: window.PageManager ? window.PageManager.getOrientation() : 'portrait',
         begrippen,
         references: window.ReferencesManager ? window.ReferencesManager.getSerialised() : [],
         citations: window.Bibliography ? window.Bibliography.getSerialised() : [],
@@ -116,7 +117,7 @@ async function loadFromLocalStorage() {
             if (isPaginatedDraft) {
                 localStorage.setItem('summie_pagination_mode', '1');
                 if (!window.PageManager.isPaginationEnabled()) window.PageManager.enablePagination();
-                window.PageManager.loadPagesData(data.pages);
+                window.PageManager.loadPagesData(data.pages, data.orientation);
             } else {
                 localStorage.setItem('summie_pagination_mode', '0');
                 if (window.PageManager.isPaginationEnabled()) window.PageManager.disablePagination();
