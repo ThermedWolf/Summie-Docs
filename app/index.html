@@ -12,7 +12,8 @@
     <!-- Pure colour math + saved accent colour override, also pre-paint -->
     <script src="js/utils/color.js"></script>
     <script src="js/ui/accent.js"></script>
-    <!-- Apply the saved document font before first paint (no font flash) -->
+    <!-- Document font state (window.DocumentFont) — used by the editor
+         toolbar picker, previews and docx export -->
     <script src="js/ui/document-font.js"></script>
     <!-- Untrusted-content sanitisation (DOMPurify + Summie wrapper) -->
     <script src="js/lib/purify.min.js"></script>
@@ -21,7 +22,7 @@
     <script src="js/i18n/en.js"></script>
     <script src="js/i18n/i18n.js"></script>
     <link rel="stylesheet" href="styles.css?v=13">
-    <link rel="stylesheet" href="topbar.css?v=3">
+    <link rel="stylesheet" href="topbar.css?v=4">
     <link rel="stylesheet" href="code-blocks.css?v=2">
     <link rel="stylesheet" href="textbox.css">
     <link rel="stylesheet" href="toc.css">
@@ -169,6 +170,18 @@
                                 <line x1="4" y1="21" x2="20" y2="21" />
                             </svg>
                         </button>
+
+                        <!-- Document font family control -->
+                        <div class="font-family-control">
+                            <button class="font-family-btn" id="fontFamilyBtn" title="Lettertype">
+                                <span class="font-family-label" id="fontFamilyLabel">Systeemstandaard</span>
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="6 9 12 15 18 9" />
+                                </svg>
+                            </button>
+                            <div class="font-family-dropdown" id="fontFamilyDropdown"></div>
+                        </div>
 
                         <!-- Font size control -->
                         <div class="font-size-control">
@@ -1814,6 +1827,7 @@
     <script src="js/format/styles.js"></script>
     <script src="js/format/format.js"></script>
     <script src="js/format/fontsize.js"></script>
+    <script src="js/format/fontfamily.js"></script>
 
     <!-- Begrippen -->
     <script src="js/begrippen/highlight.js"></script>

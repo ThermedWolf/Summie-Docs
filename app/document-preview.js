@@ -195,11 +195,6 @@ ${cssLinks}
             setTimeout(() => this._applyScale(), 200);
         });
 
-        // Follow app-wide font changes while this preview stays visible.
-        if (window.electron && window.electron.onFontChanged) {
-            window.electron.onFontChanged(() => this._applyIframeFont(this._lastData));
-        }
-
         this._container.appendChild(this._iframe);
         this._container.appendChild(this._loader);
     }

@@ -160,8 +160,6 @@
         'Donker': 'Dark',
         'Licht': 'Light',
         'Systeemstandaard volgt het thema van het besturingssysteem.': 'System default follows the theme of the operating system.',
-        'Standaard lettertype': 'Default font',
-        'Kies het lettertype voor documenten. Een document kan hiervan afwijken — dat wordt met het document opgeslagen.': 'Choose the font used for documents. A document can override this — the choice is saved with the document.',
         'Taal': 'Language',
         'Taal van de applicatie': 'Application language',
         'Nederlands': 'Dutch',

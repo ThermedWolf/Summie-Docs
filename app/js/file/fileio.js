@@ -55,6 +55,7 @@ function computeDocFingerprint() {
         return JSON.stringify({
             content: getCleanEditorContent(editor),
             pages: window.PageManager ? window.PageManager.getPagesData() : null,
+            orientation: window.PageManager ? window.PageManager.getOrientation() : 'portrait',
             begrippen: state.begrippen || [],
             protectedFlag: window.DocumentProtection ? window.DocumentProtection.isProtected() : false,
             codeBlocks: window.codeBlockManager ? window.codeBlockManager.getCodeBlocksData() : [],
@@ -258,6 +259,7 @@ async function buildPayload() {
     const data = {
         content: getCleanEditorContent(editor),
         pages: window.PageManager ? window.PageManager.getPagesData() : null,
+        orientation: window.PageManager ? window.PageManager.getOrientation() : 'portrait',
         begrippen,
         references: window.ReferencesManager ? window.ReferencesManager.getSerialised() : [],
         citations: window.Bibliography ? window.Bibliography.getSerialised() : [],
@@ -465,9 +467,12 @@ function newSummary() {
         state.begrippen = [];
         window.currentFilePath = null;
         window.DocumentProtection?.reset();
-        // A new document starts with the app-wide font, not the previous
+        // A new document starts with the system default font, not the previous
         // document's per-document choice.
         window.DocumentFont && window.DocumentFont.resetDocumentFont();
+        window.FontFamilyManager && window.FontFamilyManager.updateUI();
+        // Same for the page format: a new document starts portrait.
+        window.PageManager && window.PageManager.setOrientation('portrait', { deferReflow: true });
         localStorage.removeItem('summie_current_file_path');
         updateWindowTitle(null);
         window.AutoSave && window.AutoSave.onFileChanged();

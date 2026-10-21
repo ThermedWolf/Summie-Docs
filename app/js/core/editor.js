@@ -200,7 +200,8 @@ function applyLoadedData(data) {
             // File was saved with pagination on (may be a single empty page)
             localStorage.setItem('summie_pagination_mode', '1');
             if (!window.PageManager.isPaginationEnabled()) window.PageManager.enablePagination();
-            window.PageManager.loadPagesData(data.pages);
+            // Orientation travels with the file; undefined (old files) → portrait.
+            window.PageManager.loadPagesData(data.pages, data.orientation);
             state.editor = document.getElementById('editor');
         } else {
             // Single-page file (no pages array)
@@ -221,8 +222,9 @@ function applyLoadedData(data) {
     setPendingEmptyEditorStyle('normal');
     state.editor.querySelectorAll('.placeholder-text').forEach(el => el.remove());
     // Per-document font — optional payload field; missing/invalid falls back to
-    // the app-wide default, so older .sumd files load unchanged.
+    // the system default, so older .sumd files load unchanged.
     window.DocumentFont && window.DocumentFont.applyDocumentFont(data.fontFamily);
+    window.FontFamilyManager && window.FontFamilyManager.updateUI();
     if (!isPaginatedFile && (!loadedHtml.trim() || loadedHtml === '<p>Begin hier met typen...</p>')) {
         setEditorPlaceholder();
     } else {

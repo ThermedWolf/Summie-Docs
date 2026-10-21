@@ -1849,53 +1849,6 @@ async function initSettings() {
         }
     }
 
-    // Document font (Lettertype) — curated picker, each entry previews its own
-    // typeface via the --font-document stack it would apply. The catalog lives
-    // in js/ui/document-font.js so the panel and the application never drift.
-    const fontList = document.getElementById('fontChoiceList');
-    if (fontList && window.DocumentFont) {
-        const previewText = SummieI18n.t('Voer tekst in om te zien hoe het er in dit lettertype uitziet.');
-        let activeFontId = window.DocumentFont.getAppFontId();
-
-        const setActive = (id) => {
-            activeFontId = id;
-            fontList.querySelectorAll('.font-choice').forEach(el => {
-                el.classList.toggle('active', el.dataset.fontId === id);
-            });
-        };
-
-        window.DocumentFont.DOCUMENT_FONTS.forEach(font => {
-            const option = document.createElement('button');
-            option.type = 'button';
-            option.className = 'font-choice' + (font.id === activeFontId ? ' active' : '');
-            option.dataset.fontId = font.id;
-
-            const name = document.createElement('span');
-            name.className = 'font-choice-name';
-            name.textContent = font.id === 'default' ? SummieI18n.t('Systeemstandaard') : font.name;
-            name.style.fontFamily = font.stack;
-
-            const preview = document.createElement('span');
-            preview.className = 'font-choice-preview';
-            preview.textContent = previewText;
-            preview.style.fontFamily = font.stack;
-
-            option.appendChild(name);
-            option.appendChild(preview);
-            option.addEventListener('click', async () => {
-                setActive(font.id);
-                window.DocumentFont.applyAppFont(font.id);
-                await window.electron.settingsSet({ documentFont: font.id });
-            });
-            fontList.appendChild(option);
-        });
-
-        // Follow font changes made in another window while this panel is open.
-        if (window.electron && window.electron.onFontChanged) {
-            window.electron.onFontChanged(setActive);
-        }
-    }
-
     // Close to home
     if (closeToHome) {
         closeToHome.addEventListener('change', async () => {

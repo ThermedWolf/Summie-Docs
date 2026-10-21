@@ -558,6 +558,85 @@
     color: white;
 }
 
+/* ==================== FONT FAMILY CONTROL ==================== */
+
+.font-family-control {
+    margin-left: 4px;
+    padding-left: 8px;
+    border-left: 1px solid var(--border-color);
+}
+
+.font-family-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 36px;
+    max-width: 130px;
+    padding: 0 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-white);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+.font-family-btn:hover {
+    border-color: var(--secondary-color);
+}
+
+.font-family-label {
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.font-family-dropdown {
+    position: fixed;
+    z-index: 9999;
+    min-width: 190px;
+    max-height: 320px;
+    overflow-y: auto;
+    background: var(--bg-white);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: var(--shadow-lg);
+    padding: 4px;
+    display: none;
+    flex-direction: column;
+    scrollbar-width: thin;
+}
+
+.font-family-dropdown.active {
+    display: flex;
+}
+
+.font-family-option {
+    padding: 7px 10px;
+    border: none;
+    background: transparent;
+    border-radius: 5px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.1s, color 0.1s;
+    white-space: nowrap;
+}
+
+.font-family-option:hover {
+    background: var(--bg-light);
+}
+
+.font-family-option.active {
+    background: var(--primary-color);
+    color: white;
+}
+
+
 
 .btn-toolbar {
     display: inline-flex;

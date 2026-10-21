@@ -1278,5 +1278,9 @@ document.addEventListener('DOMContentLoaded', () => {
     window.fontSizeManager = new FontSizeManager(topbarManager);
     window.fontSizeManager.init();
 
+    // Document font family picker (Lettertype group) — see js/format/fontfamily.js
+    window.fontFamilyManager = new FontFamilyManager();
+    window.fontFamilyManager.init();
+
     window.topbarManager = topbarManager;
 });

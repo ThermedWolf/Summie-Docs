@@ -12,7 +12,7 @@
     <!-- Pure colour math + saved accent colour override, also pre-paint -->
     <script src="js/utils/color.js"></script>
     <script src="js/ui/accent.js"></script>
-    <!-- Apply the saved document font before first paint (no font flash) -->
+    <!-- Document font state (window.DocumentFont) — used by previews -->
     <script src="js/ui/document-font.js"></script>
     <!-- Untrusted-content sanitisation (DOMPurify + Summie wrapper) -->
     <script src="js/lib/purify.min.js"></script>
@@ -548,17 +548,6 @@
                                 <button type="button" class="accent-reset-btn">Terug naar standaard</button>
                             </div>
                         </div>
-                    </div>
-                </div>
-                <div class="settings-group">
-                    <h3 class="settings-group-title">Lettertype</h3>
-                    <div class="settings-item settings-item-dir">
-                        <div class="settings-item-info">
-                            <span class="settings-item-label">Standaard lettertype</span>
-                            <span class="settings-item-desc">Kies het lettertype voor documenten. Een document kan
-                                hiervan afwijken — dat wordt met het document opgeslagen.</span>
-                        </div>
-                        <div class="font-choice-list" id="fontChoiceList"><!-- rendered by landing.js --></div>
                     </div>
                 </div>
                 <div class="settings-group">
