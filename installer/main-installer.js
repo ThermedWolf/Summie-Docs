@@ -11,6 +11,11 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const { execSync, spawn } = require('child_process');
+// original-fs = Electron's pristine Node fs (no ASAR interception). Electron's
+// patched fs treats every "*.asar" path as an archive, so copying app.asar
+// itself would fail with "ENOENT, not found in ...app.asar". All payload
+// file operations must go through originalFs.
+const originalFs = require('original-fs');
 
 // Keep identical Wayland fix as main.js (prevents GPU crash on Hyprland)
 if (process.platform === 'linux') {
@@ -51,6 +56,14 @@ function resolveWindowBackgroundColor() {
         const { nativeTheme } = require('electron');
         return nativeTheme.shouldUseDarkColors ? '#08081a' : '#f8fafc';
     } catch { return '#f8fafc'; }
+}
+
+function resolveInstallerIcon() {
+    // Packaged: extraResources places app-icon.png in resources/ — the app/
+    // folder from the dev layout is not part of the installer asar.
+    const packagedIcon = path.join(process.resourcesPath, 'app-icon.png');
+    if (fs.existsSync(packagedIcon)) return packagedIcon;
+    return path.join(__dirname, '../app/icon.png');
 }
 
 function defaultInstallDir() {
@@ -175,10 +188,11 @@ async function performCleanUninstall(existingPath, win, send) {
 
     // 3) Remove remaining files if the uninstaller left anything behind — or if there was no uninstaller.
     // This is the "completely remove" part. User data in app.getPath('userData') is NOT inside
-    // InstallLocation, so it is never touched here.
+    // InstallLocation, so it is never touched here. originalFs because the install
+    // dir contains app.asar (patched fs refuses to touch "*.asar" paths).
     try {
         if (fs.existsSync(existingPath)) {
-            fs.rmSync(existingPath, { recursive: true, force: true });
+            originalFs.rmSync(existingPath, { recursive: true, force: true });
         }
     } catch {}
 }
@@ -198,7 +212,7 @@ function createInstallerWindow() {
         resizable: false,
         frame: false,
         title: `Summie Setup v${APP_VERSION}`,
-        icon: path.join(__dirname, '../app/icon.png'),
+        icon: resolveInstallerIcon(),
         backgroundColor: bg,
         show: false,
         webPreferences: {
@@ -251,12 +265,14 @@ function findPayloadDir() {
         path.join(__dirname, '../../dist/win-unpacked'),
         path.join(process.cwd(), 'dist/win-unpacked'),
     ];
+    // originalFs: the payload contains an app.asar, and the patched fs
+    // misinterprets any "*.asar" path as an archive
     for (const p of candidates) {
-        try { if (fs.existsSync(path.join(p, 'Summie.exe')) || fs.existsSync(path.join(p, 'resources'))) return p; } catch {}
+        try { if (originalFs.existsSync(path.join(p, 'Summie.exe')) || originalFs.existsSync(path.join(p, 'resources'))) return p; } catch {}
     }
     // Fallback: any existing payload dir even without Summie.exe
     for (const p of candidates) {
-        try { if (fs.existsSync(p)) return p; } catch {}
+        try { if (originalFs.existsSync(p)) return p; } catch {}
     }
     return null;
 }
@@ -267,7 +283,7 @@ function collectFiles(dir) {
     while (stack.length) {
         const cur = stack.pop();
         let entries = [];
-        try { entries = fs.readdirSync(cur, { withFileTypes: true }); } catch { continue; }
+        try { entries = originalFs.readdirSync(cur, { withFileTypes: true }); } catch { continue; }
         for (const e of entries) {
             const full = path.join(cur, e.name);
             if (e.isDirectory()) stack.push(full);
@@ -316,7 +332,7 @@ ipcMain.handle('installer:start-install', async (e, opts) => {
     let copied = false;
     let payloadFiles = [];
 
-    if (payloadDir && fs.existsSync(payloadDir)) {
+    if (payloadDir && originalFs.existsSync(payloadDir)) {
         try { payloadFiles = collectFiles(payloadDir); } catch { payloadFiles = []; }
 
         if (payloadFiles.length > 0) {
@@ -326,11 +342,13 @@ ipcMain.handle('installer:start-install', async (e, opts) => {
                 const rel = path.relative(payloadDir, src);
                 const dest = path.join(targetDir, rel);
                 try {
-                    fs.mkdirSync(path.dirname(dest), { recursive: true });
-                    fs.copyFileSync(src, dest);
+                    // originalFs on both sides: src and dest both end in
+                    // app.asar, which the patched fs would treat as archives
+                    originalFs.mkdirSync(path.dirname(dest), { recursive: true });
+                    originalFs.copyFileSync(src, dest);
                 } catch (err) {
                     // Fail the install on first real error (disk full / permission)
-                    return { success: false, error: err.message };
+                    return { success: false, error: `${err.message} (file: ${rel})` };
                 }
                 done++;
                 const pct = 10 + Math.round((done / total) * 68); // 10→78

@@ -13,7 +13,8 @@
     "installer/installer.html",
     "installer/installer.css",
     "installer/installer.js",
-    "installer/i18n.js"
+    "installer/i18n.js",
+    "!node_modules/**"
   ],
   "extraResources": [
     {
@@ -42,5 +43,5 @@
   },
   "publish": null,
   "forceCodeSigning": false,
-  "compression": "store"
+  "compression": "normal"
 }
