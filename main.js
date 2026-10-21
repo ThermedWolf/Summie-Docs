@@ -282,6 +282,15 @@ const DEFAULT_APP_SETTINGS = {
     ttsPauses: { codeBlock: 2, table: 3, image: 2, shape: 2, default: 1 }, // stilte na overgeslagen elementen (sec) — shorter for neural
     ttsEngine: 'piper',                 // 'piper' | 'webSpeech' | 'auto'
     ttsPiperVoice: 'en_US-libritts_r-medium',
+
+    // AI settings
+    aiEnabled: true,                    // master toggle for all AI features
+    aiSpellingEnabled: true,            // spelling check + auto-correct
+    aiGrammarEnabled: true,             // grammar checking
+    aiModelTier: 'auto',                // 'low' | 'mid' | 'high' | 'auto'
+    aiAutoCorrectEnabled: true,         // auto-fix high-confidence typos while typing
+    aiAutoCorrectThreshold: 70,         // confidence % for auto-correct (0-100)
+    aiNeuralEnabled: true,              // neural context checks (EN bert-mini, on-demand download)
 };
 
 function readAppSettings() {
@@ -312,6 +321,18 @@ function readAppSettings() {
     }
     if (!['piper', 'webSpeech', 'auto'].includes(merged.ttsEngine)) merged.ttsEngine = DEFAULT_APP_SETTINGS.ttsEngine;
     if (typeof merged.ttsPiperVoice !== 'string' || !PIPER_REGISTRY[merged.ttsPiperVoice]) merged.ttsPiperVoice = DEFAULT_APP_SETTINGS.ttsPiperVoice;
+
+    // AI settings — validate
+    if (typeof merged.aiEnabled !== 'boolean') merged.aiEnabled = DEFAULT_APP_SETTINGS.aiEnabled;
+    if (typeof merged.aiSpellingEnabled !== 'boolean') merged.aiSpellingEnabled = DEFAULT_APP_SETTINGS.aiSpellingEnabled;
+    if (typeof merged.aiGrammarEnabled !== 'boolean') merged.aiGrammarEnabled = DEFAULT_APP_SETTINGS.aiGrammarEnabled;
+    if (!['low', 'mid', 'high', 'auto'].includes(merged.aiModelTier)) merged.aiModelTier = DEFAULT_APP_SETTINGS.aiModelTier;
+    if (typeof merged.aiAutoCorrectEnabled !== 'boolean') merged.aiAutoCorrectEnabled = DEFAULT_APP_SETTINGS.aiAutoCorrectEnabled;
+    if (typeof merged.aiNeuralEnabled !== 'boolean') merged.aiNeuralEnabled = DEFAULT_APP_SETTINGS.aiNeuralEnabled;
+    if (typeof merged.aiAutoCorrectThreshold !== 'number' || merged.aiAutoCorrectThreshold < 0 || merged.aiAutoCorrectThreshold > 100) {
+        merged.aiAutoCorrectThreshold = DEFAULT_APP_SETTINGS.aiAutoCorrectThreshold;
+    }
+
     return merged;
 }
 
@@ -1488,6 +1509,205 @@ safeHandle('shell-open-external', async (event, url) => {
         return { success: true };
     } catch (err) {
         return { success: false, error: err.message };
+    }
+});
+
+// ==================== AI MODEL MANAGEMENT ====================
+// AI models are downloaded on-demand from Hugging Face and cached in userData/ai-models/
+// Uses the same pattern as Piper voice downloads.
+
+const AI_MODEL_REGISTRY = {
+    'spelling-small': {
+        name: 'Small Spell (Multilingual)',
+        sizeMB: 45,
+        url: 'https://huggingface.co/ThermedWolf/summie-ai-models/resolve/main/spelling-small.onnx',
+        fileName: 'spelling-small.onnx',
+    },
+    'grammar-nl': {
+        name: 'Dutch Grammar',
+        sizeMB: 50,
+        url: 'https://huggingface.co/ThermedWolf/summie-ai-models/resolve/main/grammar-nl.onnx',
+        fileName: 'grammar-nl.onnx',
+    },
+    'grammar-en': {
+        name: 'English Grammar',
+        sizeMB: 50,
+        url: 'https://huggingface.co/ThermedWolf/summie-ai-models/resolve/main/grammar-en.onnx',
+        fileName: 'grammar-en.onnx',
+    },
+    // BERT-mini masked-LM for neural context checks (English). Served from
+    // Hugging Face on demand (Apache-2.0 derived weights); the app only ever
+    // downloads after explicit user consent in the AI toolbar flow.
+    'bert-mini-mlm': {
+        name: 'BERT-mini context model (English, ~19 MB)',
+        sizeMB: 19,
+        url: 'https://huggingface.co/ThermedWolf/summie-ai-models/resolve/main/bert-mini-mlm-int8.onnx',
+        fileName: 'bert-mini-mlm.onnx',
+    },
+    'bert-mini-vocab': {
+        name: 'BERT-mini vocabulary',
+        sizeMB: 1,
+        url: 'https://huggingface.co/ThermedWolf/summie-ai-models/resolve/main/bert-mini-vocab.txt',
+        fileName: 'bert-mini-vocab.txt',
+    },
+};
+
+function getAIModelDir() {
+    return path.join(app.getPath('userData'), 'ai-models');
+}
+
+function isAIModelInstalled(modelId) {
+    const info = AI_MODEL_REGISTRY[modelId];
+    if (!info) return false;
+    const modelPath = path.join(getAIModelDir(), info.fileName);
+    return fs.existsSync(modelPath) && fs.statSync(modelPath).size > 1024;
+}
+
+function getBundledAIModelPath(fileName) {
+    // In dev: <app>/ai-models/… ; packaged: <resources>/ai-models/… (extraResources)
+    const candidates = [path.join(__dirname, 'ai-models', fileName)];
+    if (process.resourcesPath) candidates.push(path.join(process.resourcesPath, 'ai-models', fileName));
+    for (const p of candidates) {
+        try { if (fs.existsSync(p)) return p; } catch { /* try next */ }
+    }
+    return candidates[0];
+}
+
+function getAIModelFilePath(modelId) {
+    // Downloaded models live in userData; spelling-tiny and the spell-check
+    // dictionaries are bundled (extraResources ai-models/).
+    if (modelId === 'spelling-tiny') return getBundledAIModelPath(path.join('spelling', 'tiny-spell-multilingual.onnx'));
+    const info = AI_MODEL_REGISTRY[modelId];
+    if (!info) return null;
+    return path.join(getAIModelDir(), info.fileName);
+}
+
+function getAIModelFileSize(modelId) {
+    try {
+        const p = getAIModelFilePath(modelId);
+        if (!p) return 0;
+        const st = fs.statSync(p);
+        return st.isFile() ? st.size : 0;
+    } catch { return 0; }
+}
+
+safeHandle('ai-get-model-status', async () => {
+    const status = {};
+    for (const [id, info] of Object.entries(AI_MODEL_REGISTRY)) {
+        status[id] = { ...info, installed: isAIModelInstalled(id), fileSize: getAIModelFileSize(id) };
+    }
+    // Bundled tiny spell model — only "installed" when it is a real file
+    // (>1 KB); the Phase-1 placeholder is 0 bytes and reports not installed.
+    const tinySize = getAIModelFileSize('spelling-tiny');
+    status['spelling-tiny'] = {
+        id: 'spelling-tiny',
+        name: 'Tiny Spell (Multilingual)',
+        sizeMB: 15,
+        bundled: true,
+        installed: tinySize > 1024,
+        fileSize: tinySize,
+    };
+    return status;
+});
+
+safeHandle('ai-download-model', async (event, modelId) => {
+    const info = AI_MODEL_REGISTRY[modelId];
+    if (!info) return { success: false, error: 'Onbekend model: ' + modelId };
+    if (isAIModelInstalled(modelId)) return { success: true, alreadyInstalled: true, modelId };
+
+    const sender = event.sender;
+    const destDir = getAIModelDir();
+    fs.mkdirSync(destDir, { recursive: true });
+    const dest = path.join(destDir, info.fileName);
+
+    const https = require('https');
+    function downloadFile(url, destPath) {
+        return new Promise((resolve, reject) => {
+            const req = https.get(url, (res) => {
+                if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+                    let nextUrl = res.headers.location;
+                    try {
+                        if (!nextUrl.startsWith('http://') && !nextUrl.startsWith('https://')) {
+                            nextUrl = new URL(nextUrl, url).href;
+                        }
+                    } catch {}
+                    downloadFile(nextUrl, destPath).then(resolve).catch(reject);
+                    return;
+                }
+                if (res.statusCode !== 200) {
+                    reject(new Error(`HTTP ${res.statusCode} for ${url}`));
+                    res.resume();
+                    return;
+                }
+                const total = parseInt(res.headers['content-length'] || '0', 10);
+                let received = 0;
+                const file = fs.createWriteStream(destPath);
+                res.on('data', (chunk) => {
+                    received += chunk.length;
+                    if (total && sender && !sender.isDestroyed()) {
+                        const pct = Math.round((received / total) * 100);
+                        try { sender.send('ai-download-progress', { modelId, file: info.fileName, percent: pct, received, total }); } catch {}
+                    }
+                });
+                res.pipe(file);
+                file.on('finish', () => file.close(() => resolve()));
+                file.on('error', (err) => { try { fs.unlinkSync(destPath); } catch {} reject(err); });
+            });
+            req.on('error', reject);
+            req.setTimeout(60000, () => { req.destroy(new Error('Timeout')); });
+        });
+    }
+
+    try {
+        if (sender && !sender.isDestroyed()) sender.send('ai-download-progress', { modelId, file: info.fileName, percent: 0 });
+        await downloadFile(info.url, dest);
+        if (!isAIModelInstalled(modelId)) throw new Error('Download voltooid maar bestand niet gevonden');
+        return { success: true, modelId };
+    } catch (err) {
+        try { fs.unlinkSync(dest); } catch {}
+        return { success: false, error: err.message || String(err) };
+    }
+});
+
+safeHandle('ai-delete-model', async (event, modelId) => {
+    const info = AI_MODEL_REGISTRY[modelId];
+    if (!info) return { success: false, error: 'Onbekend model' };
+    const modelPath = path.join(getAIModelDir(), info.fileName);
+    try { fs.unlinkSync(modelPath); } catch {}
+    return { success: true };
+});
+
+// ==================== PERSONAL SPELLING DICTIONARY ====================
+// User-added exception words ("Aan woordenboek toevoegen" in the spell
+// menu), shared across all windows. Correctness itself is decided by the
+// neural context model in the renderer (see app/js/ai/spell-checker.js).
+const personalWordsService = require('./personal-words-service');
+
+safeHandle('spell-personal-get', () => {
+    personalWordsService.init(app.getPath('userData'));
+    return personalWordsService.getPersonalWords();
+});
+
+safeHandle('spell-personal-add', (event, word) => {
+    personalWordsService.init(app.getPath('userData'));
+    return personalWordsService.addPersonalWord(word);
+});
+
+// Serve model bytes to the renderer over IPC. file:// fetch cannot reach
+// extraResources in packaged builds, so the renderer loads .onnx through
+// this channel instead. Capped at 300 MB per model.
+safeHandle('ai-get-model-buffer', async (event, modelId) => {
+    const AI_MODEL_MAX_BYTES = 300 * 1024 * 1024;
+    const modelPath = getAIModelFilePath(String(modelId || ''));
+    if (!modelPath) return { success: false, error: 'Onbekend model: ' + modelId };
+    try {
+        const st = fs.statSync(modelPath);
+        if (!st.isFile() || st.size <= 1024) return { success: false, error: 'Model niet geïnstalleerd: ' + modelId };
+        if (st.size > AI_MODEL_MAX_BYTES) return { success: false, error: 'Model te groot voor IPC' };
+        const buf = fs.readFileSync(modelPath);
+        return { success: true, modelId, size: st.size, base64: buf.toString('base64') };
+    } catch (err) {
+        return { success: false, error: err.message || String(err) };
     }
 });
 

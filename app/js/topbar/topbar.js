@@ -18,6 +18,10 @@ class TopbarManager {
         this.initEditorRangeTracking();
         this.initLogoClick();
         this.initWindowControls();
+        // AI toolbar wiring lives in window.__aiToolbar (defined in the
+        // DOMContentLoaded block below); the manager is constructed after
+        // it, so delegate when present.
+        if (window.__aiToolbar && window.__aiToolbar.initAIToolbar) window.__aiToolbar.initAIToolbar();
     }
 
     initLogoClick() {
@@ -1264,8 +1268,143 @@ document.addEventListener('DOMContentLoaded', () => {
         }, { passive: false });
     };
 
-    // Wrap each toolbar-content's children in a scrollable track
-    document.querySelectorAll('.toolbar-content').forEach(window.wrapToolbarContentForScroll);
+    // AI toolbar wiring. Namespaced on window (not on TopbarManager) because
+    // this block executes inside DOMContentLoaded; TopbarManager.init()
+    // delegates to window.__aiToolbar.initAIToolbar().
+    window.__aiToolbar = { initAIToolbar() {
+        // AI Spelling Toggle
+        const spellingToggle = document.getElementById('aiSpellingToggle');
+        if (spellingToggle) {
+            spellingToggle.addEventListener('change', async (e) => {
+                await window.electron?.settingsSet({ aiSpellingEnabled: e.target.checked });
+                if (window.SpellChecker) window.SpellChecker.setEnabled(e.target.checked);
+            });
+        }
+
+        // AI Grammar Toggle
+        const grammarToggle = document.getElementById('aiGrammarToggle');
+        if (grammarToggle) {
+            grammarToggle.addEventListener('change', async (e) => {
+                await window.electron?.settingsSet({ aiGrammarEnabled: e.target.checked });
+                if (window.GrammarChecker) window.GrammarChecker.setEnabled(e.target.checked);
+            });
+        }
+
+        // AI Autocorrect Toggle
+        const autocorrectToggle = document.getElementById('aiAutocorrectToggle');
+        if (autocorrectToggle) {
+            autocorrectToggle.addEventListener('change', async (e) => {
+                await window.electron?.settingsSet({ aiAutoCorrectEnabled: e.target.checked });
+                if (window.SpellChecker) window.SpellChecker.setAutoCorrect(e.target.checked);
+            });
+        }
+
+        // AI Neural Toggle (context checks; model downloads only on consent)
+        const neuralToggle = document.getElementById('aiNeuralToggle');
+        if (neuralToggle) {
+            neuralToggle.addEventListener('change', async (e) => {
+                await window.electron?.settingsSet({ aiNeuralEnabled: e.target.checked });
+            });
+        }
+
+        // Check Document Button
+        const checkBtn = document.getElementById('aiCheckDocumentBtn');
+        if (checkBtn) {
+            checkBtn.addEventListener('click', async () => {
+                if (window.SpellChecker) window.SpellChecker.checkDocument();
+                if (window.GrammarChecker) window.GrammarChecker.checkDocument();
+                // Show feedback
+                if (window.showNotification) {
+                    window.showNotification(SummieI18n.t('AI Controleren'), SummieI18n.t('Document wordt gecontroleerd...'), 'info');
+                }
+                // Neural context pass (English only; downloads only on consent)
+                try {
+                    if (window.NeuralCheck && window.SummieI18n && window.SummieI18n.lang === 'en') {
+                        let settings = null;
+                        try { settings = await window.electron?.settingsGet(); } catch { /* defaults apply */ }
+                        if (settings && (settings.aiEnabled === false || settings.aiNeuralEnabled === false)) return;
+                        let r = await window.NeuralCheck.runDocumentPass();
+                        if (r && r.needsDownload && window.BertMLM) {
+                            const ok = await window.BertMLM.ensureWithConsent();
+                            if (ok) r = await window.NeuralCheck.runDocumentPass();
+                        }
+                        if (r && !r.needsDownload && window.showNotification) {
+                            window.showNotification(
+                                SummieI18n.t('Neurale controle'),
+                                r.flagged > 0
+                                    ? SummieI18n.t('{n} contextfouten gevonden').replace('{n}', r.flagged)
+                                    : SummieI18n.t('Geen contextfouten gevonden'),
+                                r.flagged > 0 ? 'info' : 'success'
+                            );
+                        }
+                    }
+                } catch (err) {
+                    console.warn('[Topbar] Neural check failed:', err && err.message);
+                }
+            });
+        }
+
+        // Model Tier Dropdown
+        const modelTierBtn = document.getElementById('aiModelTierBtn');
+        const modelTierMenu = document.getElementById('aiModelTierMenu');
+        if (modelTierBtn && modelTierMenu) {
+            modelTierBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const isOpen = modelTierMenu.classList.contains('active');
+                // Close other dropdowns
+                document.querySelectorAll('.dropdown-menu.active').forEach(m => m.classList.remove('active'));
+                modelTierMenu.classList.toggle('active', !isOpen);
+            });
+
+            modelTierMenu.querySelectorAll('.dropdown-item').forEach(item => {
+                item.addEventListener('click', async () => {
+                    const tier = item.dataset.tier;
+                    await window.electron?.settingsSet({ aiModelTier: tier });
+                    document.getElementById('aiModelTierLabel').textContent = tier.charAt(0).toUpperCase() + tier.slice(1);
+                    modelTierMenu.classList.remove('active');
+                    if (window.showNotification) {
+                        window.showNotification('AI Model', `Model tier ingesteld op: ${tier}`, 'success');
+                    }
+                    // Reload models if needed
+                    if (window.AIEngine) window.AIEngine.detectDeviceTier();
+                });
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('#aiModelTierBtn') && !e.target.closest('#aiModelTierMenu')) {
+                    modelTierMenu.classList.remove('active');
+                }
+            });
+        }
+
+        // Sync toggle states from settings on load
+        this.syncAIToggles();
+    },
+
+    async syncAIToggles() {
+        if (!window.electron) return;
+        try {
+            const settings = await window.electron.settingsGet();
+            const spellingToggle = document.getElementById('aiSpellingToggle');
+            const grammarToggle = document.getElementById('aiGrammarToggle');
+            const autocorrectToggle = document.getElementById('aiAutocorrectToggle');
+            const neuralToggle = document.getElementById('aiNeuralToggle');
+            const modelTierLabel = document.getElementById('aiModelTierLabel');
+
+            if (spellingToggle) spellingToggle.checked = settings.aiSpellingEnabled !== false;
+            if (grammarToggle) grammarToggle.checked = settings.aiGrammarEnabled !== false;
+            if (autocorrectToggle) autocorrectToggle.checked = settings.aiAutoCorrectEnabled !== false;
+            if (neuralToggle) neuralToggle.checked = settings.aiNeuralEnabled !== false;
+            if (modelTierLabel) modelTierLabel.textContent = (settings.aiModelTier || 'auto').charAt(0).toUpperCase() + (settings.aiModelTier || 'auto').slice(1);
+        } catch (err) {
+            console.warn('[Topbar] Failed to sync AI toggles:', err);
+        }
+    }
+
+    };
+
+// Wrap each toolbar-content's children in a scrollable track
+document.querySelectorAll('.toolbar-content').forEach(window.wrapToolbarContentForScroll);
 
 
     // Pre-register a no-op stub so initFormatButtons() calling window.fontSizeManager.init()

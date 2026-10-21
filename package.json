@@ -26,6 +26,7 @@
       "main.js",
       "preload.js",
       "updater.js",
+      "personal-words-service.js",
       "app/**/*",
       "!app/**/*sync-conflict*"
     ],
@@ -40,6 +41,13 @@
       {
         "from": "piper-bin",
         "to": "piper-bin",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "ai-models",
+        "to": "ai-models",
         "filter": [
           "**/*"
         ]

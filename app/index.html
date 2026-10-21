@@ -21,6 +21,15 @@
     <!-- English dictionary + i18n core (dictionary must load first) -->
     <script src="js/i18n/en.js"></script>
     <script src="js/i18n/i18n.js"></script>
+    <!-- AI Modules (onnxruntime must load before the AI engine) -->
+    <script src="js/ai/vendor/ort.min.js"></script>
+    <script src="js/ai/ai-engine.js"></script>
+    <script src="js/ai/lang-detect.js"></script>
+    <script src="js/ai/bert-tokenizer.js"></script>
+    <script src="js/ai/bert-mlm.js"></script>
+    <script src="js/ai/neural-check.js"></script>
+    <script src="js/ai/spell-checker.js"></script>
+    <script src="js/ai/grammar-checker.js"></script>
     <link rel="stylesheet" href="styles.css?v=13">
     <link rel="stylesheet" href="topbar.css?v=4">
     <link rel="stylesheet" href="code-blocks.css?v=2">
@@ -67,6 +76,10 @@
                         </div>
                         <div class="topbar-section" data-section="wiskunde">
                             <span class="section-text">Wiskunde</span>
+                            <div class="section-underline"></div>
+                        </div>
+                        <div class="topbar-section" data-section="ai">
+                            <span class="section-text">AI</span>
                             <div class="section-underline"></div>
                         </div>
                     </div>
@@ -1212,6 +1225,76 @@
                             </svg>
                             <span>Taartdiagram</span>
                         </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI Section -->
+            <div class="toolbar-content" data-content="ai">
+                <div class="toolbar-group animate-item" style="animation-delay: 0.05s">
+                    <label class="toolbar-label">Spelling & Grammatica</label>
+                    <div class="toolbar-buttons">
+                        <label class="toggle-switch ai-toggle" title="Spelling controleren en autocorrectie">
+                            <input type="checkbox" id="aiSpellingToggle" checked>
+                            <span class="toggle-track">
+                                <span class="toggle-thumb"></span>
+                            </span>
+                            <span class="toggle-label">Spelling</span>
+                        </label>
+                        <label class="toggle-switch ai-toggle" title="Grammatica controleren">
+                            <input type="checkbox" id="aiGrammarToggle" checked>
+                            <span class="toggle-track">
+                                <span class="toggle-thumb"></span>
+                            </span>
+                            <span class="toggle-label">Grammatica</span>
+                        </label>
+                        <label class="toggle-switch ai-toggle" title="Typefouten automatisch corrigeren">
+                            <input type="checkbox" id="aiAutocorrectToggle" checked>
+                            <span class="toggle-track">
+                                <span class="toggle-thumb"></span>
+                            </span>
+                            <span class="toggle-label">Autocorrectie</span>
+                        </label>
+                        <button class="btn-toolbar" id="aiCheckDocumentBtn" title="Heel document controleren">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M9 11l3 3L22 4"/>
+                                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                            </svg>
+                            <span>Controleren</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="toolbar-separator animate-item"></div>
+
+                <div class="toolbar-group animate-item" style="animation-delay: 0.15s">
+                    <label class="toolbar-label">Model & Prestaties</label>
+                    <div class="toolbar-buttons">
+                        <label class="toggle-switch ai-toggle" title="Neurale contextcontrole (Engels)">
+                            <input type="checkbox" id="aiNeuralToggle" checked>
+                            <span class="toggle-track">
+                                <span class="toggle-thumb"></span>
+                            </span>
+                            <span class="toggle-label">Neuraal</span>
+                        </label>
+                        <div class="toolbar-dropdown" style="position:relative">
+                            <button class="btn-toolbar" id="aiModelTierBtn" style="min-width:140px;justify-content:space-between">
+                                <span id="aiModelTierLabel">Auto</span>
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="6 9 12 15 18 9"/>
+                                </svg>
+                            </button>
+                            <div class="dropdown-menu" id="aiModelTierMenu" style="position:absolute;top:100%;left:0;min-width:160px;margin-top:4px;display:none;z-index:1000">
+                                <button class="dropdown-item" data-tier="auto">Auto (op basis van PC)</button>
+                                <button class="dropdown-item" data-tier="low">Laag (alleen spelling, ~15MB)</button>
+                                <button class="dropdown-item" data-tier="mid">Midden (spelling + grammatica, ~100MB)</button>
+                                <button class="dropdown-item" data-tier="high">Hoog (alle modellen, ~200MB+)</button>
+                            </div>
+                        </div>
+                        <span id="aiStatusIndicator" class="ai-status" title="AI status">
+                            <span class="ai-status-dot"></span>
+                            <span class="ai-status-text">Gereed</span>
+                        </span>
                     </div>
                 </div>
             </div>

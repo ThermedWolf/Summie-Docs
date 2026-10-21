@@ -637,7 +637,6 @@
 }
 
 
-
 .btn-toolbar {
     display: inline-flex;
     align-items: center;
@@ -1746,4 +1745,335 @@
 .topbar-autosave.is-disabled {
     opacity: 0.4;
     pointer-events: none;
+}
+
+/* ==================== AI TOOLBAR STYLES ==================== */
+
+.ai-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ai-toggle .toggle-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+#aiCheckDocumentBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+#aiAbbrevSettingsBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.toolbar-dropdown {
+    position: relative;
+}
+
+#aiModelTierBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 12px 4px 8px;
+}
+
+#aiModelTierMenu {
+    background: var(--bg-white);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: var(--shadow-lg);
+    padding: 4px;
+    animation: fadeIn 0.15s ease;
+}
+
+#aiModelTierMenu .dropdown-item {
+    width: 100%;
+    text-align: left;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: var(--text-primary);
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+#aiModelTierMenu .dropdown-item:hover {
+    background: var(--bg-light);
+}
+
+.ai-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.ai-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #22c55e;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.ai-status-text {
+    font-weight: 500;
+}
+
+/* Abbreviation Settings Modal */
+#abbrevSettingsModal .modal-dialog {
+    background: var(--bg-white);
+    border-radius: 12px;
+    box-shadow: var(--shadow-xl);
+    border: 1px solid var(--border-color);
+}
+
+#abbrevSettingsModal .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+#abbrevSettingsModal .modal-header h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+#abbrevSettingsModal .modal-close {
+    background: none;
+    border: none;
+    padding: 4px;
+    border-radius: 6px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+
+#abbrevSettingsModal .modal-close:hover {
+    background: var(--bg-light);
+    color: var(--text-primary);
+}
+
+#abbrevSettingsModal .abbrev-setting-item:hover {
+    background: var(--bg-white) !important;
+    border-color: var(--primary-color) !important;
+}
+
+#abbrevSettingsModal .abbrev-setting-item input[type="checkbox"]:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+/* Abbreviation Toast */
+.abbrev-toast {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: var(--bg-white);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 12px 16px;
+    box-shadow: var(--shadow-lg);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    z-index: 9999;
+    animation: slideInRight 0.3s ease;
+    max-width: 400px;
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.abbrev-toast-text {
+    font-size: 13px;
+    color: var(--text-primary);
+    flex: 1;
+}
+
+.abbrev-toast-undo {
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+    flex-shrink: 0;
+}
+
+.abbrev-toast-undo:hover {
+    background: var(--primary-hover, #2563eb);
+}
+
+/* Grammar Tooltip */
+.grammar-tooltip {
+    position: fixed;
+    background: var(--bg-white);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 12px;
+    box-shadow: var(--shadow-lg);
+    z-index: 9999;
+    min-width: 200px;
+    max-width: 350px;
+    animation: fadeIn 0.15s ease;
+}
+
+.grammar-tooltip-header {
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--primary-color);
+    margin-bottom: 8px;
+}
+
+.grammar-tooltip-explanation {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+    line-height: 1.5;
+}
+
+.grammar-tooltip-suggestion {
+    font-size: 13px;
+    color: var(--text-primary);
+    margin-bottom: 12px;
+}
+
+.grammar-tooltip-suggestion strong {
+    color: var(--primary-color);
+}
+
+.grammar-tooltip button {
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    margin-right: 8px;
+    border: none;
+    transition: background 0.15s;
+}
+
+.grammar-tooltip-accept {
+    background: var(--primary-color);
+    color: white;
+}
+
+.grammar-tooltip-accept:hover {
+    background: var(--primary-hover);
+}
+
+.grammar-tooltip-ignore {
+    background: var(--bg-light);
+    color: var(--text-secondary);
+}
+
+.grammar-tooltip-ignore:hover {
+    background: var(--border-color);
+}
+
+/* Spell Error Highlight */
+.spell-error {
+    text-decoration: underline wavy red;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 2px;
+    cursor: help;
+    position: relative;
+}
+
+.spell-error::after {
+    content: attr(data-original);
+    position: absolute;
+    bottom: -24px;
+    left: 0;
+    background: var(--bg-white);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+    z-index: 100;
+}
+
+.spell-error:hover::after {
+    opacity: 1;
+}
+
+/* Grammar Error Highlight */
+.grammar-error {
+    text-decoration: underline wavy var(--primary-color, #3b82f6);
+    text-decoration-thickness: 2px;
+    text-underline-offset: 2px;
+    cursor: help;
+}
+
+/* Spell Context Menu */
+.spell-context-menu {
+    position: fixed;
+    background: var(--bg-white);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 4px;
+    box-shadow: var(--shadow-lg);
+    z-index: 9999;
+    min-width: 180px;
+    animation: fadeIn 0.15s ease;
+}
+
+.spell-menu-item {
+    width: 100%;
+    text-align: left;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: var(--text-primary);
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.spell-menu-item:hover {
+    background: var(--bg-light);
+}
+
+.spell-menu-divider {
+    border-top: 1px solid var(--border-color);
+    margin-top: 4px;
+    padding-top: 12px !important;
 }

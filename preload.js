@@ -129,6 +129,17 @@ contextBridge.exposeInMainWorld(
         piperSynthesize: (payload) => ipcRenderer.invoke('piper-synthesize', payload),
         onPiperDownloadProgress: (callback) => ipcRenderer.on('piper-download-progress', (_, p) => callback(p)),
 
+        // Local AI models (bundled tiny spell + on-demand downloads)
+        aiGetModelStatus: () => ipcRenderer.invoke('ai-get-model-status'),
+        aiDownloadModel: (modelId) => ipcRenderer.invoke('ai-download-model', modelId),
+        aiDeleteModel: (modelId) => ipcRenderer.invoke('ai-delete-model', modelId),
+        aiGetModelBuffer: (modelId) => ipcRenderer.invoke('ai-get-model-buffer', modelId),
+        onAiDownloadProgress: (callback) => ipcRenderer.on('ai-download-progress', (_, p) => callback(p)),
+
+        // Personal spelling dictionary (user-added words, shared across windows)
+        spellPersonalGet: () => ipcRenderer.invoke('spell-personal-get'),
+        spellPersonalAdd: (word) => ipcRenderer.invoke('spell-personal-add', word),
+
         // Shell (for opening external links)
         shell: {
             openExternal: (url) => ipcRenderer.invoke('shell-open-external', url),

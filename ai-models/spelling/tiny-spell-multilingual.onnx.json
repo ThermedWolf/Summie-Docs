@@ -1,0 +1,13 @@
+{
+  "model_name": "tiny-spell-multilingual",
+  "version": "1.0.0",
+  "description": "Placeholder for INT8 quantized DistilBERT spell checker. Replace with actual ONNX model.",
+  "architecture": "DistilBERT-base",
+  "quantization": "INT8",
+  "languages": ["nl", "en"],
+  "input_names": ["input_ids", "attention_mask"],
+  "output_names": ["logits"],
+  "max_length": 128,
+  "vocab_size": 30522,
+  "note": "This is a metadata file. The actual ONNX model should be placed as tiny-spell-multilingual.onnx in the same directory. For now, the spell checker falls back to dictionary-based corrections."
+}
